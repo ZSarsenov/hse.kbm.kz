@@ -1,0 +1,58 @@
+# Byte-compiled / optimized / compiled files
+*.pyc
+__pycache__/
+*.pyd
+*.so
+
+# C extensions
+*.dll
+*.ext
+*.o
+*.obj
+
+# Distribution / packaging
+.Python
+env/
+venv/
+bin/
+build/
+develop-eggs/
+dist/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Django-specific files
+*.log
+*.pot
+local_settings.py  # Or other sensitive settings files
+db.sqlite3
+/media/  # Or wherever you store user-uploaded media files
+/static_collected/  # If you use collectstatic
+
+# IDE-specific files
+.idea/  # PyCharm
+.vscode/  # VS Code
+*.sublime-workspace
+*.sublime-project
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# Virtual Environment
+.env
+
+# Testing and Coverage
+.coverage
+.tox/
+
+# Other temporary files
+*~
+*.swp
