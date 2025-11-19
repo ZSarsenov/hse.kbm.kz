@@ -31,13 +31,15 @@ ALLOWED_HOSTS = []
 
 
 # Application definition
-
 INSTALLED_APPS = [
-    # Наши приложения (должны быть здесь)
+    # Наши приложения
     'core.apps.CoreConfig',
     'permits.apps.PermitsConfig',
     'users.apps.UsersConfig',
     'workflow.apps.WorkflowConfig',
+
+    # Сторонние библиотеки
+    'rest_framework',
 
     'django.contrib.admin',
     'django.contrib.auth',
@@ -46,6 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 ]
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
