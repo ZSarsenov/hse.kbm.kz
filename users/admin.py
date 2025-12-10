@@ -9,8 +9,7 @@ class CustomUserCreationForm(UserCreationForm):
     class Meta:
         model = User
         # Указываем поля, которые нужны при создании (включая наши кастомные)
-        fields = ('username', 'email', 'iin', 'tabel_number', 'department', 'position')
-
+        fields = ('username', 'email', 'iin', 'tabel_number', 'department', 'position', 'company_name', 'bin')
 
 # 2. Создаем форму для РЕДАКТИРОВАНИЯ пользователя
 class CustomUserChangeForm(UserChangeForm):
@@ -27,7 +26,7 @@ class CustomUserAdmin(UserAdmin):
     model = User
 
     # 4. Настраиваем отображение списка
-    list_display = ('username', 'email', 'last_name', 'first_name', 'iin', 'tabel_number', 'is_staff')
+    list_display = ('username', 'email', 'last_name', 'first_name', 'iin', 'bin', 'tabel_number', 'is_staff')
     search_fields = ('username', 'first_name', 'last_name', 'iin', 'tabel_number')
     list_filter = ('is_staff', 'is_superuser', 'is_active', 'department')
 
@@ -35,7 +34,7 @@ class CustomUserAdmin(UserAdmin):
     fieldsets = (
     (None, {'fields': ('username', 'password')}),
     ('Персональная информация', {'fields': ('first_name', 'last_name', 'email')}),
-    ('Профиль сотрудника', {'fields': ('iin', 'tabel_number', 'position', 'department')}),
+    ('Профиль сотрудника', {'fields': ('iin', 'bin', 'tabel_number', 'position', 'department')}),
     ('Права доступа', {
         'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
     }),
@@ -46,7 +45,7 @@ class CustomUserAdmin(UserAdmin):
     add_fieldsets = (
     (None, {
         'classes': ('wide',),
-        'fields': ('username', 'password1', 'password2', 'email', 'iin', 'tabel_number', 'department', 'position'),
+        'fields': ('username', 'password1', 'password2', 'email', 'iin', 'bin', 'tabel_number', 'department', 'position', 'company_name'),
     }),
     )
 
