@@ -31,13 +31,14 @@ class WorkPermit(models.Model):
     Хранит данные наряда и его текущее состояние (статус).
     """
 
-    # Статусы
+
     STATUS_DRAFT = 'DRAFT'
     STATUS_PENDING = 'PENDING_APPROVAL'
     STATUS_APPROVED = 'APPROVED'
     STATUS_REJECTED = 'REJECTED'
     STATUS_CLOSED = 'CLOSED'
 
+    # Статусы
     STATUS_CHOICES = (
         ('DRAFT', 'Черновик'),
         ('PENDING_APPROVAL', 'Ожидает согласования'),
@@ -53,13 +54,17 @@ class WorkPermit(models.Model):
     # Ссылка на инициатора (работник, который создал наряд)
     initiator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
                                   related_name='initiated_permits', verbose_name='Инициатор')
-    template = models.ForeignKey('WorkPermitTemplate', on_delete=models.PROTECT, verbose_name='Тип наряда')
+    template = models.ForeignKey(WorkPermitTemplate, on_delete=models.PROTECT, verbose_name='Тип наряда')
+
+    location = models.ForeignKey("Location", on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Место работ')
+    valid_from = models.DateTimeField(null=True, blank=True, verbose_name='Начало работ')
+    valid_to = models.DateTimeField(null=True, blank=True, verbose_name='Окончание работ')
 
     dangerous_works = models.ManyToManyField(
        'DangerousWorkType', verbose_name='Виды опасных работ', blank=True
     )
 
-    # Данные формы (JSON). Сюда будем писать всё: место, время, бригаду и т.д.
+    # Вся остальная "портянка" данных (риски, состав бригады, LOTO) летит сюда
     data = models.JSONField(verbose_name='Данные формы', default=dict)
 
     # ------------------ ВРЕМЯ И АУДИТ ------------------

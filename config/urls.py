@@ -17,8 +17,16 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
+from users.api_auth import CustomUserToken
+
+from rest_framework.authtoken.views import obtain_auth_token
+
 urlpatterns = [
     path('admin/', admin.site.urls),
-
-    path('api/v1/', include('permits.urls'))
+    # Твои основные пути
+    path('api/v1/', include('permits.urls')),
+    # Путь для входа
+    path('api/v1/api-token-auth/', CustomUserToken.as_view()),
+    # Поиск пользователей
+    path('api/v1/', include('users.urls')),
 ]

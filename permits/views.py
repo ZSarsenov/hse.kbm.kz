@@ -1,21 +1,30 @@
 # permits/views.py
-from rest_framework import viewsets
+import logging
+from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.utils import timezone  # <--- ВАЖНО: Добавлен импорт времени
-from .models import WorkPermit, WorkPermitTemplate, ApprovalStep
-from .serializers import PermitSerializer, WorkPermitTemplateSerializer
-from .kalkan import Kalkan  # Наша обертка
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from django.shortcuts import get_object_or_404
 
+from .models import WorkPermit, WorkPermitTemplate, Department, DangerousWorkType
+from core.signature import parse_xml_signature_info
+from .serializers import (PermitSerializer, WorkPermitTemplateSerializer, DepartamentSerializer,
+                          DangerousWorkTypeSerializer)
 
+from .kalkan import Kalkan # временно не используем способ подписания через Kalkan
+
+logger = logging.getLogger(__name__)
 class WorkPermitTemplateViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Шаблоны нарядов-допусков (только чтение).
+    """
     queryset = WorkPermitTemplate.objects.all()
     serializer_class = WorkPermitTemplateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]  # на время DEV можно открыть для всех
 
 
 class WorkPermitViewSet(viewsets.ModelViewSet):
+    queryset = WorkPermit.objects.all()
     serializer_class = PermitSerializer
     permission_classes = [IsAuthenticated]
 
@@ -36,162 +45,89 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             return Response({'error': str(e)}, status=400)
 
     # --- МЕТОД ПОДПИСАНИЯ ---
-    @action(detail=True, methods=['post'], permission_classes=[AllowAny])
-    @action(detail=True, methods=['post'], permission_classes=[AllowAny])
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="sign",
+        permission_classes=[AllowAny],  # Или IsAuthenticated, зависит от логики
+    )
+
     def sign(self, request, pk=None):
-        print("\n=== [DEBUG] ЗАПРОС НА ПОДПИСЬ ПОЛУЧЕН ===")
-        signed_xml = request.data.get('xml')
-
+        """
+        Принимает signed_xml от фронта (NCALayer signXml),
+        вытаскивает данные подписанта из XML и возвращает их фронту для предпросмотра.
+        """
+        signed_xml = request.data.get('signed_xml')
         if not signed_xml:
-            return Response({'error': 'XML data is required'}, status=400)
+            return Response(
+                {"ok": False, "error": "Поле 'signed_xml' обязательно"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        # 1. Проверяем подпись через библиотеку Kalkan
+        # Проверяем, что наряд существует
+        permit_exists = WorkPermit.objects.filter(pk=pk).exists()
+
+        base_resp = {
+            "ok": True,
+            "permit_pk": str(pk),
+            "permit_exists": permit_exists,
+            # Для отладки можно вернуть длину, но сам XML лучше не гонять туда-сюда лишний раз
+            "signed_xml_length": len(signed_xml),
+        }
+
         try:
-            kalkan = Kalkan()
-            result = kalkan.verify_xml(signed_xml)
-        except Exception as e:
-            print(f"❌ Ошибка библиотеки Kalkan: {e}")
-            return Response({'error': f'Kalkan error: {str(e)}'}, status=500)
+            # Парсим подпись через твой скрипт core/signature.py
+            info = parse_xml_signature_info(signed_xml)
 
-        if result['valid']:
-            # 2. ПАРСИНГ ДАННЫХ
-            signer_info_str = result['signer']
-            print(f"📄 Данные сертификата: {signer_info_str}")
-
-            info_dict = {}
-            parts = [x.strip() for x in signer_info_str.split(',')]
-            for part in parts:
-                if '=' in part:
-                    key, value = part.split('=', 1)
-                    info_dict[key] = value
-
-            # Извлекаем данные
-            signer_cn = info_dict.get('CN', 'Неизвестно').replace('"', '')
-            serial_number = info_dict.get('SERIALNUMBER', '')
-            signer_iin = serial_number.replace('IIN', '')
-
-            # БИН и Организация
-            org_unit = info_dict.get('OU', '')
-            signer_bin = ''
-            if 'BIN' in org_unit:
-                signer_bin = org_unit.replace('BIN', '')
-
-            signer_org = info_dict.get('O', '').replace('"', '')
-
-            print("-" * 30)
-            print(f"✅ УСПЕШНАЯ РАСШИФРОВКА!")
-            print(f"👤 ФИО: {signer_cn}")
-            print(f"🆔 ИИН: {signer_iin}")
-            if signer_bin:
-                print(f"🏢 БИН: {signer_bin}")
-                print(f"🏭 Компания: {signer_org}")
-            print("-" * 30)
-
-            # --- ВРЕМЕННО ОТКЛЮЧАЕМ ПРОВЕРКИ И СОХРАНЕНИЕ В БД ДЛЯ ТЕСТА ---
-
-            # if request.user.iin != signer_iin: ... (Это включим позже)
-            # step.save() ... (Это включим позже)
-
-            # Просто возвращаем данные на фронт, чтобы увидеть их в alert
-            return Response({
-                'status': 'Verified',
-                'signer_fio': signer_cn,
-                'signer_iin': signer_iin,
-                'signer_bin': signer_bin,
-                'organization': signer_org
+            # Если всё ок, формируем красивый ответ
+            base_resp.update({
+                "sign_info_ok": True,
+                "sign_subject": info.get("subject"),
+                "sign_issuer": info.get("issuer"),
+                # Преобразуем даты в строки ISO, если они есть
+                "sign_not_before": info["not_before"].isoformat() if info.get("not_before") else None,
+                "sign_not_after": info["not_after"].isoformat() if info.get("not_after") else None,
+                "sign_iin": info.get("iin"),
+                "sign_bin": info.get("bin"),
+                "sign_org_name": info.get("org_name"),
             })
-        else:
-            print(f"❌ Подпись НЕВЕРНА. Детали: {result.get('error')}")
-            return Response({'error': 'Invalid Signature', 'details': result.get('error')}, status=400)
 
-    # def sign(self, request, pk=None):
-    #     permit = self.get_object()
-    #     signed_xml = request.data.get('xml')
-    #
-    #     if not signed_xml:
-    #         return Response({'error': 'XML data is required'}, status=400)
-    #
-    #     # 1. Проверка через Kalkan
-    #     try:
-    #         kalkan = Kalkan()
-    #         result = kalkan.verify_xml(signed_xml)
-    #     except Exception as e:
-    #         return Response({'error': f'Kalkan error: {str(e)}'}, status=500)
-    #
-    #     if result['valid']:
-    #         # 2. ПАРСИНГ ДАННЫХ СЕРТИФИКАТА
-    #         signer_info_str = result['signer']
-    #
-    #         # Превращаем строку "KEY=Value, KEY2=Value2" в словарь
-    #         info_dict = {}
-    #         # Разделяем по запятой, но аккуратно (в названиях компаний тоже могут быть запятые,
-    #         # но пока используем простой сплит, так как структура Kalkan обычно стабильна)
-    #         parts = [x.strip() for x in signer_info_str.split(',')]
-    #         for part in parts:
-    #             if '=' in part:
-    #                 key, value = part.split('=', 1)
-    #                 info_dict[key] = value
-    #                 print('Zhasks!!!!!!!!!!!!!!!!!!')
-    #                 print(info_dict)
-    #
-    #         # Извлекаем данные
-    #         signer_cn = info_dict.get('CN', 'Неизвестно')  # ФИО
-    #
-    #         # Извлекаем ИИН (обычно SERIALNUMBER=IIN123...)
-    #         serial_number = info_dict.get('SERIALNUMBER', '')
-    #         signer_iin = serial_number.replace('IIN', '')
-    #
-    #         # Извлекаем БИН (обычно в OU=BIN... или просто в OU)
-    #         # В твоем логе было: OU=BIN950540000524
-    #         org_unit = info_dict.get('OU', '')
-    #         signer_bin = org_unit.replace('BIN', '') if 'BIN' in org_unit else org_unit
-    #
-    #         # Извлекаем Организацию
-    #         signer_org = info_dict.get('O', '').strip('"')  # Убираем лишние кавычки
-    #
-    #         print(f"✍️ ПОДПИСАЛ: {signer_cn}")
-    #         print(f"🆔 ИИН: {signer_iin}")
-    #         print(f"🏢 БИН: {signer_bin}")
-    #         print(f"🏭 Компания: {signer_org}")
-    #
-    #         # 3. ПРОВЕРКА БЕЗОПАСНОСТИ (Сравниваем ИИН подписанта с ИИН текущего юзера)
-    #         # Это критически важно! Чтобы Иванов не подписал за Петрова.
-    #         if request.user.iin != signer_iin:
-    #             return Response({
-    #                 'error': f'Ошибка безопасности! Ваш ИИН ({request.user.iin}) не совпадает с ИИН ЭЦП ({signer_iin}).'
-    #             }, status=403)
-    #
-    #         # 4. СОХРАНЕНИЕ В БД
-    #         try:
-    #             # Находим текущий шаг согласования
-    #             step = permit.approval_records.filter(
-    #                 approver=request.user,
-    #                 status='PENDING'
-    #             ).first()
-    #
-    #             if step:
-    #                 step.status = 'SIGNED'
-    #                 # Сохраняем всю "сырую" строку сертификата как доказательство
-    #                 step.signature_data = signer_info_str
-    #                 # Можно добавить поля в ApprovalStep для БИН и Компании, если нужно отдельно,
-    #                 # но пока сохраним всё в signature_data или комментарий.
-    #                 step.signed_at = timezone.now()
-    #                 step.save()
-    #
-    #                 # Логика перехода статуса наряда (если все подписали -> APPROVED)
-    #                 # permit.check_approval_completion() # <-- Это напишем позже
-    #
-    #                 return Response({
-    #                     'status': 'Подпись принята',
-    #                     'signer': signer_cn,
-    #                     'iin': signer_iin,
-    #                     'bin': signer_bin,
-    #                     'company': signer_org
-    #                 })
-    #             else:
-    #                 return Response({'error': 'Нет активных шагов согласования'}, status=403)
-    #
-    #         except Exception as e:
-    #             return Response({'error': f'DB Error: {str(e)}'}, status=500)
-    #     else:
-    #         return Response({'error': 'Invalid Signature', 'details': result['error']}, status=400)
+        except ValueError as e:
+            # XML валидный, но сертификат не найден или поврежден
+            logger.warning(f"Ошибка валидации XML подписи: {e}")
+            base_resp["sign_info_ok"] = False
+            base_resp["sign_error"] = str(e)
+
+        except Exception as e:
+            # Любая другая ошибка (например, кривой base64)
+            logger.error(f"Неожиданная ошибка при разборе подписи: {e}")
+            base_resp["sign_info_ok"] = False
+            base_resp["sign_error"] = f"Ошибка обработки: {str(e)}"
+
+        return Response(base_resp, status=status.HTTP_200_OK)
+
+
+class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Справочник департаментов (только чтение для API)
+    """
+    queryset = Department.objects.all()
+    serializer_class = DepartamentSerializer
+    permission_classes = [IsAuthenticated]
+
+    # 👇 Добавляем возможность поиска
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name']
+
+
+class DangerousWorkTypeViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Справочник опасных работ
+    """
+    queryset = DangerousWorkType.objects.all()
+    serializer_class = DangerousWorkTypeSerializer
+    permission_classes = [IsAuthenticated]
+
+    # 👇 Добавляем возможность поиска
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name']

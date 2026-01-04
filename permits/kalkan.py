@@ -14,12 +14,41 @@ KCR_OK = 0x00000000
 
 class Kalkan:
     _lib = None
+    _initialized = False
 
-    def __init__(self):
-        self._load_library()
-        self._init_kalkan()
-        # Загружаем сертификаты
-        self._load_trusted_certs()
+    def __init__(self, lib_path: str = "libkalkancryptwr-64.so"):
+        """
+        Загружает libkalkancryptwr-64.so один раз на весь процесс.
+
+        - Если KC_Init есть в библиотеке — вызываем его и проверяем код возврата.
+        - Если KC_Init НЕТ — не считаем это фатальной ошибкой, просто пишем предупреждение.
+        """
+        if Kalkan._lib is None:
+            try:
+                Kalkan._lib = ctypes.CDLL(lib_path)
+                print(f"✅ KalkanCrypt библиотека загружена: {lib_path}")
+            except OSError as e:
+                raise RuntimeError(f"Не удалось загрузить {lib_path}: {e}")
+
+        # Инициализируем один раз
+        if not Kalkan._initialized:
+            if hasattr(Kalkan._lib, 'KC_Init'):
+                try:
+                    Kalkan._lib.KC_Init.restype = c_int
+                except Exception:
+                    # На всякий случай, если restype нельзя назначить, просто пропустим
+                    pass
+
+                rc = Kalkan._lib.KC_Init()
+                print(f"ℹ KC_Init → {rc}")
+                if rc != KCR_OK:
+                    raise RuntimeError(f"KC_Init вернул ошибку: {rc}")
+            else:
+                # ВАЖНО: больше НЕ падаем, просто предупреждаем
+                print("⚠ KC_Init не найден в библиотеке, продолжаем без явной инициализации.")
+
+            Kalkan._initialized = True
+
 
     def _load_library(self):
         if Kalkan._lib:
@@ -126,21 +155,69 @@ class Kalkan:
 
         print(f"✅ Загружено сертификатов: {count}")
 
-    def verify_xml(self, xml_string):
+    def verify_xml(self, xml_string: str) -> dict:
+        """
+        Принимает подписанный XML (как вернул NCALayer signXml)
+        и прогоняет его через VerifyXML из libkalkancryptwr-64.so.
+
+        Возвращает:
+          - при успехе: {"valid": True, "signer": "...сырой текст...", "flags": "0x..."}
+          - при ошибке: {"valid": False, "error": "...", "kc_error": "...", "code": "0x..."}
+        """
         if not hasattr(Kalkan._lib, 'VerifyXML'):
-            return {'valid': False, 'error': "Метод VerifyXML отсутствует"}
+            return {"valid": False, "error": "Метод VerifyXML отсутствует в библиотеке"}
 
         xml_bytes = xml_string.encode('utf-8')
-        in_data_len = len(xml_bytes)
-        out_verify_info = ctypes.create_string_buffer(65536)
-        out_verify_info_len = c_int(65536)
-        flags = KC_SIGN_CMS | KC_IN_BASE64 | KC_USE_NOTHING
+        in_len = len(xml_bytes)
 
-        ret = Kalkan._lib.VerifyXML(None, flags, xml_bytes, in_data_len, out_verify_info, byref(out_verify_info_len))
+        out_buf = ctypes.create_string_buffer(65536)
+        out_len = c_int(len(out_buf))
 
-        if ret == KCR_OK:
-            # ВОТ ТУТ МЫ ПОЛУЧАЕМ ДАННЫЕ
-            signer_info = out_verify_info.value.decode('utf-8', errors='ignore')
-            return {"valid": True, "signer": signer_info}
-        else:
-            return {"valid": False, "error": f"Error Code: {hex(ret)}"}
+        # Пробуем несколько комбинаций флагов:
+        flag_variants = [
+            KC_USE_NOTHING,  # просто XML
+            KC_SIGN_CMS | KC_USE_NOTHING,  # XML + флаг CMS
+            KC_SIGN_CMS | KC_IN_BASE64 | KC_USE_NOTHING,  # на всякий случай, если где-то ждут base64
+        ]
+
+        last_ret = None
+
+        for flags in flag_variants:
+            out_len.value = len(out_buf)
+
+            ret = Kalkan._lib.VerifyXML(
+                None,  # alias (контейнер) нам не нужен для проверки XML
+                flags,
+                xml_bytes,
+                in_len,
+                out_buf,
+                byref(out_len)
+            )
+            last_ret = ret
+            print(f"🔍 VerifyXML(flags={hex(flags)}) → {hex(ret)}")
+
+            if ret == KCR_OK:
+                signer_info = out_buf.value.decode('utf-8', errors='ignore')
+                return {
+                    "valid": True,
+                    "signer": signer_info,
+                    "flags": hex(flags),
+                }
+
+        # Если ни один вариант не сработал — пробуем достать текст ошибки из KC_GetLastErrorString
+        err_msg = ""
+        if hasattr(Kalkan._lib, 'KC_GetLastErrorString'):
+            try:
+                err_buf = ctypes.create_string_buffer(4096)
+                err_len = c_int(len(err_buf))
+                Kalkan._lib.KC_GetLastErrorString(err_buf, byref(err_len))
+                err_msg = err_buf.value.decode('utf-8', errors='ignore')
+            except Exception:
+                pass
+
+        return {
+            "valid": False,
+            "error": f"VerifyXML завершился с кодом {hex(last_ret) if last_ret is not None else 'None'}",
+            "kc_error": err_msg,
+        }
+
