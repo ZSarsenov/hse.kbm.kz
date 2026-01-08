@@ -76,15 +76,55 @@ class WorkPermit(models.Model):
     @transition(field=status, source=[STATUS_DRAFT, STATUS_REJECTED], target=STATUS_PENDING)
     def submit(self):
         """
-        Проверяет заполнение и переводит в статус Ожидания.
+        Переводит наряд в статус согласования и генерирует цепочку подписей.
         """
         # Пример бизнес-валидации: нельзя отправить, если не выбраны опасные работы
         # (Это пример, в реальности зависит от ТС)
         if not self.data:
             raise ValidationError("Нельзя отправить пустой наряд. Заполните данные.")
 
-        # Здесь в будущем: Генерация цепочки ApprovalRecord
-        print(f"Наряд {self.permit_id} успешно отправлен на согласование.")
+        # Очищаем старые шаги, если наряд был отклонен и отправлен заново
+        self.approval_steps.all().delete()
+
+        # Достаем ID пользователей из JSON (data)
+        # В data у нас лежат строки типа "Иванов И.И. (Мастер)", нам нужно найти реальных юзеров
+        # ДЛЯ ПРОСТОТЫ: В этом примере я предполагаю, что в data.roles хранятся ID или username.
+        # Если там только текст, нам придется искать пользователя или полагаться на выбор в UI.
+
+        # В идеале, в CreatePermit.tsx нужно сохранять не только имя, но и ID юзера.
+        # Давай пока создадим логику "по ролям", предполагая, что мы знаем юзеров.
+
+        steps_config = []
+
+        # 1. Выдающий (Это всегда initiator)
+        steps_config.append({
+            'role': 'ISSUER',
+            'user': self.initiator
+        })
+
+        # 2. Ответственный руководитель (ищем в data, если есть)
+        # В будущем нужно передавать ID. Пока для примера пропустим поиск по фамилии.
+
+        # 3. Согласующий
+        # steps_config.append({'role': 'COORDINATOR', 'user': ...})
+
+        # 4. Допускающий
+        # steps_config.append({'role': 'ADMITTING', 'user': ...})
+
+        # 5. Производитель
+        # steps_config.append({'role': 'WORK_PRODUCER', 'user': ...})
+
+        # ГЕНЕРАЦИЯ ЗАПИСЕЙ В БД
+        for index, step_data in enumerate(steps_config):
+            ApprovalStep.objects.create(
+                permit=self,
+                approver=step_data['user'],
+                role=step_data['role'],
+                step_order=index + 1,
+                status='PENDING' if index == 0 else 'BLOCKED'  # Первый подписывает, остальные ждут
+            )
+
+        print(f"Наряд {self.permit_id} отправлен. Создано {len(steps_config)} шагов.")
 
     # 2. Финальное утверждение
     @transition(field=status, source=STATUS_PENDING, target=STATUS_APPROVED)

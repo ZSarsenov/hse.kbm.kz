@@ -4,7 +4,8 @@ from .views import UserSearchViewSet
 
 
 router = DefaultRouter()
-router.register(r'search-users', UserSearchViewSet, basename='user-search')
+
+router.register(r'users', UserSearchViewSet, basename='users')
 
 urlpatterns = [
     path('', include(router.urls)),

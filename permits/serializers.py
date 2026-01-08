@@ -1,4 +1,4 @@
-import time # <--- ВАЖНО: Добавил импорт time
+import time
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import WorkPermit, WorkPermitTemplate, ApprovalStep, Location, Department, DangerousWorkType
@@ -11,11 +11,12 @@ class UserInfoSerializer(serializers.ModelSerializer):
     department_name = serializers.CharField(source='department.name', read_only=True, default='')
 
     name = serializers.CharField(source='get_full_name', read_only=True)
+    role_label = serializers.CharField(source='get_role_display', read_only=True)  # Человеческое название (Выдающий...)
 
     class Meta:
         model = User
-        fields = ('id', "name", 'first_name', 'last_name', "surname", 'iin', 'bin', 'tabel_number', 'position',
-                  'department_name')
+        fields = ('id', 'username', "name", 'first_name', 'last_name', "surname", 'role', 'role_label', 'iin', 'bin',
+                  'tabel_number', 'position', 'department_name')
 
 
 # 2. Сериализатор для Шагов согласования

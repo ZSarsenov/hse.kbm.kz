@@ -181,11 +181,42 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 <div>
                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><User size={20} className="text-slate-400"/> Ответственные лица</h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Выдающий наряд</span><p className="font-medium text-gray-900">{data.issuer || '—'}</p></div>
-                      <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Ответственный руководитель</span><p className="font-medium text-gray-900">{data.responsible || 'Не назначался'}</p></div>
-                      <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Производитель работ</span><p className="font-medium text-gray-900">{data.producer || '—'}</p></div>
-                      <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Допускающий</span><p className="font-medium text-gray-900">{data.admitting || '—'}</p></div>
-                      <div className="p-4 border border-gray-200 rounded-l"><span className="text-xs text-gray-400 uppercase font-bold">Согласовано (Нач. смены / Участка)</span><p className="font-medium text-gray-900">{data.supervisor || '—'}</p></div>
+
+                      <div className="p-4 border border-gray-200 rounded-lg">
+                          <span className="text-xs text-gray-400 uppercase font-bold">Выдающий наряд</span>
+                          {/* ПРОВЕРКА: ОБЪЕКТ ИЛИ СТРОКА */}
+                          <p className="font-medium text-gray-900">
+                              {typeof data.issuer === 'object' && data.issuer?.name ? data.issuer.name : (data.issuer || '—')}
+                          </p>
+                      </div>
+
+                      <div className="p-4 border border-gray-200 rounded-lg">
+                          <span className="text-xs text-gray-400 uppercase font-bold">Ответственный руководитель</span>
+                          <p className="font-medium text-gray-900">
+                              {typeof data.responsible === 'object' && data.responsible?.name ? data.responsible.name : (data.responsible || 'Не назначался')}
+                          </p>
+                      </div>
+
+                      <div className="p-4 border border-gray-200 rounded-lg">
+                          <span className="text-xs text-gray-400 uppercase font-bold">Производитель работ</span>
+                          <p className="font-medium text-gray-900">
+                              {typeof data.producer === 'object' && data.producer?.name ? data.producer.name : (data.producer || '—')}
+                          </p>
+                      </div>
+
+                      <div className="p-4 border border-gray-200 rounded-lg">
+                          <span className="text-xs text-gray-400 uppercase font-bold">Допускающий</span>
+                          <p className="font-medium text-gray-900">
+                              {typeof data.admitting === 'object' && data.admitting?.name ? data.admitting.name : (data.admitting || '—')}
+                          </p>
+                      </div>
+
+                      <div className="p-4 border border-gray-200 rounded-lg md:col-span-2 bg-gray-50/50">
+                          <span className="text-xs text-gray-400 uppercase font-bold">Согласовано (Нач. смены / Участка)</span>
+                          <p className="font-medium text-gray-900">
+                              {typeof data.supervisor === 'object' && data.supervisor?.name ? data.supervisor.name : (data.supervisor || '—')}
+                          </p>
+                      </div>
                    </div>
                 </div>
              </div>
