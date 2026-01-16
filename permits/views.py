@@ -1,5 +1,6 @@
 # permits/views.py
 import logging
+import time
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -259,32 +260,40 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         """
         Создание копии наряда (черновика) на основе существующего.
         """
-        original = self.get_object()
+        try:
+            original = self.get_object()
 
-        # 1. Копируем JSON данные
-        new_data = original.data.copy()
+            # 1. Копируем JSON данные
+            # Если data нет, используем пустой dict, чтобы не упало
+            new_data = (original.data or {}).copy()
 
-        # 2. Очищаем чувствительные данные в JSON (подписи, даты утверждения)
-        # Оставляем список работников, риски и описание работ.
-        # Но убираем старые даты начала/конца, так как это новый наряд.
-        new_data['dateStart'] = ""
-        new_data['dateEnd'] = ""
-        new_data['riskApprovedBy'] = ""  # Сбрасываем подписи
-        # Также можно очистить расширения (extensions), если они были
-        new_data['extensions'] = []
+            # 2. Очищаем данные
+            new_data['dateStart'] = ""
+            new_data['dateEnd'] = ""
+            new_data['riskApprovedBy'] = ""
+            new_data['extensions'] = []
 
-        # 3. Создаем новый объект наряда
-        new_permit = WorkPermit.objects.create(
-            initiator=request.user,  # Создателем копии становится тот, кто нажал кнопку
-            status='DRAFT',  # Статус всегда Черновик
-            template_type=original.template_type,
-            category=original.category,
-            location_name=original.location_name,
-            # valid_from и valid_to оставляем пустыми, их надо задать заново
-            data=new_data
-        )
+            # 3. Генерируем новый permit_id (как в сериализаторе)
+            new_permit_id = f"{time.strftime('%Y')}-{int(time.time())}"
 
-        return Response({"ok": True, "id": new_permit.id, "message": "Наряд скопирован"})
+            # 4. Создаем новый объект
+            new_permit = WorkPermit.objects.create(
+                initiator=request.user,
+                permit_id=new_permit_id,  # 👈 ОБЯЗАТЕЛЬНОЕ ПОЛЕ
+                status='DRAFT',
+                template=original.template,  # Не забываем сам шаблон (объект)
+
+                # category=original.category,
+                location=original.location,  # Копируем объект локации
+
+                data=new_data
+            )
+
+            return Response({"ok": True, "id": new_permit.id, "message": "Наряд скопирован"})
+
+        except Exception as e:
+            print(f"Ошибка при дублировании: {e}")  # Выведет ошибку в консоль сервера
+            return Response({"ok": False, "error": str(e)}, status=400)
 
 
 class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):
