@@ -1,7 +1,8 @@
 import time
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import WorkPermit, WorkPermitTemplate, ApprovalStep, Location, Department, DangerousWorkType
+from .models import (WorkPermit, WorkPermitTemplate, ApprovalStep, Location, Department, DangerousWorkType,
+                     Notification)
 
 User = get_user_model()
 
@@ -23,10 +24,13 @@ class UserInfoSerializer(serializers.ModelSerializer):
 class ApprovalStepSerializer(serializers.ModelSerializer):
     approver_name = serializers.CharField(source='approver.get_full_name', read_only=True)
     role_label = serializers.CharField(source='get_role_display', read_only=True)
+    approver_id = serializers.IntegerField(source='approver.id', read_only=True)
 
     class Meta:
         model = ApprovalStep
-        fields = ('id', 'sequence', 'approver_name', 'role', 'role_label', 'status', 'signed_at', 'comment')
+        fields = ('id', 'step_order', 'approver_id', 'approver_name', 'role', 'role_label', 'status', 'signed_at',
+                  'signed_xml', 'signer_details', 'rejection_reason')
+
 
 
 # 3. Сериализатор для Шаблонов
@@ -106,3 +110,10 @@ class DangerousWorkTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = DangerousWorkType
         fields = ('id', 'name', 'color_code')
+
+
+# 7. Сериализатор для уведомления
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ['id', 'title', 'message', 'is_read', 'created_at', 'permit_id']

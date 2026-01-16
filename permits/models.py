@@ -76,53 +76,85 @@ class WorkPermit(models.Model):
     @transition(field=status, source=[STATUS_DRAFT, STATUS_REJECTED], target=STATUS_PENDING)
     def submit(self):
         """
-        Переводит наряд в статус согласования и генерирует цепочку подписей.
+        Переводит наряд в статус согласования и генерирует цепочку подписей
+        на основе данных JSON (self.data).
         """
-        # Пример бизнес-валидации: нельзя отправить, если не выбраны опасные работы
-        # (Это пример, в реальности зависит от ТС)
         if not self.data:
             raise ValidationError("Нельзя отправить пустой наряд. Заполните данные.")
 
-        # Очищаем старые шаги, если наряд был отклонен и отправлен заново
+        # Очищаем старые шаги (на случай повторной отправки)
         self.approval_steps.all().delete()
 
-        # Достаем ID пользователей из JSON (data)
-        # В data у нас лежат строки типа "Иванов И.И. (Мастер)", нам нужно найти реальных юзеров
-        # ДЛЯ ПРОСТОТЫ: В этом примере я предполагаю, что в data.roles хранятся ID или username.
-        # Если там только текст, нам придется искать пользователя или полагаться на выбор в UI.
+        # Функция-помощник для получения ID из JSON-объекта роли
+        # Фронтенд шлет: "producer": { "id": 5, "name": "..." }
+        def get_user_id(role_key):
+            role_data = self.data.get(role_key)
+            if isinstance(role_data, dict):
+                return role_data.get('id')
+            return None
 
-        # В идеале, в CreatePermit.tsx нужно сохранять не только имя, но и ID юзера.
-        # Давай пока создадим логику "по ролям", предполагая, что мы знаем юзеров.
-
+        # Формируем цепочку (Порядок важен!)
         steps_config = []
 
-        # 1. Выдающий (Это всегда initiator)
+        # 1. Выдающий (Это всегда инициатор наряда)
         steps_config.append({
             'role': 'ISSUER',
             'user': self.initiator
         })
 
-        # 2. Ответственный руководитель (ищем в data, если есть)
-        # В будущем нужно передавать ID. Пока для примера пропустим поиск по фамилии.
+        # 2. Ответственный руководитель
+        resp_id = get_user_id('responsible')
+        if resp_id:
+            steps_config.append({'role': 'RESPONSIBLE', 'user_id': resp_id})
 
-        # 3. Согласующий
-        # steps_config.append({'role': 'COORDINATOR', 'user': ...})
+        # 3. Допускающий (обязателен)
+        admit_id = get_user_id('admitting')
+        if admit_id:
+            steps_config.append({'role': 'ADMITTING', 'user_id': admit_id})
 
-        # 4. Допускающий
-        # steps_config.append({'role': 'ADMITTING', 'user': ...})
+        # 4. Производитель работ (обязателен)
+        prod_id = get_user_id('producer')
+        if prod_id:
+            steps_config.append({'role': 'WORK_PRODUCER', 'user_id': prod_id})
 
-        # 5. Производитель
-        # steps_config.append({'role': 'WORK_PRODUCER', 'user': ...})
+        # 5. Согласующий (Нач. цеха)
+        coord_id = get_user_id('supervisor')
+        if coord_id:
+            steps_config.append({'role': 'COORDINATOR', 'user_id': coord_id})
 
-        # ГЕНЕРАЦИЯ ЗАПИСЕЙ В БД
+        # СОЗДАЕМ ЗАПИСИ В БД
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+
         for index, step_data in enumerate(steps_config):
-            ApprovalStep.objects.create(
-                permit=self,
-                approver=step_data['user'],
-                role=step_data['role'],
-                step_order=index + 1,
-                status='PENDING' if index == 0 else 'BLOCKED'  # Первый подписывает, остальные ждут
-            )
+            # Определяем пользователя (либо объект user, либо user_id)
+            user = step_data.get('user')
+            if not user and step_data.get('user_id'):
+                try:
+                    user = User.objects.get(pk=step_data['user_id'])
+                except User.DoesNotExist:
+                    print(f"Ошибка: Пользователь ID {step_data['user_id']} не найден.")
+                    continue
+
+            if user:
+                ApprovalStep.objects.create(
+                    permit=self,
+                    approver=user,
+                    role=step_data['role'],
+                    step_order=index + 1,
+                    # Первый шаг (Выдающий) сразу активен (PENDING)
+                    # Остальные ждут очереди (WAITING)
+                    status='PENDING' if index == 0 else 'WAITING'
+                )
+
+            # 👇 ДОБАВЛЯЕМ УВЕДОМЛЕНИЯ ВСЕМ УЧАСТНИКАМ
+            if user and user != self.initiator:  # Инициатору не пишем, он и так знает
+                Notification.objects.create(
+                    user=user,
+                    permit_id=self.id,
+                    title="Вы назначены согласующим",
+                    message=f"Вы включены в маршрут согласования наряда №{self.permit_id}. Ваша роль: {step_data.get('role', 'Участник')}."
+                )
 
         print(f"Наряд {self.permit_id} отправлен. Создано {len(steps_config)} шагов.")
 
@@ -166,17 +198,34 @@ class ApprovalStep(models.Model):
     # Последовательность шага
     step_order = models.PositiveSmallIntegerField(verbose_name='Порядок шага')
 
+    # Место для хранения криптографической подписи NCALayer (PKCS#7)
+
+    # Сюда кладем "сырой" XML (длинная строка) - это ДОКАЗАТЕЛЬСТВО
+    signed_xml = models.TextField(verbose_name="Цифровая подпись (CMS/XML)", blank=True, null=True)
+    # Сюда кладем краткую инфо (Subject DN) - для ОТОБРАЖЕНИЯ
+    signer_details = models.JSONField(verbose_name='Детали подписанта', default=dict, blank=True,
+                                   help_text="ФИО, ИИН, БИН из сертификата для быстрого просмотра")
+
     # Статус конкретного шага
     STATUS_CHOICES = (
+        ('WAITING', 'Ожидает очереди'),
         ('PENDING', 'Ожидает подписи'),
-        ('SIGNED', 'Подписан'),
+        ('APPROVED', 'Подписан'),
         ('REJECTED', 'Отклонен'),
     )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PENDING', verbose_name='Статус шага')
     signed_at = models.DateTimeField(null=True, blank=True, verbose_name='Дата подписания')
 
-    # Место для хранения криптографической подписи NCALayer (PKCS#7)
-    signature_data = models.TextField(blank=True, verbose_name='Данные ЭЦП')
+    ROLE_CHOICES = (
+        ('ISSUER', 'Выдающий наряд'),
+        ('RESPONSIBLE', 'Ответственный руководитель'),
+        ('ADMITTING', 'Допускающий'),
+        ('WORK_PRODUCER', 'Производитель работ'),
+        ('COORDINATOR', 'Согласующий'),
+    )
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='ISSUER', verbose_name='Роль согласующего')
+    rejection_reason = models.TextField(verbose_name='Причина отклонения', blank=True, null=True)
+
 
     class Meta:
         verbose_name = 'Шаг согласования'
@@ -241,3 +290,17 @@ class DangerousWorkType(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Notification(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # Ссылка на наряд, чтобы при клике открывать его
+    permit_id = models.CharField(max_length=50, blank=True, null=True)
+
+    class Meta:
+        ordering = ['-created_at']

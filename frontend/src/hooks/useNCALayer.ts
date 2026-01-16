@@ -1,12 +1,17 @@
 import { useState, useCallback } from 'react';
 
-type NCALayerMethod = 'signXml' | 'signXmls'; // Можно расширять методы
+type NCALayerMethod = 'signXml' | 'signXmls';
 
 interface NCALayerResponse {
-  code: string;
-  message: string;
-  responseObject?: string; // Подписанный XML или результат
-  result?: any;
+  code?: string | number;
+  message?: string;
+  responseObject?: string;
+  result?: {
+      code?: string | number;
+      message?: string;
+      responseObject?: string;
+      version?: string; // 👈 Добавили поле версии
+  };
 }
 
 export const useNCALayer = () => {
@@ -32,17 +37,42 @@ export const useNCALayer = () => {
       };
 
       socket.onmessage = (event) => {
-        const data: NCALayerResponse = JSON.parse(event.data);
-        console.log('📩 NCALayer Response:', data);
+        console.log('📩 NCALayer Raw Response:', event.data);
 
+        let data: NCALayerResponse;
+        try {
+            data = JSON.parse(event.data);
+        } catch (e) {
+            console.error("JSON Parse Error:", e);
+            return;
+        }
+
+        // 👇 ВАЖНО: Игнорируем приветственное сообщение с версией
+        if (data.result && data.result.version) {
+            console.log(`ℹ️ NCALayer Version: ${data.result.version}. Ждем ответ на команду...`);
+            return; // Не закрываем сокет, ждем следующее сообщение!
+        }
+
+        // Если это не версия, значит это ответ на наш запрос
         isResolved = true;
         setLoading(false);
         socket.close();
 
-        if (data.code === '200' && data.responseObject) {
-          resolve(data.responseObject);
+        // Извлекаем данные
+        const code = data.code || (data.result && data.result.code);
+        const responseObject = data.responseObject || (data.result && data.result.responseObject);
+        const message = data.message || (data.result && data.result.message);
+
+        // Проверяем успех (код может быть строкой "200" или числом 200)
+        if (code === '200' || code === 200) {
+          if (responseObject) {
+            resolve(responseObject);
+          } else {
+            reject(new Error("NCALayer вернул успех (200), но подпись пустая."));
+          }
         } else {
-          const errMsg = data.message || 'Ошибка NCALayer или отмена операции';
+          // Если пользователь нажал "Отмена", кода не будет, или он будет не 200
+          const errMsg = message || 'Ошибка NCALayer или отмена операции';
           setError(errMsg);
           reject(new Error(errMsg));
         }
@@ -60,8 +90,6 @@ export const useNCALayer = () => {
       socket.onclose = () => {
         if (!isResolved) {
           setLoading(false);
-          // Если сокет закрылся раньше ответа (например, таймаут)
-          // Но обычно onmessage успевает сработать
         }
       };
     });

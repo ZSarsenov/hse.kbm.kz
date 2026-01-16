@@ -22,7 +22,7 @@ class CustomUserToken(ObtainAuthToken):
 
         return Response({
             'token': token.key,
-            'user_id': user.pk,
+            'id': user.pk,
             'username': user.username,
             'name': f"{user.last_name} {user.first_name}".strip() or user.username,
             'email': user.email,

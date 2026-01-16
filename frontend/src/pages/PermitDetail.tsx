@@ -6,6 +6,7 @@ import { WorkPermit, PermitCategory, ElectricalLifecycle } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { ElectricalPermitForm } from '../components/ElectricalPermitForm';
 import { useNCALayer } from '../hooks/useNCALayer';
+import { ApprovalTracker } from '../components/ApprovalTracker';
 
 interface PermitDetailProps {
   permit: WorkPermit;
@@ -17,6 +18,34 @@ interface PermitDetailProps {
 export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEdit, onDelete }) => {
   // Распаковка данных (безопасный доступ)
   const data: any = permit.data || (permit as any).formData || {};
+  const initiator = (permit.initiator as any) || {};
+
+  // 1. ПОЛУЧАЕМ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ
+  const currentUser = JSON.parse(localStorage.getItem('user_data') || '{}');
+  const currentUserId = String(currentUser.id || currentUser.user_id);
+
+  // 2. ОПРЕДЕЛЯЕМ РОЛЬ
+  const initiatorId = String(initiator.id || data.issuer?.id || '');
+  const isInitiator = currentUserId === initiatorId;
+
+  // Ищем мой шаг
+  const steps = (permit as any).approvalSteps || [];
+  const myStep = steps.find((s: any) => String(s.approver_id) === currentUserId);
+
+  // 3. ЛОГИКА ВИДИМОСТИ КНОПОК
+  // Кнопка "Подписать" (только для автора, если статус Черновик)
+  const showSignDraft = permit.status === 'DRAFT' && isInitiator;
+
+  // Кнопка "Согласовать" (только если наряд в работе И мой шаг сейчас активен)
+  const showApprove = permit.status === 'PENDING_APPROVAL' && myStep?.status === 'PENDING';
+
+  // Кнопка "Отклонить" (аналогично)
+  const showReject = permit.status === 'PENDING_APPROVAL' && myStep?.status === 'PENDING';
+
+  // 👇 ЛОГИКА ДЛЯ КНОПКИ КОПИРОВАНИЯ
+  // Показывать только инициатору, если наряд ОТКЛОНЕН, ЗАКРЫТ или АРХИВИРОВАН.
+  const showDuplicate = isInitiator && (permit.status === 'REJECTED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED');
+
 
   // --- ЭЛЕКТРОУСТАНОВКИ ---
   const [lifecycle, setLifecycle] = useState<ElectricalLifecycle>({
@@ -47,12 +76,45 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const [activeTab, setActiveTab] = useState<'info' | 'safety' | 'team'>('info');
   const { execute, loading, error: ncaError } = useNCALayer();
 
+  // 👇 ФУНКЦИЯ КОПИРОВАНИЯ
+  const handleDuplicate = async () => {
+      if (!confirm("Создать новый черновик на основе этого наряда?")) return;
+
+      try {
+          const response = await fetch(`http://10.60.2.89:8000/api/v1/permits/${permit.id}/duplicate/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Token ${localStorage.getItem('auth_token')}`
+            }
+          });
+
+          const resData = await response.json();
+          if (response.ok && resData.ok) {
+             alert(`✅ Копия создана! Новый черновик доступен в меню "Главное".`);
+             onBack(); // Возвращаемся в список, там уже будет новый наряд сверху
+          } else {
+             alert(`Ошибка: ${resData.error || 'Не удалось скопировать'}`);
+          }
+      } catch (e) {
+          console.error(e);
+          alert("Ошибка сети");
+      }
+  };
+
   const handleSign = async () => {
     try {
-      const initiatorIIN = (permit.initiator as any).iin || '000000000000';
-      const xmlToSign = `<WorkPermit><ID>${permit.permitId}</ID><IIN>${initiatorIIN}</IIN><Date>${new Date().toISOString()}</Date></WorkPermit>`;
+      const signerIIN = currentUser.iin || initiator.iin;
+      if (!signerIIN) {
+          alert("Ошибка: Не найден ИИН пользователя. Проверьте профиль.");
+          return;
+      }
+      console.log("Начинаем подписание...", signerIIN);
+      const xmlToSign = `<WorkPermit><ID>${permit.permitId}</ID><Date>${new Date().toISOString()}</Date></WorkPermit>`;
       const args = ['PKCS12', 'SIGNATURE', xmlToSign, '', ''];
+
       const signedXml = await execute('signXml', args);
+      if (!signedXml) throw new Error("Получен пустой ответ от NCALayer");
 
       const response = await fetch(`http://10.60.2.89:8000/api/v1/permits/${permit.id}/sign/`, {
         method: 'POST',
@@ -65,14 +127,44 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
       const resData = await response.json();
       if (response.ok && resData.ok) {
-         alert(`УСПЕХ!\nПодписант: ${resData.sign_subject}`);
+         alert(`✅ УСПЕХ! ${resData.status}`);
          onBack();
       } else {
-         alert(`ОШИБКА: ${resData.error || 'Не удалось подписать'}`);
+         alert(`❌ ОШИБКА: ${resData.error || 'Не удалось подписать'}`);
       }
     } catch (e: any) {
-      if (e.message) alert(`Ошибка: ${e.message}`);
+      console.error(e);
+      alert(`Ошибка: ${e.message || JSON.stringify(e)}`);
     }
+  };
+
+  const handleReject = async () => {
+      const reason = prompt("Пожалуйста, укажите причину отклонения наряда:");
+      if (reason === null) return;
+      if (!reason.trim()) {
+          alert("Причина отклонения обязательна!");
+          return;
+      }
+      try {
+          const response = await fetch(`http://10.60.2.89:8000/api/v1/permits/${permit.id}/reject/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Token ${localStorage.getItem('auth_token')}`
+            },
+            body: JSON.stringify({ reason: reason }),
+          });
+          const resData = await response.json();
+          if (response.ok && resData.ok) {
+             alert("⛔ Наряд успешно отклонен.");
+             onBack();
+          } else {
+             alert(`Ошибка: ${resData.error}`);
+          }
+      } catch (e) {
+          console.error(e);
+          alert("Ошибка соединения с сервером.");
+      }
   };
 
   const tabs = [
@@ -80,6 +172,12 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
     { id: 'safety', label: 'Меры безопасности' },
     { id: 'team', label: 'Бригада' },
   ];
+
+  const renderUserName = (userObj: any, fallback: string = '—') => {
+      if (userObj && typeof userObj === 'object' && userObj.name) return userObj.name;
+      if (typeof userObj === 'string' && userObj.trim() !== '') return userObj;
+      return fallback;
+  };
 
   const safetyFields = [
       { key: 'm5_1_stop', label: '5.1 Остановить' },
@@ -116,7 +214,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
               <h1 className="text-3xl font-bold text-slate-900 leading-tight mb-2">{permit.templateType || 'Наряд-допуск'}</h1>
               <div className="flex items-center gap-2 text-slate-600">
                 <MapPin size={18} className="text-blue-500" />
-                <span className="font-medium">{permit.location.name}</span>
+                <span className="font-medium">{permit.location?.name || 'Место не указано'}</span>
               </div>
             </div>
             <div className="flex gap-2">
@@ -129,8 +227,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 <div className="p-2 bg-white rounded-lg shadow-sm text-blue-600"><User size={20} /></div>
                 <div>
                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Инициатор</p>
-                   <p className="font-semibold text-slate-700">{permit.initiator.name}</p>
-                   <p className="text-xs text-slate-500">{permit.initiator.position || 'Сотрудник'}</p>
+                   <p className="font-semibold text-slate-700">{initiator?.name || 'Неизвестно'}</p>
+                   <p className="text-xs text-slate-500">{initiator?.position || 'Сотрудник'}</p>
                 </div>
              </div>
              <div className="flex items-start gap-3">
@@ -172,51 +270,25 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
              <div className="space-y-8 animate-in fade-in duration-300">
                 <div>
                    <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2"><FileText size={20} className="text-slate-400"/> Описание и условия работ</h3>
+
                    <div className="bg-slate-50 p-5 rounded-xl border border-slate-100 space-y-4">
                        <div><span className="text-xs font-bold text-gray-400 uppercase">Наименование работ</span><p className="text-gray-900 font-medium text-lg">{data.workName || '—'}</p></div>
                        <div><span className="text-xs font-bold text-gray-400 uppercase">Содержание работ</span><p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{data.content || "Описание отсутствует"}</p></div>
                        <div><span className="text-xs font-bold text-gray-400 uppercase">Место проведения</span><p className="text-gray-800">{data.workPlace} / {data.department}</p></div>
                    </div>
                 </div>
+
+                    {/* ТРЕКЕР СОГЛАСОВАНИЯ (Здесь будет видна причина отказа) */}
+                    <ApprovalTracker steps={(permit as any).approvalSteps} />
+
                 <div>
                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><User size={20} className="text-slate-400"/> Ответственные лица</h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                      <div className="p-4 border border-gray-200 rounded-lg">
-                          <span className="text-xs text-gray-400 uppercase font-bold">Выдающий наряд</span>
-                          {/* ПРОВЕРКА: ОБЪЕКТ ИЛИ СТРОКА */}
-                          <p className="font-medium text-gray-900">
-                              {typeof data.issuer === 'object' && data.issuer?.name ? data.issuer.name : (data.issuer || '—')}
-                          </p>
-                      </div>
-
-                      <div className="p-4 border border-gray-200 rounded-lg">
-                          <span className="text-xs text-gray-400 uppercase font-bold">Ответственный руководитель</span>
-                          <p className="font-medium text-gray-900">
-                              {typeof data.responsible === 'object' && data.responsible?.name ? data.responsible.name : (data.responsible || 'Не назначался')}
-                          </p>
-                      </div>
-
-                      <div className="p-4 border border-gray-200 rounded-lg">
-                          <span className="text-xs text-gray-400 uppercase font-bold">Производитель работ</span>
-                          <p className="font-medium text-gray-900">
-                              {typeof data.producer === 'object' && data.producer?.name ? data.producer.name : (data.producer || '—')}
-                          </p>
-                      </div>
-
-                      <div className="p-4 border border-gray-200 rounded-lg">
-                          <span className="text-xs text-gray-400 uppercase font-bold">Допускающий</span>
-                          <p className="font-medium text-gray-900">
-                              {typeof data.admitting === 'object' && data.admitting?.name ? data.admitting.name : (data.admitting || '—')}
-                          </p>
-                      </div>
-
-                      <div className="p-4 border border-gray-200 rounded-lg md:col-span-2 bg-gray-50/50">
-                          <span className="text-xs text-gray-400 uppercase font-bold">Согласовано (Нач. смены / Участка)</span>
-                          <p className="font-medium text-gray-900">
-                              {typeof data.supervisor === 'object' && data.supervisor?.name ? data.supervisor.name : (data.supervisor || '—')}
-                          </p>
-                      </div>
+                      <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Выдающий наряд</span><p className="font-medium text-gray-900">{initiator?.name || renderUserName(data.issuer, '—')}</p></div>
+                      <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Ответственный руководитель</span><p className="font-medium text-gray-900">{renderUserName(data.responsible, 'Не назначался')}</p></div>
+                      <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Производитель работ</span><p className="font-medium text-gray-900">{renderUserName(data.producer, '—')}</p></div>
+                      <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Допускающий</span><p className="font-medium text-gray-900">{renderUserName(data.admitting, '—')}</p></div>
+                      <div className="p-4 border border-gray-200 rounded-lg md:col-span-2 bg-gray-50/50"><span className="text-xs text-gray-400 uppercase font-bold">Согласовано (Нач. смены / Участка)</span><p className="font-medium text-gray-900">{renderUserName(data.supervisor, '—')}</p></div>
                    </div>
                 </div>
              </div>
@@ -252,39 +324,67 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
         </div>
       </div>
 
-      {/* FOOTER */}
+      {/* FOOTER: КНОПКИ ДЕЙСТВИЙ */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-lg md:relative md:bg-transparent md:border-0 md:shadow-none md:p-0 z-20">
          <div className="max-w-5xl mx-auto flex flex-col sm:flex-row gap-3 justify-end">
             {ncaError && <div className="flex-1 text-red-600 bg-red-50 border border-red-100 px-4 py-2 rounded-lg text-sm flex items-center"><AlertTriangle size={16} className="mr-2 shrink-0"/>{ncaError}</div>}
 
-            <button className="hidden sm:flex px-4 py-2.5 border border-gray-300 bg-white text-slate-700 rounded-lg hover:bg-gray-50 font-medium items-center justify-center gap-2"><XCircle size={18} /> Отклонить</button>
+            {/* 👇 КНОПКА КОПИРОВАНИЯ (ДЛЯ ОТКЛОНЕННЫХ) */}
 
-            {/* 👇 ЛОГИКА КНОПОК ДЛЯ АВТОРА */}
-            {(permit.status === 'DRAFT' || permit.status === 'REJECTED') && (
+            {showDuplicate && (
+                <button
+                    onClick={handleDuplicate}
+                    className="flex-1 sm:flex-none px-6 py-2.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium flex items-center justify-center gap-2 transition-colors"
+                >
+                    <Copy size={18} />
+                    Создать копию
+                </button>
+            )}
+
+
+            {/* 1. ОТКЛОНИТЬ (Только если статус PENDING_APPROVAL) */}
+            {showReject && (
+                <button
+                    onClick={handleReject}
+                    disabled={loading}
+                    className="hidden sm:flex px-4 py-2.5 border border-red-300 bg-white text-red-700 rounded-lg hover:bg-red-50 font-medium items-center justify-center gap-2"
+                >
+                    <XCircle size={18} /> Отклонить
+                </button>
+            )}
+
+            {/* 2. РЕДАКТИРОВАТЬ / УДАЛИТЬ (Только для черновика!) */}
+            {/* 👇 ИЗМЕНЕНО: Убрано '|| permit.status === 'REJECTED'' */}
+            {permit.status === 'DRAFT' && isInitiator && (
                 <>
-                    <button
-                      onClick={onDelete}
-                      className="px-4 py-2.5 border border-red-200 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 font-medium flex items-center justify-center gap-2 transition-colors"
-                      title="Удалить наряд"
-                    >
-                        <Trash2 size={18} />
-                        <span className="sm:hidden">Удалить</span>
-                    </button>
-
-                    <button
-                      onClick={onEdit}
-                      className="flex-1 sm:flex-none px-6 py-2.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium flex items-center justify-center gap-2 transition-colors"
-                    >
-                        <Edit3 size={18} />
-                        Редактировать
-                    </button>
+                    <button onClick={onDelete} className="px-4 py-2.5 border border-red-200 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 font-medium flex items-center justify-center gap-2"><Trash2 size={18} /><span className="sm:hidden">Удалить</span></button>
+                    <button onClick={onEdit} className="flex-1 sm:flex-none px-6 py-2.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium flex items-center justify-center gap-2"><Edit3 size={18} />Редактировать</button>
                 </>
             )}
 
-            <button onClick={handleSign} disabled={loading || permit.status !== 'DRAFT'} className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-white font-medium shadow-sm flex items-center justify-center gap-2 transition-all ${loading || permit.status !== 'DRAFT' ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
-               {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <FileSignature size={18} />}
-               {permit.status === 'DRAFT' ? 'Подписать (ЭЦП)' : 'Подписано'}
-            </button>
+            {/* 3. ПОДПИСАТЬ / СОГЛАСОВАТЬ */}
+            {(showSignDraft || showApprove) && (
+                <button
+                    onClick={handleSign}
+                    disabled={loading}
+                    className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-white font-medium shadow-sm flex items-center justify-center gap-2 transition-all
+                    ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                >
+                   {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <FileSignature size={18} />}
+                   {showSignDraft ? 'Подписать (ЭЦП)' : 'Согласовать (ЭЦП)'}
+                </button>
+            )}
+
+            {/* 4. ИНФОРМАЦИЯ (Если нечего нажимать, но наряд активен) */}
+            {!showSignDraft && !showApprove && permit.status === 'PENDING_APPROVAL' && (
+                <div className="flex items-center text-gray-500 text-sm italic px-4 bg-gray-50 rounded-lg border border-gray-100 py-2">
+                    {myStep?.status === 'APPROVED'
+                        ? <span className="text-green-600 flex items-center gap-2"><CheckCircle2 size={16}/> Вы уже подписали этот наряд</span>
+                        : <span className="flex items-center gap-2"><Clock size={16}/> Ожидайте своей очереди подписания</span>
+                    }
+                </div>
+            )}
+
          </div>
       </div>
     </div>
