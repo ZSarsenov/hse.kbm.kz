@@ -69,7 +69,7 @@ export const UserSearchSelect: React.FC<UserSearchSelectProps> = ({
         try {
           const token = localStorage.getItem('auth_token');
           // Ищем по API (предполагаем, что бэкенд ищет по ?search=...)
-          const res = await fetch(`http://10.60.2.89:8000/api/v1/users/?search=${query}`, {
+          const res = await fetch(`/api/v1/users/?search=${query}`, {
             headers: { 'Authorization': `Token ${token}` }
           });
 

@@ -46,6 +46,11 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // Показывать только инициатору, если наряд ОТКЛОНЕН, ЗАКРЫТ или АРХИВИРОВАН.
   const showDuplicate = isInitiator && (permit.status === 'REJECTED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED');
 
+  // 👇 НОВОЕ: Показывать кнопку скачивания ТОЛЬКО если наряд согласован или закрыт
+  // В Django модели обычно есть статусы APPROVED или CLOSED. Проверьте, какой у вас финальный статус.
+  // Я добавил проверку на 'APPROVED', 'CLOSED' и 'ARCHIVED' (если архивный был успешным).
+  const showDownload = permit.status === 'APPROVED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED';
+
 
   // --- ЭЛЕКТРОУСТАНОВКИ ---
   const [lifecycle, setLifecycle] = useState<ElectricalLifecycle>({
@@ -76,12 +81,15 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const [activeTab, setActiveTab] = useState<'info' | 'safety' | 'team'>('info');
   const { execute, loading, error: ncaError } = useNCALayer();
 
+
+  // --- HANDLERS ---
+
   // 👇 ФУНКЦИЯ КОПИРОВАНИЯ
   const handleDuplicate = async () => {
       if (!confirm("Создать новый черновик на основе этого наряда?")) return;
 
       try {
-          const response = await fetch(`http://10.60.2.89:8000/api/v1/permits/${permit.id}/duplicate/`, {
+          const response = await fetch(`/api/v1/permits/${permit.id}/duplicate/`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -102,6 +110,38 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
       }
   };
 
+
+// 👇 НОВАЯ ФУНКЦИЯ СКАЧИВАНИЯ PDF
+  const handleDownloadPdf = async () => {
+      try {
+          const response = await fetch(`api/v1/permits/${permit.id}/download_pdf/`, {
+              method: 'GET',
+              headers: {
+                  'Authorization': `Token ${localStorage.getItem('auth_token')}`,
+              },
+          });
+
+          if (response.ok) {
+              // Получаем blob (бинарный файл)
+              const blob = await response.blob();
+              // Создаем ссылку для скачивания
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `Наряд_${permit.permitId}.pdf`; // Имя файла
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              window.URL.revokeObjectURL(url);
+          } else {
+              alert("Ошибка при скачивании PDF. Возможно, файл еще не сгенерирован.");
+          }
+      } catch (error) {
+          console.error("Download error:", error);
+          alert("Ошибка сети при скачивании.");
+      }
+  };
+
   const handleSign = async () => {
     try {
       const signerIIN = currentUser.iin || initiator.iin;
@@ -116,7 +156,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
       const signedXml = await execute('signXml', args);
       if (!signedXml) throw new Error("Получен пустой ответ от NCALayer");
 
-      const response = await fetch(`http://10.60.2.89:8000/api/v1/permits/${permit.id}/sign/`, {
+      const response = await fetch(`api/v1/permits/${permit.id}/sign/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -146,7 +186,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
           return;
       }
       try {
-          const response = await fetch(`http://10.60.2.89:8000/api/v1/permits/${permit.id}/reject/`, {
+          const response = await fetch(`/api/v1/permits/${permit.id}/reject/`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -166,6 +206,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
           alert("Ошибка соединения с сервером.");
       }
   };
+
+
 
   const tabs = [
     { id: 'info', label: 'Основное' },
@@ -217,9 +259,25 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 <span className="font-medium">{permit.location?.name || 'Место не указано'}</span>
               </div>
             </div>
-            <div className="flex gap-2">
+            {/* старая кнопка скачивания
+                <div className="flex gap-2">
                <button className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Download size={20} /></button>
-            </div>
+            </div> */}
+
+            {/* 👇 КНОПКА СКАЧИВАНИЯ (Видна только для согласованных/закрытых) */}
+            {showDownload && (
+                <div className="flex gap-2">
+                   <button
+                       onClick={handleDownloadPdf}
+                       className="p-2.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-2 font-medium"
+                       title="Скачать PDF"
+                   >
+                       <Download size={20} />
+                       <span className="hidden sm:inline">Скачать наряд</span>
+                   </button>
+                </div>
+            )}
+
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50 p-5 rounded-xl border border-slate-100">
@@ -288,7 +346,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                       <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Ответственный руководитель</span><p className="font-medium text-gray-900">{renderUserName(data.responsible, 'Не назначался')}</p></div>
                       <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Производитель работ</span><p className="font-medium text-gray-900">{renderUserName(data.producer, '—')}</p></div>
                       <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Допускающий</span><p className="font-medium text-gray-900">{renderUserName(data.admitting, '—')}</p></div>
-                      <div className="p-4 border border-gray-200 rounded-lg md:col-span-2 bg-gray-50/50"><span className="text-xs text-gray-400 uppercase font-bold">Согласовано (Нач. смены / Участка)</span><p className="font-medium text-gray-900">{renderUserName(data.supervisor, '—')}</p></div>
+                      <div className="p-4 border border-gray-200 rounded-lg md:col-span-2 bg-gray-50/50"><span className="text-xs text-gray-400 uppercase font-bold">Согласовано (Нач. смены / Участка / Инженер ТБ)</span><p className="font-medium text-gray-900">{renderUserName(data.supervisor, '—')}</p></div>
                    </div>
                 </div>
              </div>

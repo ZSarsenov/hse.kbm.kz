@@ -48,7 +48,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       try {
         const token = localStorage.getItem('auth_token');
         const separator = apiEndpoint.includes('?') ? '&' : '?';
-        const url = `http://10.60.2.89:8000${apiEndpoint}${separator}search=${encodeURIComponent(searchTerm)}`;
+        const url = `${apiEndpoint}${separator}search=${encodeURIComponent(searchTerm)}`;
 
         const response = await fetch(url, {
           headers: { 'Authorization': `Token ${token}` }

@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (WorkPermitTemplateViewSet, WorkPermitViewSet, DepartmentViewSet, DangerousWorkTypeViewSet,
-                    NotificationViewSet)
+                    NotificationViewSet, AIAssistantView)
 
 router = DefaultRouter()
 router.register(r'templates', WorkPermitTemplateViewSet, basename='template')
@@ -10,4 +10,7 @@ router.register(r'departments', DepartmentViewSet)
 router.register(r'work-types', DangerousWorkTypeViewSet)
 router.register(r'notifications', NotificationViewSet, basename='notifications')
 
-urlpatterns = router.urls
+urlpatterns = router.urls + [
+    # ✅ ПРАВИЛЬНОЕ ПОДКЛЮЧЕНИЕ APIView:
+    path('ai-chat/', AIAssistantView.as_view(), name='ai-chat'),
+]
