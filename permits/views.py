@@ -184,7 +184,8 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                     user=permit.initiator,
                     permit_id=permit.id,
                     title="Наряд подписан",
-                    message=f"Пользователь {user.get_full_name()} подписал наряд №{permit.permit_id}. Передан следующему: {next_step.approver.get_full_name()}."
+                    message=f"Пользователь {user.get_full_name()} подписал наряд №{permit.permit_id}. "
+                            f"Передан следующему: {next_step.approver.get_full_name()}."
                 )
 
             print(f"🔔 Уведомление отправлено пользователю {next_step.approver.get_full_name()}")
@@ -447,6 +448,136 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         except Exception as e:
             print(f"🔥 PDF ERROR: {e}")
             return HttpResponse(f"Ошибка генерации PDF: {e}", status=500)
+
+    # 👇 СКАЧИВАНИЕ В ФОРМАТЕ WORD (DOCX) - ИСПРАВЛЕННЫЙ
+    # --------------------------------------------------------
+    @action(detail=True, methods=['get'])
+    def download_docx(self, request, pk=None):
+        from django.http import HttpResponse
+        from django.conf import settings
+        from docxtpl import DocxTemplate, InlineImage  # 👈 Добавили InlineImage
+        from docx.shared import Mm  # 👈 Для размеров картинки
+        import os
+        import qrcode  # 👈 Библиотека QR
+        from io import BytesIO
+
+        permit = self.get_object()
+
+        # 1. ПУТЬ К ШАБЛОНУ
+        template_path = os.path.join(settings.BASE_DIR, 'templates', 'docx', 'dangerous_permits_rus.docx')
+
+        if not os.path.exists(template_path):
+            return Response({"error": "Шаблон не найден"}, status=500)
+
+        try:
+            doc = DocxTemplate(template_path)
+
+            # --- ГЕНЕРАЦИЯ QR КОДА ---
+            # Ссылка, которая откроется при сканировании
+            # Ведем на страницу просмотра наряда на вашем сайте
+            qr_url = f"https://hse.kbm.kz/permits/{permit.id}"
+
+            # Создаем картинку QR
+            qr = qrcode.QRCode(box_size=10, border=1)
+            qr.add_data(qr_url)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+
+            # Сохраняем картинку в оперативную память (буфер)
+            img_buffer = BytesIO()
+            img.save(img_buffer, format='PNG')
+            img_buffer.seek(0)
+
+            # Создаем объект для вставки в Word (размер 25x25 мм)
+            qr_image = InlineImage(doc, img_buffer, width=Mm(25))
+
+            # --- ФУНКЦИЯ ПОИСКА ЛЮДЕЙ ---
+            def get_person(role_enum, json_key):
+                step = permit.approval_steps.filter(role=role_enum).first()
+                if step and step.approver:
+                    user = step.approver
+                    job = getattr(user, 'job_title', getattr(user, 'position', 'Должность не указана'))
+                    return {'name': user.get_full_name(), 'job': job}
+
+                if permit.data and json_key in permit.data:
+                    p_data = permit.data[json_key]
+                    if isinstance(p_data, dict):
+                        return {'name': p_data.get('name', '___'), 'job': p_data.get('position', '___')}
+                    if isinstance(p_data, (int, str)) and str(p_data).isdigit():
+                        from django.contrib.auth import get_user_model
+                        User = get_user_model()
+                        try:
+                            u = User.objects.get(pk=int(p_data))
+                            job = getattr(u, 'job_title', getattr(u, 'position', ''))
+                            return {'name': u.get_full_name(), 'job': job}
+                        except User.DoesNotExist:
+                            pass
+                    if isinstance(p_data, str) and len(p_data) > 2:
+                        return {'name': p_data, 'job': '___'}
+
+                return {'name': '___', 'job': '___'}
+
+            # --- СБОР ДАННЫХ ---
+            prod_info = get_person('WORK_PRODUCER', 'producer')
+            admit_info = get_person('ADMITTING', 'admitting')
+            resp_info = get_person('RESPONSIBLE', 'responsible')
+            issuer_info = get_person('ISSUER', 'issuer')
+
+            if '___' in issuer_info['name']:
+                issuer_info['name'] = permit.initiator.get_full_name()
+                issuer_info['job'] = getattr(permit.initiator, 'job_title', '')
+
+            context = {
+                # QR КОД
+                'qr_code': qr_image,  # 👈 Передаем картинку в шаблон
+
+                'permit_id': permit.permit_id,
+                'department': permit.location.name if permit.location else "Не указано",
+
+                # ЛЮДИ
+                'producer_name': prod_info['name'], 'producer_job': prod_info['job'],
+                'admitting_name': admit_info['name'], 'admitting_job': admit_info['job'],
+                'responsible_name': resp_info['name'], 'responsible_job': resp_info['job'],
+                'issuer_name': issuer_info['name'], 'issuer_job': issuer_info['job'],
+
+                # ОПИСАНИЕ
+                'work_place': permit.data.get('workPlace', permit.location.name if permit.location else ""),
+                'work_name': permit.data.get('workName', ""),
+                'work_content': permit.data.get('content', ""),
+
+                # ДАТЫ
+                'date_start': permit.valid_from.strftime('%d.%m.%Y %H:%M') if permit.valid_from else "...",
+                'date_end': permit.valid_to.strftime('%d.%m.%Y %H:%M') if permit.valid_to else "...",
+
+                # МЕРЫ БЕЗОПАСНОСТИ (Пункт 5)
+                'm5_1': permit.data.get('m5_1_stop', '____________________'),
+                'm5_2': permit.data.get('m5_2_disconnect', '____________________'),
+                'm5_3': permit.data.get('m5_3_install', '____________________'),
+                'm5_4': permit.data.get('m5_4_analysis', '____________________'),
+                'm5_5': permit.data.get('m5_5_fence', '____________________'),
+                'm5_6': permit.data.get('m5_6_height', '____________________'),
+                'm5_7': permit.data.get('m5_7_warn', '____________________'),
+                'm5_8': permit.data.get('m5_8_railway', '____________________'),
+                'm5_9': permit.data.get('m5_9_routes', '____________________'),
+                'm5_10': permit.data.get('m5_10_additional', '____________________'),
+            }
+
+            doc.render(context)
+
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            filename = f"Permit_{permit.permit_id}.docx"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+            doc.save(response)
+            return response
+
+        except Exception as e:
+            import traceback
+            print("🔥🔥🔥 ПОЛНЫЙ ТЕКСТ ОШИБКИ НИЖЕ 🔥🔥🔥")
+            traceback.print_exc()
+            print("🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥")
+            return Response({"error": f"Ошибка генерации DOCX: {str(e)}"}, status=500)
 
 
 

@@ -111,10 +111,10 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   };
 
 
-// 👇 НОВАЯ ФУНКЦИЯ СКАЧИВАНИЯ PDF
+// 👇 НОВАЯ ФУНКЦИЯ СКАЧИВАНИЯ PDF и Docx
   const handleDownloadPdf = async () => {
       try {
-          const response = await fetch(`api/v1/permits/${permit.id}/download_pdf/`, {
+          const response = await fetch(`/api/v1/permits/${permit.id}/download_docx/`, {
               method: 'GET',
               headers: {
                   'Authorization': `Token ${localStorage.getItem('auth_token')}`,
@@ -128,7 +128,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
               const url = window.URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
-              a.download = `Наряд_${permit.permitId}.pdf`; // Имя файла
+              a.download = `Наряд_${permit.permitId}.docx`; // Имя файла
               document.body.appendChild(a);
               a.click();
               a.remove();
@@ -156,7 +156,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
       const signedXml = await execute('signXml', args);
       if (!signedXml) throw new Error("Получен пустой ответ от NCALayer");
 
-      const response = await fetch(`api/v1/permits/${permit.id}/sign/`, {
+      const response = await fetch(`/api/v1/permits/${permit.id}/sign/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -346,7 +346,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                       <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Ответственный руководитель</span><p className="font-medium text-gray-900">{renderUserName(data.responsible, 'Не назначался')}</p></div>
                       <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Производитель работ</span><p className="font-medium text-gray-900">{renderUserName(data.producer, '—')}</p></div>
                       <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Допускающий</span><p className="font-medium text-gray-900">{renderUserName(data.admitting, '—')}</p></div>
-                      <div className="p-4 border border-gray-200 rounded-lg md:col-span-2 bg-gray-50/50"><span className="text-xs text-gray-400 uppercase font-bold">Согласовано (Нач. смены / Участка / Инженер ТБ)</span><p className="font-medium text-gray-900">{renderUserName(data.supervisor, '—')}</p></div>
+                      <div className="p-4 border border-gray-200 rounded-lg "><span className="text-xs text-gray-400 uppercase font-bold">Согласовано (Нач. смены / Участка / Инженер ТБ)</span><p className="font-medium text-gray-900">{renderUserName(data.supervisor, '—')}</p></div>
                    </div>
                 </div>
              </div>

@@ -12,7 +12,7 @@ export const MyTasks: React.FC<MyTasksProps> = ({ onSelectPermit }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://10.60.2.89:8000/api/v1/permits/my_tasks/', {
+    fetch('api/v1/permits/my_tasks/', {
       headers: { 'Authorization': `Token ${localStorage.getItem('auth_token')}` }
     })
     .then(res => res.json())
