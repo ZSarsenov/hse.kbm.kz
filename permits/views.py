@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.models import Q
+from rest_framework.exceptions import PermissionDenied
 
 from .models import WorkPermit, WorkPermitTemplate, Department, DangerousWorkType, ApprovalStep, Notification
 from core.signature import parse_xml_signature_info
@@ -75,11 +76,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             return Response({'error': str(e)}, status=400)
 
     # --- МЕТОД ПОДПИСАНИЯ ---
-    @action(
-        detail=True,
-        methods=["post"],
-        url_path="sign",
-        permission_classes=[IsAuthenticated],)  # 👈 ВАЖНО: Только авторизованные!
+    @action(detail=True, methods=["post"], url_path="sign", permission_classes=[IsAuthenticated])
     def sign(self, request, pk=None):
         permit = self.get_object()
         user = request.user
@@ -578,6 +575,50 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             traceback.print_exc()
             print("🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥")
             return Response({"error": f"Ошибка генерации DOCX: {str(e)}"}, status=500)
+
+    def perform_update(self, serializer):
+        """
+        Переопределяем логику сохранения, чтобы разрешить Ответственному руководителю
+        менять данные во время согласования.
+        """
+        permit = self.get_object()
+        user = self.request.user
+
+        # 1. Логика для Инициатора (как было раньше)
+        if permit.status == 'DRAFT' and permit.initiator == user:
+            serializer.save()
+            return
+
+        # 2. Логика для Ответственного руководителя (НОВОЕ)
+        # Проверяем: Статус "На согласовании" + Текущий шаг - это "RESPONSIBLE" + Текущий юзер - этот approver
+        try:
+            current_step = permit.approval_steps.get(status='PENDING', approver=user)
+
+            # Разрешаем, ТОЛЬКО если роль шага - Ответственный руководитель
+            if permit.status == 'PENDING_APPROVAL' and current_step.role == 'RESPONSIBLE':
+                # Можно добавить логирование, что руководитель внес правки
+                print(f"User {user.username} (Responsible) updated permit {permit.id}")
+                serializer.save()
+                return
+        except ApprovalStep.DoesNotExist:
+            pass
+
+        # Если ни одно условие не совпало - запрещаем
+        from rest_framework.exceptions import PermissionDenied
+        raise PermissionDenied("У вас нет прав на редактирование наряда в текущем статусе.")
+
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        # 👇 ПРОВЕРКА РОЛИ (Всего 3 строки)
+        # Разрешаем создание только Выдающему (ISSUER) или Админу
+        if user.role != 'ISSUER' and not user.is_superuser:
+            raise PermissionDenied("Только 'Выдающий наряд' имеет право создавать новые наряды.")
+
+        # Если проверка пройдена, сохраняем (ваш старый код инициатора)
+        serializer.save(initiator=user)
+
+
 
 
 

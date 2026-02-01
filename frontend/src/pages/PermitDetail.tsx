@@ -32,6 +32,11 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const steps = (permit as any).approvalSteps || [];
   const myStep = steps.find((s: any) => String(s.approver_id) === currentUserId);
 
+  // 🔥 ЛОГИКА ДЛЯ ОТВЕТСТВЕННОГО РУКОВОДИТЕЛЯ (Разрешить редактирование)
+  const isRespManager = myStep?.role === 'RESPONSIBLE';
+  // Разрешаем, если: Статус "На согласовании" + Текущий шаг "В работе" + Я - Ответственный руководитель
+  const canEditAsManager = permit.status === 'PENDING_APPROVAL' && myStep?.status === 'PENDING' && isRespManager;
+
   // 3. ЛОГИКА ВИДИМОСТИ КНОПОК
   // Кнопка "Подписать" (только для автора, если статус Черновик)
   const showSignDraft = permit.status === 'DRAFT' && isInitiator;
@@ -47,8 +52,6 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const showDuplicate = isInitiator && (permit.status === 'REJECTED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED');
 
   // 👇 НОВОЕ: Показывать кнопку скачивания ТОЛЬКО если наряд согласован или закрыт
-  // В Django модели обычно есть статусы APPROVED или CLOSED. Проверьте, какой у вас финальный статус.
-  // Я добавил проверку на 'APPROVED', 'CLOSED' и 'ARCHIVED' (если архивный был успешным).
   const showDownload = permit.status === 'APPROVED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED';
 
 
@@ -259,10 +262,6 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 <span className="font-medium">{permit.location?.name || 'Место не указано'}</span>
               </div>
             </div>
-            {/* старая кнопка скачивания
-                <div className="flex gap-2">
-               <button className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Download size={20} /></button>
-            </div> */}
 
             {/* 👇 КНОПКА СКАЧИВАНИЯ (Видна только для согласованных/закрытых) */}
             {showDownload && (
@@ -336,9 +335,10 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                    </div>
                 </div>
 
-                    {/* ТРЕКЕР СОГЛАСОВАНИЯ (Здесь будет видна причина отказа) */}
-                    <ApprovalTracker steps={(permit as any).approvalSteps} />
+                {/* ТРЕКЕР СОГЛАСОВАНИЯ */}
+                <ApprovalTracker steps={(permit as any).approvalSteps} />
 
+                {/* БЛОК ОТВЕТСТВЕННЫХ ЛИЦ (Сохранен оригинал с 5 блоками) */}
                 <div>
                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><User size={20} className="text-slate-400"/> Ответственные лица</h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -411,12 +411,21 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 </button>
             )}
 
-            {/* 2. РЕДАКТИРОВАТЬ / УДАЛИТЬ (Только для черновика!) */}
-            {/* 👇 ИЗМЕНЕНО: Убрано '|| permit.status === 'REJECTED'' */}
-            {permit.status === 'DRAFT' && isInitiator && (
+            {/* 2. РЕДАКТИРОВАТЬ / УДАЛИТЬ */}
+            {/* 🔥 NEW: Показываем если я автор черновика ИЛИ если я Руководитель (canEditAsManager) */}
+            {((permit.status === 'DRAFT' && isInitiator) || canEditAsManager) && (
                 <>
-                    <button onClick={onDelete} className="px-4 py-2.5 border border-red-200 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 font-medium flex items-center justify-center gap-2"><Trash2 size={18} /><span className="sm:hidden">Удалить</span></button>
-                    <button onClick={onEdit} className="flex-1 sm:flex-none px-6 py-2.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium flex items-center justify-center gap-2"><Edit3 size={18} />Редактировать</button>
+                    {/* Кнопка Удалить - только для черновика и только для автора */}
+                    {permit.status === 'DRAFT' && isInitiator && (
+                        <button onClick={onDelete} className="px-4 py-2.5 border border-red-200 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 font-medium flex items-center justify-center gap-2">
+                            <Trash2 size={18} /><span className="sm:hidden">Удалить</span>
+                        </button>
+                    )}
+
+                    {/* 🔥 КНОПКА РЕДАКТИРОВАТЬ */}
+                    <button onClick={onEdit} className="flex-1 sm:flex-none px-6 py-2.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium flex items-center justify-center gap-2">
+                        <Edit3 size={18} /> Редактировать
+                    </button>
                 </>
             )}
 

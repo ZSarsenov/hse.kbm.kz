@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Filter, Calendar, MapPin, Search, Download, Plus, ChevronRight, Building2, SlidersHorizontal, User, ChevronLeft } from 'lucide-react';
 import { WorkPermit, PermitStatus } from '../types';
@@ -17,10 +16,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
+  // 🔥 ПОЛУЧАЕМ ПРАВА (ISSUER или ADMIN)
+  const user = JSON.parse(localStorage.getItem('user_data') || '{}');
+  const canCreatePermit = user.role === 'ISSUER' || user.role === 'ADMIN';
+
   // Filtering Logic
   const filteredPermits = permits.filter(p => {
     const matchesStatus = filterStatus === 'ALL' || p.status === filterStatus;
-    const matchesSearch = p.permitId.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const matchesSearch = p.permitId.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           p.initiator.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           p.location.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
@@ -46,7 +49,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      
+
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
@@ -58,13 +61,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
             <Download size={20} />
             <span className="hidden sm:inline">Экспорт отчета</span>
           </button>
-          <button 
-            onClick={onCreateNew}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-base font-medium transition-all shadow-md shadow-blue-200 flex items-center gap-2"
-          >
-            <Plus size={20} />
-            <span>Создать наряд</span>
-          </button>
+
+          {/* 👇 СКРЫВАЕМ КНОПКУ СОЗДАНИЯ */}
+          {canCreatePermit && (
+              <button
+                onClick={onCreateNew}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-base font-medium transition-all shadow-md shadow-blue-200 flex items-center gap-2"
+              >
+                <Plus size={20} />
+                <span>Создать наряд</span>
+              </button>
+          )}
+
         </div>
       </div>
 
@@ -75,13 +83,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
           <span>Фильтры данных</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          
+
           {/* Status Filter */}
           <div className="relative group">
              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 group-focus-within:text-blue-600 transition-colors">
                 <Filter size={18} />
               </span>
-            <select 
+            <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white transition-shadow outline-none cursor-pointer hover:border-gray-400"
@@ -100,8 +108,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 group-focus-within:text-blue-600 transition-colors">
                 <Calendar size={18} />
               </span>
-            <input 
-              type="date" 
+            <input
+              type="date"
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-600 outline-none transition-shadow"
             />
           </div>
@@ -124,18 +132,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 group-focus-within:text-blue-600 transition-colors">
                 <Search size={18} />
               </span>
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Поиск по номеру, ФИО..." 
+              placeholder="Поиск по номеру, ФИО..."
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow"
             />
           </div>
         </div>
       </div>
 
-      {/* Desktop Table View (Zebra Striped) */}
+      {/* Desktop Table View */}
       <div className="hidden md:block bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto min-h-[400px]">
           <table className="w-full text-base text-left">
@@ -152,8 +160,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
             </thead>
             <tbody className="divide-y divide-gray-100">
               {currentItems.map((permit) => (
-                <tr 
-                  key={permit.id} 
+                <tr
+                  key={permit.id}
                   onClick={() => onSelectPermit(permit.id)}
                   className="group cursor-pointer transition-colors even:bg-slate-50/50 hover:bg-blue-50/60"
                 >
@@ -185,7 +193,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                   </td>
                 </tr>
               ))}
-              
+
               {/* Empty State */}
               {filteredPermits.length === 0 && (
                 <tr>
@@ -208,13 +216,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
             <div className="text-base text-gray-500">
               Показано <span className="font-medium text-gray-900">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredPermits.length)}</span> из <span className="font-medium text-gray-900">{filteredPermits.length}</span>
             </div>
-            
+
             <div className="flex items-center gap-2">
-              <button 
+              <button
                 onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage === 1}
                 className="p-2.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                aria-label="Previous Page"
               >
                 <ChevronLeft size={22} />
               </button>
@@ -226,8 +233,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                     onClick={() => goToPage(number)}
                     className={`
                       w-11 h-11 flex items-center justify-center rounded-lg text-base font-semibold transition-colors
-                      ${currentPage === number 
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-200' 
+                      ${currentPage === number
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
                         : 'text-gray-600 hover:bg-gray-100'}
                     `}
                   >
@@ -236,11 +243,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                 ))}
               </div>
 
-              <button 
+              <button
                 onClick={() => goToPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
                 className="p-2.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                aria-label="Next Page"
               >
                 <ChevronRight size={22} />
               </button>
@@ -249,29 +255,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
         )}
       </div>
 
-      {/* Mobile Card View (Synced with Pagination) */}
+      {/* Mobile Card View */}
       <div className="md:hidden space-y-4">
         {currentItems.map((permit) => (
-          <div 
+          <div
             key={permit.id}
-            onClick={() => onSelectPermit(permit.id)} 
+            onClick={() => onSelectPermit(permit.id)}
             className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm active:bg-gray-50 transition-colors relative overflow-hidden"
           >
             <div className="absolute top-0 right-0 p-0">
-               <div className={`px-4 py-1.5 text-xs font-bold uppercase rounded-bl-lg border-b border-l 
-                 ${permit.status === PermitStatus.APPROVED ? 'bg-green-100 text-green-700 border-green-200' : 
+               <div className={`px-4 py-1.5 text-xs font-bold uppercase rounded-bl-lg border-b border-l
+                 ${permit.status === PermitStatus.APPROVED ? 'bg-green-100 text-green-700 border-green-200' :
                    permit.status === PermitStatus.PENDING_APPROVAL ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                  {permit.status === PermitStatus.APPROVED ? 'Согласован' : permit.status}
                </div>
             </div>
-            
+
             <div className="flex justify-between items-start mb-4 mt-2">
               <div>
                 <span className="text-sm font-mono text-blue-600 block mb-1">{permit.permitId}</span>
                 <h3 className="font-bold text-gray-900 text-xl leading-tight">{permit.templateType}</h3>
               </div>
             </div>
-            
+
             <div className="space-y-4 text-base text-gray-600 mb-6">
               <div className="flex items-start gap-2.5">
                 <MapPin size={18} className="text-gray-400 mt-0.5 shrink-0" />
@@ -294,8 +300,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
             </div>
           </div>
         ))}
-        
-        {/* Mobile Pagination Controls */}
+
+        {/* Mobile Pagination */}
         {filteredPermits.length > 0 && (
           <div className="flex justify-center gap-4 pt-4 pb-20">
             <button 

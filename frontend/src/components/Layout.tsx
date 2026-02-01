@@ -18,6 +18,7 @@ interface LayoutProps {
     position: string;
     department: string;
     organization: string;
+    role?: string; // 🔥 Добавили поле role
     permissions: Permission[];
   };
   currentView?: string;
@@ -36,6 +37,12 @@ export const Layout: React.FC<LayoutProps> = ({
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const hasPermission = (permission: Permission) => user?.permissions?.includes(permission);
 
+  // 🔥 ПРОВЕРКА ПРАВ НА СОЗДАНИЕ (ISSUER или ADMIN)
+  // Берем роль из пропсов user или напрямую из localStorage для надежности
+  const localUser = JSON.parse(localStorage.getItem('user_data') || '{}');
+  const userRole = user?.role || localUser.role || '';
+  const canCreatePermit = userRole === 'ISSUER' || userRole === 'ADMIN';
+
   // 1. Загрузка уведомлений
   const fetchNotifs = () => {
       const token = localStorage.getItem('auth_token');
@@ -46,7 +53,6 @@ export const Layout: React.FC<LayoutProps> = ({
       })
       .then(r => r.ok ? r.json() : [])
       .then(data => {
-          // Фильтруем только непрочитанные, чтобы цифра была честной
           setNotifications(Array.isArray(data) ? data.filter((n:any) => !n.is_read) : []);
       })
       .catch(e => console.error("Ошибка уведомлений:", e));
@@ -54,15 +60,13 @@ export const Layout: React.FC<LayoutProps> = ({
 
   useEffect(() => {
       fetchNotifs();
-      const interval = setInterval(fetchNotifs, 30000); // Опрос раз в 30 сек
+      const interval = setInterval(fetchNotifs, 30000);
       return () => clearInterval(interval);
   }, []);
 
-  // 2. Функция: Пометить как прочитанное
   const handleMarkAsRead = async (id: number) => {
       try {
           const token = localStorage.getItem('auth_token');
-          // Отправляем на сервер
           await fetch(`/api/v1/notifications/${id}/mark_read/`, {
               method: 'POST',
               headers: {
@@ -70,10 +74,7 @@ export const Layout: React.FC<LayoutProps> = ({
                   'Content-Type': 'application/json'
               }
           });
-
-          // Сразу убираем из списка локально (счетчик уменьшится)
           setNotifications(prev => prev.filter(n => n.id !== id));
-
       } catch (e) {
           console.error("Ошибка при чтении уведомления", e);
       }
@@ -99,14 +100,13 @@ export const Layout: React.FC<LayoutProps> = ({
 
           <div className="flex items-center gap-4">
 
-            {/* 👇 КНОПКА УВЕДОМЛЕНИЙ С ЦИФРОЙ */}
+            {/* УВЕДОМЛЕНИЯ */}
             <div className="relative">
                 <button
                     onClick={() => setIsNotifOpen(!isNotifOpen)}
                     className={`relative p-2 rounded-full transition-colors ${isNotifOpen ? 'bg-blue-50 text-blue-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
                 >
                   <Bell size={22} />
-                  {/* Красный бейдж с цифрой */}
                   {notifications.length > 0 && (
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold h-5 min-w-[20px] px-1 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
                         {notifications.length > 99 ? '99+' : notifications.length}
@@ -114,7 +114,6 @@ export const Layout: React.FC<LayoutProps> = ({
                   )}
                 </button>
 
-                {/* Выпадающий список */}
                 {isNotifOpen && (
                     <div className="absolute right-0 mt-3 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right">
                         <div className="p-3 border-b bg-gray-50/50 flex justify-between items-center">
@@ -138,19 +137,13 @@ export const Layout: React.FC<LayoutProps> = ({
                                 notifications.map(n => (
                                     <div
                                         key={n.id}
-                                        onClick={() => handleMarkAsRead(n.id)} // Читаем при клике
+                                        onClick={() => handleMarkAsRead(n.id)}
                                         className="p-4 border-b border-gray-50 hover:bg-blue-50 cursor-pointer transition-colors group relative"
                                     >
-                                        {/* Синяя точка непрочитанного */}
                                         <div className="absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full group-hover:bg-blue-600 transition-colors"></div>
-
                                         <p className="font-bold text-sm text-gray-800 pr-4">{n.title}</p>
                                         <p className="text-xs text-gray-600 mt-1 leading-relaxed">{n.message}</p>
                                         <p className="text-[10px] text-gray-400 mt-2">{new Date(n.created_at).toLocaleString()}</p>
-
-                                        <div className="text-[10px] text-blue-500 font-medium mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            Нажмите, чтобы отметить прочитанным
-                                        </div>
                                     </div>
                                 ))
                             )}
@@ -159,7 +152,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 )}
             </div>
 
-            {/* Профиль пользователя */}
+            {/* Профиль */}
             <div className="relative">
               <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="flex items-center gap-3 pl-2 pr-1 py-1 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-100 transition-colors">
                 <div className="text-right hidden md:block">
@@ -199,17 +192,20 @@ export const Layout: React.FC<LayoutProps> = ({
             <div className="px-3 py-4 mb-2"><h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Меню</h3></div>
 
             <SidebarLink icon={<LayoutDashboard size={20}/>} label="Главное" active={currentView === 'DASHBOARD'} onClick={onNavigate} />
-            <SidebarLink icon={<FilePlus size={20}/>} label="Создать Наряд" active={currentView === 'CREATE'} onClick={onCreate} />
+
+            {/* 👇 СКРЫВАЕМ КНОПКУ, ЕСЛИ НЕТ ПРАВ */}
+            {canCreatePermit && (
+                <SidebarLink icon={<FilePlus size={20}/>} label="Создать Наряд" active={currentView === 'CREATE'} onClick={onCreate} />
+            )}
 
             <SidebarLink
                 icon={<CheckSquare size={20}/>}
                 label="Мои Задачи"
-                // Бейдж на кнопке меню тоже обновляем
                 badge={notifications.length > 0 ? notifications.length.toString() : undefined}
                 active={currentView === 'MY_TASKS'}
                 onClick={onNavigateMyTasks}
             />
-            
+
             {hasPermission('VIEW_LOTO_LOGS') && (<SidebarLink icon={<ClipboardList size={20}/>} label="Отчеты LOTO" active={currentView === 'LOTO_REPORTS'} onClick={onNavigateLoto}/>)}
             <div className="my-4 border-t border-gray-50"></div>
             <SidebarLink icon={<FileText size={20}/>} label="Архив" />

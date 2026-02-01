@@ -85,12 +85,11 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        # 👇 ТЕПЕРЬ БЕРЕМ ИЗ .ENV (или дефолт, если там пусто)
-        'NAME': os.getenv('DB_NAME', 'end.kbm.kz'),
-        'USER': os.getenv('DB_USER', 'dev_user'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+        'NAME': 'hse.kbm.kz_local',
+        'USER': 'postgres',
+        'PASSWORD': 'postgres',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
