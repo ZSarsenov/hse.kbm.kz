@@ -32,7 +32,7 @@ var/
 *.log
 *.pot
 local_settings.py  # Or other sensitive settings files
-db.sqlite3
+
 /media/  # Or wherever you store user-uploaded media files
 /static_collected/  # If you use collectstatic
 
@@ -56,3 +56,12 @@ Thumbs.db
 # Other temporary files
 *~
 *.swp
+
+# Игнорировать библиотеки
+node_modules/
+frontend/node_modules/
+
+# Игнорировать базу и бэкапы
+db.sqlite3
+*.sql
+*.dump
