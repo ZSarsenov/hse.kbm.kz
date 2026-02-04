@@ -6,6 +6,7 @@ import { ElectricalPermitForm } from '../components/ElectricalPermitForm';
 import { UserSearchSelect } from '../components/UserSearchSelect';
 import { SearchableSelect } from  "../components/SearchableSelect"
 
+
 // Интерфейс для объекта пользователя в роли
 interface RoleUser {
     id: number | null;
@@ -81,6 +82,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
     m5_6_height: '', m5_7_warn: '', m5_8_railway: '', m5_9_routes: '', m5_10_additional: '',
     // Risk Assessment
     riskIdentifiedBy: '', riskGroup: [], riskTable: [], riskApprovedBy: '',
+
     // LOTO
     lotoEnabled: false,
     isolationMatrix: {
@@ -604,6 +606,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
              </div>
            </div>
          </div>
+
+
        )}
 
        {/* STEP 2: TEAM & DATES */}
@@ -841,6 +845,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                 </div>
             </div>
 
+
+
             {/* Participants */}
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="font-bold text-gray-900 mb-6 uppercase text-base tracking-wider border-b pb-2">Участники оценки рисков</h3>
@@ -848,12 +854,12 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                 <div className="mb-6">
                     <label className="block text-lg font-semibold text-gray-700 mb-2">Опасности и риски выявил (ФИО, Должность)</label>
                     <input
-                       type="text"
-                       value={formData.riskIdentifiedBy}
-                       onChange={(e) => updateForm('riskIdentifiedBy', e.target.value)}
-                       placeholder="Иванов И.И., Мастер"
-                       className={commonInputClasses}
-                    />
+                          type="text"
+                          value={formData.completionTakeOverName}
+                          onChange={e => updateForm('completionTakeOverName', e.target.value)}
+                          placeholder="Должность, Ф.И.О."
+                          className={commonInputClasses}
+                       />
                 </div>
 
                 <div>
@@ -1067,7 +1073,6 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
            </div>
         </div>
       </div>
-
     </div>
   );
 };

@@ -32,10 +32,17 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const steps = (permit as any).approvalSteps || [];
   const myStep = steps.find((s: any) => String(s.approver_id) === currentUserId);
 
-  // 🔥 ЛОГИКА ДЛЯ ОТВЕТСТВЕННОГО РУКОВОДИТЕЛЯ (Разрешить редактирование)
-  const isRespManager = myStep?.role === 'RESPONSIBLE';
-  // Разрешаем, если: Статус "На согласовании" + Текущий шаг "В работе" + Я - Ответственный руководитель
-  const canEditAsManager = permit.status === 'PENDING_APPROVAL' && myStep?.status === 'PENDING' && isRespManager;
+  // 🔥 ЛОГИКА РЕДАКТИРОВАНИЯ ВО ВРЕМЯ СОГЛАСОВАНИЯ
+  // Разрешаем редактировать: Ответственному, Допускающему и Производителю
+  const editableRoles = ['RESPONSIBLE', 'ADMITTING', 'WORK_PRODUCER'];
+  const isEditableRole = editableRoles.includes(myStep?.role || '');
+
+  // Условие: Статус PENDING + Сейчас мой шаг + Моя роль в списке разрешенных
+  const canEditAsManager = permit.status === 'PENDING_APPROVAL' && myStep?.status === 'PENDING' && isEditableRole;
+
+  // Проверяем, является ли текущий пользователь "Допускающим" (чтобы дать ему право закрыть наряд)
+  const admittingStep = steps.find((s: any) => s.role === 'ADMITTING');
+  const isAdmittingUser = admittingStep && String(admittingStep.approver_id) === currentUserId;
 
   // 3. ЛОГИКА ВИДИМОСТИ КНОПОК
   // Кнопка "Подписать" (только для автора, если статус Черновик)
@@ -83,6 +90,10 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // --- ОБЫЧНЫЕ НАРЯДЫ ---
   const [activeTab, setActiveTab] = useState<'info' | 'safety' | 'team'>('info');
   const { execute, loading, error: ncaError } = useNCALayer();
+
+    // 👇 ВСТАВИТЬ СЮДА:
+  const [isClosing, setIsClosing] = useState(false); // Открыто ли меню закрытия
+  const [scanFile, setScanFile] = useState<File | null>(null); // Файл скана
 
 
   // --- HANDLERS ---
@@ -207,6 +218,40 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
       } catch (e) {
           console.error(e);
           alert("Ошибка соединения с сервером.");
+      }
+  };
+
+  const handleClosePermit = async () => {
+      if (!scanFile) {
+          alert("Пожалуйста, выберите файл (скан наряда) перед закрытием.");
+          return;
+      }
+      if (!confirm("Вы уверены, что хотите ЗАКРЫТЬ наряд? Это действие необратимо.")) return;
+
+      const formData = new FormData();
+      formData.append('scan_file', scanFile);
+
+      try {
+          // Отправляем на специальный endpoint 'close'
+          const response = await fetch(`/api/v1/permits/${permit.id}/close/`, {
+              method: 'POST',
+              headers: {
+                  'Authorization': `Token ${localStorage.getItem('auth_token')}`
+              },
+              body: formData
+          });
+
+          if (response.ok) {
+              alert("✅ Наряд успешно ЗАКРЫТ!");
+              setIsClosing(false);
+              onBack(); // Возвращаемся назад
+          } else {
+              const err = await response.json();
+              alert("Ошибка: " + (err.error || JSON.stringify(err)));
+          }
+      } catch (e) {
+          console.error(e);
+          alert("Ошибка сети");
       }
   };
 
@@ -450,6 +495,40 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                         : <span className="flex items-center gap-2"><Clock size={16}/> Ожидайте своей очереди подписания</span>
                     }
                 </div>
+            )}
+
+            {/* 👇 ВСТАВИТЬ СЮДА: КНОПКА ЗАКРЫТИЯ (Только для Допускающего и если статус APPROVED) */}
+            {permit.status === 'APPROVED' && isAdmittingUser && (
+                <>
+                   {!isClosing ? (
+                       <button
+                           onClick={() => setIsClosing(true)}
+                           className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center gap-2 shadow-sm"
+                       >
+                           <CheckCircle2 size={18} /> Закрыть наряд
+                       </button>
+                   ) : (
+                       // Меню загрузки файла (появляется при нажатии)
+                       <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-gray-300 shadow-lg absolute bottom-20 right-4 md:static md:shadow-none md:border-0 md:bg-transparent animate-in slide-in-from-bottom-2">
+                           <input
+                               type="file"
+                               accept="application/pdf,image/*"
+                               onChange={(e) => setScanFile(e.target.files ? e.target.files[0] : null)}
+                               className="text-sm text-gray-500 w-48 file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                           />
+                           <button
+                               onClick={handleClosePermit}
+                               disabled={!scanFile}
+                               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium disabled:opacity-50 transition-colors"
+                           >
+                               Подтвердить
+                           </button>
+                           <button onClick={() => setIsClosing(false)} className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100">
+                               <XCircle size={20}/>
+                           </button>
+                       </div>
+                   )}
+                </>
             )}
 
          </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { PermitDetail } from './pages/PermitDetail';
@@ -18,7 +18,6 @@ function App() {
       return savedUser ? JSON.parse(savedUser) : null;
   });
 
-  
 
   const isLoggedIn = !!token;
 
@@ -35,6 +34,28 @@ function App() {
 
   // 4. Data State
   const [permits, setPermits] = useState<WorkPermit[]>([]);
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  // --- FETCHING DATA (Функция загрузки) ---
+  const fetchPermits = async () => {
+    setIsLoading(true);
+    try {
+        const response = await fetch('/api/v1/permits/', {
+            headers: { 'Authorization': `Token ${token}` }
+        });
+        if (response.ok) {
+            const data = await response.json();
+            setPermits(data);
+        } else if (response.status === 401) {
+            handleLogout();
+        }
+    } catch (error) {
+        console.error("Ошибка загрузки:", error);
+    } finally {
+        setIsLoading(false);
+    }
+  };
 
   // --- EFFECT 1: LOAD PERMITS FOR DASHBOARD ---
   useEffect(() => {
@@ -166,7 +187,16 @@ function App() {
     setEditingPermit(null);
   };
 
-  const handleNavigateLoto = () => { setCurrentView('LOTO_REPORTS'); };
+  const handleNavigateLoto = () => {
+    setCurrentView('LOTO_REPORTS');
+    setSelectedPermitId(null);
+    };
+
+  // 🔥 ДОБАВИЛИ ЭТОТ МЕТОД ДЛЯ АРХИВА
+  const handleNavigateArchive = () => {
+      setCurrentView('ARCHIVE');
+      setSelectedPermitId(null);
+  };
 
   // Обработчик для перехода в "Мои задачи"
   const handleNavigateMyTasks = () => {
@@ -247,6 +277,7 @@ function App() {
         onNavigate={handleNavigateDashboard}
         onNavigateLoto={handleNavigateLoto}
         onNavigateMyTasks={handleNavigateMyTasks}
+        onNavigateArchive={handleNavigateArchive}
         onCreate={handleCreateNew}
         onLogout={handleLogout}
         user={{
@@ -263,12 +294,30 @@ function App() {
         currentView={currentView}
       >
         {/* ГЛАВНАЯ ПАНЕЛЬ */}
-        {currentView === 'DASHBOARD' && (
-          <Dashboard
-            permits={permits}
-            onSelectPermit={handleSelectPermit}
-            onCreateNew={handleCreateNew}
-          />
+        {/* ГЛАВНАЯ СТРАНИЦА ИЛИ АРХИВ */}
+        {(currentView === 'DASHBOARD' || currentView === 'ARCHIVE') && (
+          selectedPermitId && getSelectedPermit() ? (
+              <PermitDetail
+                permit={getSelectedPermit()!}
+                onBack={handleNavigateDashboard}
+                onEdit={() => handleEditPermit(getSelectedPermit()!)}
+                onDelete={() => handleDeletePermit(selectedPermitId)}
+              />
+          ) : (
+              isLoading ? (
+                  <div className="flex flex-col justify-center items-center h-full min-h-[50vh] text-slate-500">
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-blue-600 mb-4"></div>
+                      <p>Загрузка данных...</p>
+                  </div>
+              ) : (
+                  <Dashboard
+                    permits={permits}
+                    onSelectPermit={handleSelectPermit}
+                    onCreateNew={handleCreateNew}
+                    isArchiveView={currentView === 'ARCHIVE'}
+                  />
+              )
+          )
         )}
 
         {/* СТРАНИЦА "МОИ ЗАДАЧИ" */}
@@ -306,13 +355,13 @@ function App() {
 
         {/* ОТЧЕТЫ LOTO */}
         {currentView === 'LOTO_REPORTS' && (
-          <LotoReports 
+          <LotoReports
              onNavigateToPermit={() => alert('Функция в разработке')}
           />
         )}
       </Layout>
 
-      <PermitTypeSelector 
+      <PermitTypeSelector
         isOpen={isTypeSelectorOpen}
         onClose={() => setIsTypeSelectorOpen(false)}
         onSelect={handleSelectCategory}

@@ -202,25 +202,31 @@ export interface LOTOReport {
 }
 
 export interface WorkPermit {
-  id: string;
+  id: string | number;
   permitId: string;
-  location: Location;
+  location: Partial<Location> & { name: string };
   createdAt: string;
-  status: PermitStatus;
-  category: PermitCategory;
+  status: PermitStatus | string;
+  category?: PermitCategory;
   templateType: string;
   initiator: {
+    id?: string | number;
     name: string;
-    position: string;
+    position?: string;
+    iin?: string;
+    bin?: string;
   };
-  dangerousWorks: Array<{ id: string; name: string }>;
+  dangerousWorks?: Array<{ id: string; name: string }>;
   teamMembers?: TeamMember[];
-  approvalSteps: any[];
-  formData: any;
+  approvalSteps?: any[];
+  formData?: any;
+  data?: any;
+  validFrom?: string;
+  validTo?: string;
   lifecycle?: Partial<ElectricalLifecycle>;
 }
 
-export type PageView = 'LOGIN' | 'DASHBOARD' | 'DETAIL' | 'CREATE' | 'LOTO_REPORTS';
+export type PageView = 'DASHBOARD' | 'CREATE' | 'MY_TASKS' | 'LOTO_REPORTS' | 'LOGIN' | 'ARCHIVE' | 'DETAIL';
 
 export const ELECTRICAL_WORK_CATEGORIES = [
   "Со снятием напряжения",

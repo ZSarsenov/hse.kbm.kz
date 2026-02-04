@@ -594,8 +594,9 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         try:
             current_step = permit.approval_steps.get(status='PENDING', approver=user)
 
-            # Разрешаем, ТОЛЬКО если роль шага - Ответственный руководитель
-            if permit.status == 'PENDING_APPROVAL' and current_step.role == 'RESPONSIBLE':
+            # Разрешаем редактирование для Руководителя, Допускающего и Производителя
+            allowed_roles = ['RESPONSIBLE', 'ADMITTING', 'WORK_PRODUCER']
+            if permit.status == 'PENDING_APPROVAL' and current_step.role in allowed_roles:
                 # Можно добавить логирование, что руководитель внес правки
                 print(f"User {user.username} (Responsible) updated permit {permit.id}")
                 serializer.save()
@@ -617,6 +618,45 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
         # Если проверка пройдена, сохраняем (ваш старый код инициатора)
         serializer.save(initiator=user)
+
+    @action(detail=True, methods=['post'], url_path='close')
+    def close_permit(self, request, pk=None):
+        """
+        Закрытие наряда Допускающим.
+        Требует загрузки скана (scan_file) и подписи (по желанию, пока сделаем просто закрытие).
+        """
+        permit = self.get_object()
+        user = request.user
+
+        # 1. Проверка статуса (Закрыть можно только СОГЛАСОВАННЫЙ наряд)
+        if permit.status != 'APPROVED':
+            return Response({'error': 'Закрыть можно только согласованный наряд.'}, status=400)
+
+        # 2. Проверка прав (Только ДОПУСКАЮЩИЙ)
+        # Ищем шаг, где user был ADMITTING
+        is_admitting = permit.approval_steps.filter(role='ADMITTING', approver=user).exists()
+
+        # Если вдруг в базе нет шага, проверяем по JSON data (как запасной вариант)
+        if not is_admitting:
+            admitting_data = permit.data.get('admitting') or {}
+            if str(admitting_data.get('id')) == str(user.id):
+                is_admitting = True
+
+        if not is_admitting and not user.is_superuser:
+            return Response({'error': 'Только Допускающий имеет право закрыть наряд.'}, status=403)
+
+        # 3. Сохраняем файл (если передан)
+        scan_file = request.FILES.get('scan_file')
+        if not scan_file:
+            return Response({'error': 'Необходимо прикрепить скан закрытого наряда (PDF/Фото).'}, status=400)
+
+        permit.scan_file = scan_file
+        permit.close_work()
+        permit.save()
+
+        # Логируем действие (опционально можно в approval_steps добавить шаг закрытия, но это не обязательно)
+
+        return Response({'status': 'Наряд успешно закрыт', 'scan_url': permit.scan_file.url})
 
 
 

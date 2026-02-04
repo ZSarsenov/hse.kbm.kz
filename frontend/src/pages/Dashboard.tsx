@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Filter, Calendar, MapPin, Search, Download, Plus, ChevronRight, Building2, SlidersHorizontal, User, ChevronLeft } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calendar, MapPin, Search, Download, Plus, ChevronRight, Building2, SlidersHorizontal, User, ChevronLeft, Filter } from 'lucide-react';
 import { WorkPermit, PermitStatus } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 
@@ -7,25 +7,38 @@ interface DashboardProps {
   permits: WorkPermit[];
   onSelectPermit: (id: string) => void;
   onCreateNew: () => void;
+  isArchiveView?: boolean; // 👈 ДОБАВИЛИ ФЛАГ "РЕЖИМ АРХИВА"
 }
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 10;
 
-export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, onCreateNew }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, onCreateNew, isArchiveView = false }) => {
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // 🔥 ПОЛУЧАЕМ ПРАВА (ISSUER или ADMIN)
   const user = JSON.parse(localStorage.getItem('user_data') || '{}');
   const canCreatePermit = user.role === 'ISSUER' || user.role === 'ADMIN';
 
-  // Filtering Logic
+  // 🔥 НОВАЯ ЛОГИКА ФИЛЬТРАЦИИ
   const filteredPermits = permits.filter(p => {
+    // Является ли наряд архивным? (Закрыт или Отклонен)
+    const isArchived = p.status === 'CLOSED' || p.status === 'REJECTED';
+
+    // Если режим АРХИВА -> показываем только архивные
+    // Если режим ГЛАВНОЙ -> показываем только активные
+    if (isArchiveView) {
+        if (!isArchived) return false;
+    } else {
+        if (isArchived) return false;
+    }
+
     const matchesStatus = filterStatus === 'ALL' || p.status === filterStatus;
-    const matchesSearch = p.permitId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          p.initiator.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          p.location.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = 
+      (p.permitId?.toLowerCase() || '').includes(query) ||
+      (p.initiator?.name?.toLowerCase() || '').includes(query) ||
+      (p.location?.name?.toLowerCase() || '').includes(query);
     return matchesStatus && matchesSearch;
   });
 
@@ -35,10 +48,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
   const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
   const currentItems = filteredPermits.slice(indexOfFirstItem, indexOfLastItem);
 
-  // Reset page on filter change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filterStatus, searchQuery]);
+  useEffect(() => { setCurrentPage(1); }, [filterStatus, searchQuery, isArchiveView]);
 
   const goToPage = (pageNumber: number) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {
@@ -53,8 +63,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Журнал нарядов-допусков</h1>
-          <p className="text-slate-500 mt-2 text-lg">Оперативный контроль работ повышенной опасности</p>
+          {/* Меняем заголовок в зависимости от режима */}
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+              {isArchiveView ? 'Архив нарядов' : 'Журнал нарядов-допусков'}
+          </h1>
+          <p className="text-slate-500 mt-2 text-lg">
+              {isArchiveView ? 'История закрытых и отклоненных работ' : 'Оперативный контроль работ повышенной опасности'}
+          </p>
         </div>
         <div className="flex gap-3">
           <button className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-5 py-3 rounded-lg text-base font-medium hover:bg-gray-50 transition-all shadow-sm">
@@ -62,8 +77,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
             <span className="hidden sm:inline">Экспорт отчета</span>
           </button>
 
-          {/* 👇 СКРЫВАЕМ КНОПКУ СОЗДАНИЯ */}
-          {canCreatePermit && (
+          {/* Кнопку "Создать" показываем только на ГЛАВНОЙ (в архиве она не нужна) */}
+          {!isArchiveView && canCreatePermit && (
               <button
                 onClick={onCreateNew}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-base font-medium transition-all shadow-md shadow-blue-200 flex items-center gap-2"
@@ -72,7 +87,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                 <span>Создать наряд</span>
               </button>
           )}
-
         </div>
       </div>
 
@@ -95,11 +109,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white transition-shadow outline-none cursor-pointer hover:border-gray-400"
             >
               <option value="ALL">Все статусы</option>
-              <option value={PermitStatus.DRAFT}>Черновик</option>
-              <option value={PermitStatus.PENDING_APPROVAL}>На согласовании</option>
-              <option value={PermitStatus.APPROVED}>Согласовано</option>
-              <option value={PermitStatus.REJECTED}>Отклонено</option>
-              <option value={PermitStatus.CLOSED}>Закрыт</option>
+              {isArchiveView ? (
+                  <>
+                      <option value={PermitStatus.CLOSED}>Закрыт</option>
+                      <option value={PermitStatus.REJECTED}>Отклонено</option>
+                  </>
+              ) : (
+                  <>
+                      <option value={PermitStatus.DRAFT}>Черновик</option>
+                      <option value={PermitStatus.PENDING_APPROVAL}>На согласовании</option>
+                      <option value={PermitStatus.APPROVED}>Согласовано</option>
+                  </>
+              )}
             </select>
           </div>
 
@@ -170,15 +191,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                   <td className="px-6 py-5 text-gray-600">
                     <div className="flex items-center gap-2">
                       <MapPin size={16} className="text-gray-400 shrink-0" />
-                      <span className="truncate max-w-[200px]">{permit.location.name}</span>
+                      <span className="truncate max-w-[200px]">{permit.location?.name || 'Не указано'}</span>
                     </div>
                   </td>
                   <td className="px-6 py-5 text-gray-700">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-sm text-slate-600 font-bold shrink-0">
-                        {permit.initiator.name.charAt(0)}
+                        {permit.initiator?.name?.charAt(0) || '?'}
                       </div>
-                      <span className="font-medium truncate">{permit.initiator.name}</span>
+                      <span className="font-medium truncate">{permit.initiator?.name || 'Неизвестно'}</span>
                     </div>
                   </td>
                   <td className="px-6 py-5 text-gray-500 font-mono text-sm">
@@ -202,7 +223,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                       <Search size={40} className="text-gray-300" />
                     </div>
                     <p className="text-xl font-medium">Наряды не найдены</p>
-                    <p className="text-base mt-2">Попробуйте изменить параметры фильтрации</p>
+                    <p className="text-base mt-2">
+                        {isArchiveView
+                            ? 'В архиве пока пусто'
+                            : 'В журнале нет активных нарядов. Попробуйте изменить фильтры.'}
+                    </p>
                   </td>
                 </tr>
               )}
@@ -281,11 +306,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
             <div className="space-y-4 text-base text-gray-600 mb-6">
               <div className="flex items-start gap-2.5">
                 <MapPin size={18} className="text-gray-400 mt-0.5 shrink-0" />
-                <span>{permit.location.name}</span>
+                <span>{permit.location?.name || 'Не указано'}</span>
               </div>
-               <div className="flex items-start gap-2.5">
+              <div className="flex items-start gap-2.5">
                 <User size={18} className="text-gray-400 mt-0.5 shrink-0" />
-                <span>{permit.initiator.name}</span>
+                <span>{permit.initiator?.name || 'Неизвестно'}</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Calendar size={18} className="text-gray-400 shrink-0" />
@@ -304,7 +329,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
         {/* Mobile Pagination */}
         {filteredPermits.length > 0 && (
           <div className="flex justify-center gap-4 pt-4 pb-20">
-            <button 
+            <button
                 onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage === 1}
                 className="flex-1 py-4 px-4 bg-white border border-gray-200 rounded-lg text-gray-700 font-medium disabled:opacity-50 shadow-sm text-lg"
@@ -314,7 +339,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
             <span className="flex items-center font-medium text-gray-600 text-lg">
               {currentPage} / {totalPages}
             </span>
-             <button 
+             <button
                 onClick={() => goToPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
                 className="flex-1 py-4 px-4 bg-white border border-gray-200 rounded-lg text-gray-700 font-medium disabled:opacity-50 shadow-sm text-lg"

@@ -71,6 +71,9 @@ class WorkPermit(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата последнего изменения')
 
+    scan_file = models.FileField(upload_to='permits_scans/%Y/%m/', verbose_name='Скан закрытого наряда',
+                                 null=True, blank=True)
+
     # ------------------ FSM LOGIC ------------------
     # 1. Отправка на согласование
     @transition(field=status, source=[STATUS_DRAFT, STATUS_REJECTED], target=STATUS_PENDING)
@@ -173,7 +176,13 @@ class WorkPermit(models.Model):
     def close_permit(self):
         print(f"Наряд {self.permit_id} закрыт.")
 
-
+    @transition(field=status, source='APPROVED', target='CLOSED')
+    def close_work(self):
+        """
+        Перевод наряда в статус 'Закрыт'.
+        Вызывается, когда Допускающий прикрепляет скан и закрывает наряд.
+        """
+        pass
 
     class Meta:
         verbose_name = 'Наряд Допуск'
