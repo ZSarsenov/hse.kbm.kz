@@ -155,3 +155,10 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+
+# URL, по которому файлы будут доступны в браузере
+MEDIA_URL = '/permits_scans/'
+
+# Папка на компьютере, куда физически сохраняются файлы
+MEDIA_ROOT = os.path.join(BASE_DIR, 'permits_scans')

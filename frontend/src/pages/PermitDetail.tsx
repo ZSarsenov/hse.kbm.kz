@@ -7,6 +7,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { ElectricalPermitForm } from '../components/ElectricalPermitForm';
 import { useNCALayer } from '../hooks/useNCALayer';
 import { ApprovalTracker } from '../components/ApprovalTracker';
+import { FileCheck } from 'lucide-react';
 
 interface PermitDetailProps {
   permit: WorkPermit;
@@ -321,6 +322,18 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                    </button>
                 </div>
             )}
+
+            {permit.status === 'CLOSED' && permit.scan_file && (
+            <a
+              href={permit.scan_file} // Ссылка на файл
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm ml-3"
+            >
+              <FileCheck size={20} />
+              <span>Скачать скан</span>
+            </a>
+          )}
 
           </div>
 

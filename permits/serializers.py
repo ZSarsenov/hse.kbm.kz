@@ -65,7 +65,8 @@ class PermitSerializer(serializers.ModelSerializer):
             'location',
             'location_name',
             'approval_steps',
-            'data'
+            'data',
+            'scan_file',
         )
         read_only_fields = ('id', 'permit_id', 'created_at', 'initiator', 'status', 'approval_steps', 'template',
                             'templateType', 'location_name')

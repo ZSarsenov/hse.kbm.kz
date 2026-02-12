@@ -71,7 +71,7 @@ class WorkPermit(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата последнего изменения')
 
-    scan_file = models.FileField(upload_to='permits_scans/%Y/%m/', verbose_name='Скан закрытого наряда',
+    scan_file = models.FileField(upload_to='%Y/%m/', verbose_name='Скан закрытого наряда',
                                  null=True, blank=True)
 
     # ------------------ FSM LOGIC ------------------

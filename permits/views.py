@@ -446,134 +446,173 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             print(f"🔥 PDF ERROR: {e}")
             return HttpResponse(f"Ошибка генерации PDF: {e}", status=500)
 
-    # 👇 СКАЧИВАНИЕ В ФОРМАТЕ WORD (DOCX) - ИСПРАВЛЕННЫЙ
-    # --------------------------------------------------------
-    @action(detail=True, methods=['get'])
-    def download_docx(self, request, pk=None):
+    def _build_docx_response(self, permit, qr_url):
+        """Собирает DOCX по наряду и возвращает HttpResponse. QR в документе ведёт на qr_url (верификация)."""
         from django.http import HttpResponse
         from django.conf import settings
-        from docxtpl import DocxTemplate, InlineImage  # 👈 Добавили InlineImage
-        from docx.shared import Mm  # 👈 Для размеров картинки
+        from docxtpl import DocxTemplate, InlineImage, RichText
+        from docx.shared import Mm
         import os
-        import qrcode  # 👈 Библиотека QR
+        import qrcode
         from io import BytesIO
+        import pytz
+        from datetime import datetime
 
-        permit = self.get_object()
-
-        # 1. ПУТЬ К ШАБЛОНУ
+        kz_tz = pytz.timezone('Asia/Almaty')
         template_path = os.path.join(settings.BASE_DIR, 'templates', 'docx', 'dangerous_permits_rus.docx')
 
         if not os.path.exists(template_path):
-            return Response({"error": "Шаблон не найден"}, status=500)
+            return None
 
-        try:
-            doc = DocxTemplate(template_path)
+        doc = DocxTemplate(template_path)
 
-            # --- ГЕНЕРАЦИЯ QR КОДА ---
-            # Ссылка, которая откроется при сканировании
-            # Ведем на страницу просмотра наряда на вашем сайте
-            qr_url = f"https://hse.kbm.kz/permits/{permit.id}"
+        # --- QR CODE (ссылка на верификацию — скачивание документа без авторизации) ---
+        qr = qrcode.QRCode(box_size=10, border=1)
+        qr.add_data(qr_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        img_buffer = BytesIO()
+        img.save(img_buffer, format='PNG')
+        img_buffer.seek(0)
+        qr_image = InlineImage(doc, img_buffer, width=Mm(25))
 
-            # Создаем картинку QR
-            qr = qrcode.QRCode(box_size=10, border=1)
-            qr.add_data(qr_url)
-            qr.make(fit=True)
-            img = qr.make_image(fill_color="black", back_color="white")
+        # --- ФУНКЦИИ ДАТ ---
+        def format_date(dt):
+            if not dt: return '"___" _________ 20___г.'
+            return dt.astimezone(kz_tz).strftime('%d.%m.%Y %H:%M')
 
-            # Сохраняем картинку в оперативную память (буфер)
-            img_buffer = BytesIO()
-            img.save(img_buffer, format='PNG')
-            img_buffer.seek(0)
+        def format_str_date(date_str):
+            if not date_str: return ""
+            try:
+                dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                return dt.strftime('%d.%m.%Y %H:%M')
+            except Exception:
+                return date_str
 
-            # Создаем объект для вставки в Word (размер 25x25 мм)
-            qr_image = InlineImage(doc, img_buffer, width=Mm(25))
+        def get_person(role_enum, json_key):
+            step = permit.approval_steps.filter(role=role_enum).first()
+            data = {'name': '_________________', 'job': '_________________', 'date': '"___" _________ 20___г.'}
+            if step and step.approver:
+                user = step.approver
+                data['name'] = user.get_full_name()
+                data['job'] = getattr(user, 'job_title', getattr(user, 'position', 'Должность не указана'))
+                if step.status == 'APPROVED' and step.signed_at:
+                    data['date'] = format_date(step.signed_at)
+                return data
+            if permit.data and json_key in permit.data:
+                p_data = permit.data[json_key]
+                if isinstance(p_data, dict) and p_data.get('name'):
+                    data['name'] = p_data.get('name')
+                    data['job'] = p_data.get('position', '_________________')
+                    if permit.created_at:
+                        data['date'] = format_date(permit.created_at)
+            return data
 
-            # --- ФУНКЦИЯ ПОИСКА ЛЮДЕЙ ---
-            def get_person(role_enum, json_key):
-                step = permit.approval_steps.filter(role=role_enum).first()
-                if step and step.approver:
-                    user = step.approver
-                    job = getattr(user, 'job_title', getattr(user, 'position', 'Должность не указана'))
-                    return {'name': user.get_full_name(), 'job': job}
+        prod_info = get_person('WORK_PRODUCER', 'producer')
+        admit_info = get_person('ADMITTING', 'admitting')
+        resp_info = get_person('RESPONSIBLE', 'responsible')
+        super_info = get_person('COORDINATOR', 'supervisor')
+        if '___' in super_info['name']:
+            super_info = get_person('SHIFT_SUPERVISOR', 'supervisor')
+        issuer_info = get_person('ISSUER', 'issuer')
+        if '___' in issuer_info['name']:
+            issuer_info['name'] = permit.initiator.get_full_name()
+            issuer_info['job'] = getattr(permit.initiator, 'job_title', '')
+            issuer_info['date'] = format_date(permit.created_at)
 
-                if permit.data and json_key in permit.data:
-                    p_data = permit.data[json_key]
-                    if isinstance(p_data, dict):
-                        return {'name': p_data.get('name', '___'), 'job': p_data.get('position', '___')}
-                    if isinstance(p_data, (int, str)) and str(p_data).isdigit():
-                        from django.contrib.auth import get_user_model
-                        User = get_user_model()
-                        try:
-                            u = User.objects.get(pk=int(p_data))
-                            job = getattr(u, 'job_title', getattr(u, 'position', ''))
-                            return {'name': u.get_full_name(), 'job': job}
-                        except User.DoesNotExist:
-                            pass
-                    if isinstance(p_data, str) and len(p_data) > 2:
-                        return {'name': p_data, 'job': '___'}
-
-                return {'name': '___', 'job': '___'}
-
-            # --- СБОР ДАННЫХ ---
-            prod_info = get_person('WORK_PRODUCER', 'producer')
-            admit_info = get_person('ADMITTING', 'admitting')
-            resp_info = get_person('RESPONSIBLE', 'responsible')
-            issuer_info = get_person('ISSUER', 'issuer')
-
-            if '___' in issuer_info['name']:
-                issuer_info['name'] = permit.initiator.get_full_name()
-                issuer_info['job'] = getattr(permit.initiator, 'job_title', '')
-
-            context = {
-                # QR КОД
-                'qr_code': qr_image,  # 👈 Передаем картинку в шаблон
-
-                'permit_id': permit.permit_id,
-                'department': permit.location.name if permit.location else "Не указано",
-
-                # ЛЮДИ
-                'producer_name': prod_info['name'], 'producer_job': prod_info['job'],
-                'admitting_name': admit_info['name'], 'admitting_job': admit_info['job'],
-                'responsible_name': resp_info['name'], 'responsible_job': resp_info['job'],
-                'issuer_name': issuer_info['name'], 'issuer_job': issuer_info['job'],
-
-                # ОПИСАНИЕ
-                'work_place': permit.data.get('workPlace', permit.location.name if permit.location else ""),
-                'work_name': permit.data.get('workName', ""),
-                'work_content': permit.data.get('content', ""),
-
-                # ДАТЫ
-                'date_start': permit.valid_from.strftime('%d.%m.%Y %H:%M') if permit.valid_from else "...",
-                'date_end': permit.valid_to.strftime('%d.%m.%Y %H:%M') if permit.valid_to else "...",
-
-                # МЕРЫ БЕЗОПАСНОСТИ (Пункт 5)
-                'm5_1': permit.data.get('m5_1_stop', '____________________'),
-                'm5_2': permit.data.get('m5_2_disconnect', '____________________'),
-                'm5_3': permit.data.get('m5_3_install', '____________________'),
-                'm5_4': permit.data.get('m5_4_analysis', '____________________'),
-                'm5_5': permit.data.get('m5_5_fence', '____________________'),
-                'm5_6': permit.data.get('m5_6_height', '____________________'),
-                'm5_7': permit.data.get('m5_7_warn', '____________________'),
-                'm5_8': permit.data.get('m5_8_railway', '____________________'),
-                'm5_9': permit.data.get('m5_9_routes', '____________________'),
-                'm5_10': permit.data.get('m5_10_additional', '____________________'),
+        raw_team = permit.data.get('teamMembers', [])
+        brigade_list = [
+            {
+                'i': idx,
+                'date': format_str_date(m.get('instructedAt')),
+                'name': m.get('name', ''),
+                'job': m.get('role', ''),
+                'instr_by': m.get('instructedBy', ''),
             }
+            for idx, m in enumerate(raw_team, start=1)
+        ]
+        team_count = len(brigade_list)
 
-            doc.render(context)
+        raw_ext = permit.data.get('extensions', [])
+        extension_list = [
+            {
+                'date': format_str_date(ext.get('dateTime')),
+                'prod_out': ext.get('producerHandOverName', ''),
+                'count': ext.get('incomingTeamCount', ''),
+                'prod_in': ext.get('producerTakeOverName', ''),
+                'admin': ext.get('admittingName', ''),
+            }
+            for ext in raw_ext
+        ]
 
-            response = HttpResponse(
-                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-            filename = f"Permit_{permit.permit_id}.docx"
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        context = {
+            'qr_code': qr_image,
+            'permit_id': permit.permit_id,
+            'department': permit.location.name if permit.location else "Не указано",
+            'producer_name': prod_info['name'], 'producer_job': prod_info['job'], 'producer_date': prod_info['date'],
+            'admitting_name': admit_info['name'], 'admitting_job': admit_info['job'], 'admitting_date': admit_info['date'],
+            'responsible_name': resp_info['name'], 'responsible_job': resp_info['job'], 'responsible_date': resp_info['date'],
+            'issuer_name': issuer_info['name'], 'issuer_job': issuer_info['job'], 'issuer_date': issuer_info['date'],
+            'supervisor_name': super_info['name'], 'supervisor_job': super_info['job'], 'supervisor_date': super_info['date'],
+            'work_place': permit.data.get('workPlace', permit.location.name if permit.location else ""),
+            'work_name': permit.data.get('workName', ""),
+            'work_content': permit.data.get('content', ""),
+            'date_start': format_date(permit.valid_from),
+            'date_end': format_date(permit.valid_to),
+            'm5_1': permit.data.get('m5_1_stop', '____________________'),
+            'm5_2': permit.data.get('m5_2_disconnect', '____________________'),
+            'm5_3': permit.data.get('m5_3_install', '____________________'),
+            'm5_4': permit.data.get('m5_4_analysis', '____________________'),
+            'm5_5': permit.data.get('m5_5_fence', '____________________'),
+            'm5_6': permit.data.get('m5_6_height', '____________________'),
+            'm5_7': permit.data.get('m5_7_warn', '____________________'),
+            'm5_8': permit.data.get('m5_8_railway', '____________________'),
+            'm5_9': permit.data.get('m5_9_routes', '____________________'),
+            'm5_10': permit.data.get('m5_10_additional', '____________________'),
+            'brigade_list': brigade_list,
+            'team_count': team_count,
+            'extension_list': extension_list,
+        }
 
-            doc.save(response)
+        doc.render(context)
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        response['Content-Disposition'] = f'attachment; filename="Permit_{permit.permit_id}.docx"'
+        doc.save(response)
+        return response
+
+    @action(detail=True, methods=['get'], url_path='download_docx')
+    def download_docx(self, request, pk=None):
+        """Скачивание DOCX наряда (требуется авторизация). QR в документе ведёт на verify_docx."""
+        from django.conf import settings
+        permit = self.get_object()
+        base = getattr(settings, 'HSE_BASE_URL', 'https://hse.kbm.kz')
+        qr_url = f"{base}/api/v1/permits/{permit.id}/verify_docx/"
+        try:
+            response = self._build_docx_response(permit, qr_url)
+            if response is None:
+                return Response({"error": "Шаблон не найден"}, status=500)
             return response
-
         except Exception as e:
             import traceback
-            print("🔥🔥🔥 ПОЛНЫЙ ТЕКСТ ОШИБКИ НИЖЕ 🔥🔥🔥")
             traceback.print_exc()
-            print("🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥")
+            return Response({"error": f"Ошибка генерации DOCX: {str(e)}"}, status=500)
+
+    @action(detail=True, methods=['get'], url_path='verify_docx', permission_classes=[AllowAny])
+    def verify_docx(self, request, pk=None):
+        """Публичная верификация: отдаёт DOCX наряда по id без авторизации (для QR в документе)."""
+        from django.conf import settings
+        permit = get_object_or_404(WorkPermit, pk=pk)
+        base = getattr(settings, 'HSE_BASE_URL', 'https://hse.kbm.kz')
+        qr_url = f"{base}/api/v1/permits/{permit.id}/verify_docx/"
+        try:
+            response = self._build_docx_response(permit, qr_url)
+            if response is None:
+                return Response({"error": "Шаблон не найден"}, status=500)
+            return response
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
             return Response({"error": f"Ошибка генерации DOCX: {str(e)}"}, status=500)
 
     def perform_update(self, serializer):

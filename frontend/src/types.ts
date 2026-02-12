@@ -209,6 +209,7 @@ export interface WorkPermit {
   status: PermitStatus | string;
   category?: PermitCategory;
   templateType: string;
+  scan_file?: string | null;
   initiator: {
     id?: string | number;
     name: string;

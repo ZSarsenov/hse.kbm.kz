@@ -76,6 +76,7 @@ function App() {
           permitId: p.permit_id,
           templateType: p.templateType || 'Наряд повышенной опасности',
           status: p.status,
+          scan_file: p.scan_file,
           initiator: {
             name: p.initiator.name || `${p.initiator.last_name} ${p.initiator.first_name}`,
             position: p.initiator.position,
@@ -123,6 +124,7 @@ function App() {
                     permitId: p.permit_id,
                     templateType: p.templateType || 'Наряд повышенной опасности',
                     status: p.status,
+                    scan_file: p.scan_file,
                     initiator: {
                         name: p.initiator.name || `${p.initiator.last_name} ${p.initiator.first_name}`,
                         position: p.initiator.position,
