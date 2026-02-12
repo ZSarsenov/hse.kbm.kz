@@ -86,6 +86,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # Определяем, на какой мы системе
 IS_LINUX = platform.system() == 'Linux'
+BASE_DIR_STR = str(BASE_DIR)
 
 # Определяем имя базы в зависимости от условий
 # Если это Linux, то смотрим путь (dev или prod), если Windows - то local
@@ -107,7 +108,7 @@ else:
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'hse.kbm.kz_local',
+        'NAME': DB_NAME,
         'USER': 'postgres',
         'PASSWORD': 'postgres',
         'HOST': 'localhost',
