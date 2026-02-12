@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import platform
 from django.conf.global_settings import AUTH_USER_MODEL
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -81,6 +82,27 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+
+
+# Определяем, на какой мы системе
+IS_LINUX = platform.system() == 'Linux'
+
+# Определяем имя базы в зависимости от условий
+# Если это Linux, то смотрим путь (dev или prod), если Windows - то local
+if IS_LINUX:
+    # Простейшая проверка: если мы в папке 'prod', то это боевая база
+    if '/web/prod' in str(BASE_DIR):
+         DB_NAME = 'end.kbm.kz'
+    # Если мы в папке 'dev', то это тестовая база
+    elif '/web/dev' in str(BASE_DIR):
+         DB_NAME = 'end_kbm_dev'
+    else:
+         # Запасной вариант для Linux
+         DB_NAME = 'end_kbm_dev'
+else:
+    # Если это Windows
+    DB_NAME = 'hse.kbm.kz_local'
+
 
 DATABASES = {
     'default': {

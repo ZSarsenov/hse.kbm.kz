@@ -455,10 +455,10 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         import os
         import qrcode
         from io import BytesIO
-        import pytz
+        from zoneinfo import ZoneInfo
         from datetime import datetime
 
-        kz_tz = pytz.timezone('Asia/Almaty')
+        kz_tz = ZoneInfo('Asia/Almaty')
         template_path = os.path.join(settings.BASE_DIR, 'templates', 'docx', 'dangerous_permits_rus.docx')
 
         if not os.path.exists(template_path):
