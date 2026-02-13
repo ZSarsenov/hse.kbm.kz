@@ -121,6 +121,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
     supervisor: { id: null, name: '' }
   });
 
+  // Редактирование во время согласования: запоминаем какие роли были заполнены изначально
+  const isApprovalEdit = isEditing && initialData?.status === 'PENDING_APPROVAL';
+  const [lockedRoles, setLockedRoles] = useState<Record<string, boolean>>({});
+
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [departmentsList, setDepartmentsList] = useState<any[]>([]);
   const [workTypesList, setWorkTypesList] = useState<any[]>([]);
@@ -179,13 +183,24 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
               };
           }
 
-          setRoles({
+          const restoredRoles = {
               producer: restoreRole(savedData.producer),
               admitting: restoreRole(savedData.admitting),
               responsible: restoreRole(savedData.responsible),
-              issuer: issuerRole, // Используем исправленного выдающего
+              issuer: issuerRole,
               supervisor: restoreRole(savedData.supervisor),
-          });
+          };
+          setRoles(restoredRoles);
+
+          // При редактировании во время согласования: блокируем роли, где уже назначен человек
+          if (initialData?.status === 'PENDING_APPROVAL') {
+              setLockedRoles({
+                  producer: !!restoredRoles.producer.id,
+                  admitting: !!restoredRoles.admitting.id,
+                  responsible: !!restoredRoles.responsible.id,
+                  supervisor: !!restoredRoles.supervisor.id,
+              });
+          }
 
           // 3. Восстанавливаем сложные массивы (Бригада, Риски, Расширения)
           if (savedData.teamMembers) setTeamMembers(savedData.teamMembers);
@@ -500,9 +515,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                  {/* 2. Ответственный руководитель */}
                  <div>
                    <UserSearchSelect
-                      label="Ответственный руководитель (если назначается)"
+                      label={`Ответственный руководитель (если назначается)${isApprovalEdit && lockedRoles.responsible ? ' 🔒' : ''}`}
                       value={roles.responsible.name}
                       requiredRole="RESPONSIBLE"
+                      disabled={isApprovalEdit && lockedRoles.responsible}
                       excludeIds={[roles.issuer.id, roles.admitting.id, roles.producer.id, roles.supervisor.id].filter((id): id is number => id !== null)}
                       onChange={(user) => {
                              const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
@@ -520,9 +536,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                  {/* 3. Допускающий */}
                  <div>
                    <UserSearchSelect
-                      label="Допускающий к работе"
+                      label={`Допускающий к работе${isApprovalEdit && lockedRoles.admitting ? ' 🔒' : ''}`}
                       value={roles.admitting.name}
                       requiredRole="ADMITTING"
+                      disabled={isApprovalEdit && lockedRoles.admitting}
                       excludeIds={[roles.issuer.id, roles.responsible.id, roles.producer.id, roles.supervisor.id].filter((id): id is number => id !== null)}
                       onChange={(user) => {
                          const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
@@ -538,9 +555,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                  {/* 4. Производитель работ */}
                  <div>
                    <UserSearchSelect
-                      label="Производитель работ"
+                      label={`Производитель работ${isApprovalEdit && lockedRoles.producer ? ' 🔒' : ''}`}
                       value={roles.producer.name}
                       requiredRole="WORK_PRODUCER"
+                      disabled={isApprovalEdit && lockedRoles.producer}
                       excludeIds={[roles.issuer.id, roles.responsible.id, roles.admitting.id, roles.supervisor.id].filter((id): id is number => id !== null)}
                       onChange={(user) => {
                          const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
@@ -556,9 +574,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                  {/* 5. Согласующий */}
                   <div className="md:col-span-2 border-t pt-4 mt-2">
                    <UserSearchSelect
-                      label="Согласовано (Нач. смены / Участка / Инженер ТБ)"
+                      label={`Согласовано (Нач. смены / Участка / Инженер ТБ)${isApprovalEdit && lockedRoles.supervisor ? ' 🔒' : ''}`}
                       value={roles.supervisor.name}
                       requiredRole="COORDINATOR"
+                      disabled={isApprovalEdit && lockedRoles.supervisor}
                       excludeIds={[roles.issuer.id, roles.responsible.id, roles.admitting.id, roles.producer.id].filter((id): id is number => id !== null)}
                       onChange={(user) => {
                          const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
