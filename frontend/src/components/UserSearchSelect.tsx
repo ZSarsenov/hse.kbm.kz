@@ -16,6 +16,7 @@ interface UserSearchSelectProps {
   placeholder?: string;
   disabled?: boolean;
   requiredRole?: string; // 👇 Новая фишка: Требуемая роль
+  excludeIds?: number[]; // ID пользователей, уже выбранных в других ролях
 }
 
 // Словарь для красивого отображения ролей (можно вынести в types)
@@ -35,7 +36,8 @@ export const UserSearchSelect: React.FC<UserSearchSelectProps> = ({
   onChange,
   placeholder = "Введите фамилию...",
   disabled = false,
-  requiredRole
+  requiredRole,
+  excludeIds = []
 }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UserData[]>([]);
@@ -157,24 +159,43 @@ export const UserSearchSelect: React.FC<UserSearchSelectProps> = ({
           {!loading && results.map((user) => {
              // Подсветка несоответствия роли в списке
              const isRoleMismatch = requiredRole && user.role !== requiredRole;
+             // Проверка: уже выбран в другой роли
+             const isAlreadySelected = excludeIds.includes(user.id);
 
              return (
               <button
                 key={user.id}
-                onClick={() => handleSelect(user)}
-                className={`w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-gray-50 last:border-0 transition-colors flex items-center gap-3 group ${isRoleMismatch ? 'hover:bg-red-50' : ''}`}
+                onClick={() => !isAlreadySelected && handleSelect(user)}
+                disabled={isAlreadySelected}
+                className={`w-full text-left px-4 py-3 border-b border-gray-50 last:border-0 transition-colors flex items-center gap-3 group ${
+                  isAlreadySelected
+                    ? 'opacity-50 cursor-not-allowed bg-gray-50'
+                    : isRoleMismatch
+                      ? 'hover:bg-red-50'
+                      : 'hover:bg-blue-50'
+                }`}
               >
-                <div className={`p-2 rounded-full ${isRoleMismatch ? 'bg-red-100 text-red-500' : 'bg-blue-100 text-blue-600'}`}>
-                  {isRoleMismatch ? <AlertCircle size={20} /> : <UserIcon size={20} />}
+                <div className={`p-2 rounded-full ${
+                  isAlreadySelected
+                    ? 'bg-gray-200 text-gray-400'
+                    : isRoleMismatch
+                      ? 'bg-red-100 text-red-500'
+                      : 'bg-blue-100 text-blue-600'
+                }`}>
+                  {isAlreadySelected ? <AlertCircle size={20} /> : isRoleMismatch ? <AlertCircle size={20} /> : <UserIcon size={20} />}
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900">{user.name}</p>
+                  <p className={`font-medium ${isAlreadySelected ? 'text-gray-400' : 'text-gray-900'}`}>{user.name}</p>
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-gray-500">{user.position || 'Должность не указана'}</span>
                     <span className="text-gray-300">•</span>
-                    <span className={`font-medium ${isRoleMismatch ? 'text-red-500' : 'text-blue-600'}`}>
-                       {ROLE_LABELS[user.role] || user.role}
-                    </span>
+                    {isAlreadySelected ? (
+                      <span className="font-medium text-orange-500">Уже выбран в другой роли</span>
+                    ) : (
+                      <span className={`font-medium ${isRoleMismatch ? 'text-red-500' : 'text-blue-600'}`}>
+                        {ROLE_LABELS[user.role] || user.role}
+                      </span>
+                    )}
                   </div>
                   {user.department_name && (
                     <p className="text-xs text-gray-400 mt-0.5">{user.department_name}</p>

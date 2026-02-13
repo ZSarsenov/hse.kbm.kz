@@ -503,8 +503,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                       label="Ответственный руководитель (если назначается)"
                       value={roles.responsible.name}
                       requiredRole="RESPONSIBLE"
+                      excludeIds={[roles.issuer.id, roles.admitting.id, roles.producer.id, roles.supervisor.id].filter((id): id is number => id !== null)}
                       onChange={(user) => {
-                             // Формируем красивую строку
                              const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
                              setRoles(prev => ({
                                  ...prev,
@@ -523,6 +523,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                       label="Допускающий к работе"
                       value={roles.admitting.name}
                       requiredRole="ADMITTING"
+                      excludeIds={[roles.issuer.id, roles.responsible.id, roles.producer.id, roles.supervisor.id].filter((id): id is number => id !== null)}
                       onChange={(user) => {
                          const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
                          const userData = user ? { id: user.id, name: displayName, role: user.role } : { id: null, name: '' };
@@ -540,6 +541,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                       label="Производитель работ"
                       value={roles.producer.name}
                       requiredRole="WORK_PRODUCER"
+                      excludeIds={[roles.issuer.id, roles.responsible.id, roles.admitting.id, roles.supervisor.id].filter((id): id is number => id !== null)}
                       onChange={(user) => {
                          const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
                          const userData = user ? { id: user.id, name: displayName, role: user.role } : { id: null, name: '' };
@@ -557,6 +559,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                       label="Согласовано (Нач. смены / Участка / Инженер ТБ)"
                       value={roles.supervisor.name}
                       requiredRole="COORDINATOR"
+                      excludeIds={[roles.issuer.id, roles.responsible.id, roles.admitting.id, roles.producer.id].filter((id): id is number => id !== null)}
                       onChange={(user) => {
                          const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
                          setRoles(prev => ({
