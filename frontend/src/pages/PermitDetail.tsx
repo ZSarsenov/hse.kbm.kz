@@ -227,6 +227,27 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
           alert("Пожалуйста, выберите файл (скан наряда) перед закрытием.");
           return;
       }
+
+      // Валидация типа файла
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+      const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+      const fileExt = scanFile.name.toLowerCase().slice(scanFile.name.lastIndexOf('.'));
+
+      if (!allowedTypes.includes(scanFile.type) && !allowedExtensions.includes(fileExt)) {
+          alert("Недопустимый формат файла.\nРазрешены только: PDF, JPG, PNG.");
+          setScanFile(null);
+          return;
+      }
+
+      // Валидация размера файла (макс. 10 МБ)
+      const maxSizeMB = 10;
+      if (scanFile.size > maxSizeMB * 1024 * 1024) {
+          const fileSizeMB = (scanFile.size / (1024 * 1024)).toFixed(1);
+          alert(`Файл слишком большой: ${fileSizeMB} МБ.\nМаксимальный размер: ${maxSizeMB} МБ.`);
+          setScanFile(null);
+          return;
+      }
+
       if (!confirm("Вы уверены, что хотите ЗАКРЫТЬ наряд? Это действие необратимо.")) return;
 
       const formData = new FormData();
@@ -525,7 +546,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                        <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-gray-300 shadow-lg absolute bottom-20 right-4 md:static md:shadow-none md:border-0 md:bg-transparent animate-in slide-in-from-bottom-2">
                            <input
                                type="file"
-                               accept="application/pdf,image/*"
+                               accept=".pdf,.jpg,.jpeg,.png"
                                onChange={(e) => setScanFile(e.target.files ? e.target.files[0] : null)}
                                className="text-sm text-gray-500 w-48 file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                            />

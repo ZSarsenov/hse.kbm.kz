@@ -826,10 +826,26 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         if not is_admitting and not user.is_superuser:
             return Response({'error': 'Только Допускающий имеет право закрыть наряд.'}, status=403)
 
-        # 3. Сохраняем файл (если передан)
+        # 3. Валидация файла
         scan_file = request.FILES.get('scan_file')
         if not scan_file:
             return Response({'error': 'Необходимо прикрепить скан закрытого наряда (PDF/Фото).'}, status=400)
+
+        # 3а. Проверка типа файла
+        allowed_extensions = ('.pdf', '.jpg', '.jpeg', '.png')
+        file_ext = os.path.splitext(scan_file.name)[1].lower()
+        if file_ext not in allowed_extensions:
+            return Response({
+                'error': f'Недопустимый формат файла ({file_ext}). Разрешены только: PDF, JPG, PNG.'
+            }, status=400)
+
+        # 3б. Проверка размера файла (макс. 10 МБ)
+        max_size_mb = 10
+        if scan_file.size > max_size_mb * 1024 * 1024:
+            file_size_mb = round(scan_file.size / (1024 * 1024), 1)
+            return Response({
+                'error': f'Файл слишком большой: {file_size_mb} МБ. Максимальный размер: {max_size_mb} МБ.'
+            }, status=400)
 
         permit.scan_file = scan_file
         permit.close_work()
