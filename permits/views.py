@@ -759,107 +759,38 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         """
-        Переопределяем логику сохранения:
-        - Инициатор может редактировать черновик.
+        Логика сохранения:
+        - Инициатор (Выдающий наряд) может редактировать черновик без ограничений.
         - Согласующие (Ответственный/Допускающий/Производитель) могут редактировать
-          во время согласования, но НЕ могут менять уже назначенных подписантов.
-          Могут только ДОБАВЛЯТЬ подписантов в пустые роли.
-        - При добавлении нового подписанта — автоматически создается шаг согласования.
+          во время согласования, но подписанты защищены на сервере —
+          роли (issuer, responsible, admitting, producer, supervisor) не меняются.
         """
         permit = self.get_object()
         user = self.request.user
 
-        # Маппинг: ключ в JSON data -> роль в ApprovalStep
-        ROLE_MAP = {
-            'responsible': 'RESPONSIBLE',
-            'admitting': 'ADMITTING',
-            'producer': 'WORK_PRODUCER',
-            'supervisor': 'COORDINATOR',
-        }
-
-        # 1. Логика для Инициатора (черновик)
+        # 1. Инициатор редактирует черновик — без ограничений
         if permit.status == 'DRAFT' and permit.initiator == user:
             serializer.save()
             return
 
-        # 2. Логика для редактирования ВО ВРЕМЯ СОГЛАСОВАНИЯ
+        # 2. Согласующий редактирует во время согласования
         try:
             current_step = permit.approval_steps.get(status='PENDING', approver=user)
             allowed_roles = ['RESPONSIBLE', 'ADMITTING', 'WORK_PRODUCER']
 
             if permit.status == 'PENDING_APPROVAL' and current_step.role in allowed_roles:
+                # Защита: принудительно сохраняем ОРИГИНАЛЬНЫЕ роли подписантов,
+                # чтобы согласующий не мог их изменить
                 old_data = permit.data or {}
                 new_data = serializer.validated_data.get('data', {})
 
-                # --- ЗАЩИТА: Нельзя менять уже назначенных подписантов ---
-                for json_key, step_role in ROLE_MAP.items():
-                    old_role = old_data.get(json_key, {})
-                    new_role = new_data.get(json_key, {})
+                role_keys = ['issuer', 'responsible', 'admitting', 'producer', 'supervisor']
+                for key in role_keys:
+                    if key in old_data:
+                        new_data[key] = old_data[key]
 
-                    old_id = old_role.get('id') if isinstance(old_role, dict) else None
-                    new_id = new_role.get('id') if isinstance(new_role, dict) else None
-
-                    # Если роль была заполнена И пользователь пытается назначить другого — запрещаем
-                    if old_id and new_id and old_id != new_id:
-                        from rest_framework.exceptions import ValidationError
-                        role_names = {
-                            'responsible': 'Ответственный руководитель',
-                            'admitting': 'Допускающий',
-                            'producer': 'Производитель работ',
-                            'supervisor': 'Согласующий (Нач. смены)',
-                        }
-                        raise ValidationError(
-                            f"Нельзя заменить уже назначенного подписанта: {role_names.get(json_key, json_key)}. "
-                            f"Можно только добавлять в пустые роли."
-                        )
-
-                # --- СОХРАНЯЕМ ДАННЫЕ ---
-                print(f"✏️ User {user.username} ({current_step.role}) отредактировал наряд {permit.permit_id}")
+                serializer.validated_data['data'] = new_data
                 serializer.save()
-                permit.refresh_from_db()
-
-                # --- СИНХРОНИЗАЦИЯ: Создаем новые шаги для ДОБАВЛЕННЫХ ролей ---
-                from django.contrib.auth import get_user_model
-                from django.db.models import Max
-                User = get_user_model()
-
-                for json_key, step_role in ROLE_MAP.items():
-                    old_role = old_data.get(json_key, {})
-                    new_role = permit.data.get(json_key, {})
-
-                    old_id = old_role.get('id') if isinstance(old_role, dict) else None
-                    new_id = new_role.get('id') if isinstance(new_role, dict) else None
-
-                    # Роль была пустая, теперь назначен человек -> создаем ApprovalStep
-                    if not old_id and new_id:
-                        # Проверяем, вдруг шаг для этой роли уже существует
-                        if not permit.approval_steps.filter(role=step_role).exists():
-                            max_order = permit.approval_steps.aggregate(
-                                Max('step_order')
-                            )['step_order__max'] or 0
-
-                            try:
-                                new_approver = User.objects.get(pk=new_id)
-                                ApprovalStep.objects.create(
-                                    permit=permit,
-                                    approver=new_approver,
-                                    role=step_role,
-                                    step_order=max_order + 1,
-                                    status='WAITING'  # Будет ждать своей очереди
-                                )
-                                print(f"✅ Добавлен шаг согласования: {step_role} -> {new_approver.get_full_name()}")
-
-                                # Уведомляем нового подписанта
-                                Notification.objects.create(
-                                    user=new_approver,
-                                    permit_id=permit.id,
-                                    title="Вы назначены согласующим",
-                                    message=f"Вы добавлены в маршрут согласования наряда №{permit.permit_id}. "
-                                            f"Ваша роль: {step_role}. Ожидайте своей очереди."
-                                )
-                            except User.DoesNotExist:
-                                print(f"⚠️ Пользователь ID {new_id} не найден при добавлении шага.")
-
                 return
 
         except ApprovalStep.DoesNotExist:

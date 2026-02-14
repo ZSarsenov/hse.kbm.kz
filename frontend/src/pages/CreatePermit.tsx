@@ -121,9 +121,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
     supervisor: { id: null, name: '' }
   });
 
-  // Редактирование во время согласования: запоминаем какие роли были заполнены изначально
+  // Редактирование во время согласования: блок подписантов полностью заблокирован
   const isApprovalEdit = isEditing && initialData?.status === 'PENDING_APPROVAL';
-  const [lockedRoles, setLockedRoles] = useState<Record<string, boolean>>({});
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [departmentsList, setDepartmentsList] = useState<any[]>([]);
@@ -192,15 +191,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
           };
           setRoles(restoredRoles);
 
-          // При редактировании во время согласования: блокируем роли, где уже назначен человек
-          if (initialData?.status === 'PENDING_APPROVAL') {
-              setLockedRoles({
-                  producer: !!restoredRoles.producer.id,
-                  admitting: !!restoredRoles.admitting.id,
-                  responsible: !!restoredRoles.responsible.id,
-                  supervisor: !!restoredRoles.supervisor.id,
-              });
-          }
+          // При редактировании во время согласования блок подписантов
+          // полностью заблокирован — менять подписантов может только Выдающий наряд
 
           // 3. Восстанавливаем сложные массивы (Бригада, Риски, Расширения)
           if (savedData.teamMembers) setTeamMembers(savedData.teamMembers);
@@ -357,14 +349,24 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
         alert(isEditing ? '✅ Наряд успешно обновлен!' : `✅ Наряд №${result.permit_id} успешно создан!`);
         onSubmit();
       } else {
-        const errorData = await response.json();
-        console.error("Ошибка сервера:", errorData);
-        alert(`❌ Ошибка: ${JSON.stringify(errorData)}`);
+        // Пробуем прочитать JSON-ошибку, если не получится — читаем текст
+        let errorMsg = `Ошибка сервера (${response.status})`;
+        try {
+          const errorData = await response.json();
+          console.error("Ошибка сервера:", errorData);
+          errorMsg = typeof errorData === 'object'
+            ? (errorData.detail || errorData.error || JSON.stringify(errorData))
+            : String(errorData);
+        } catch {
+          const text = await response.text();
+          console.error("Ошибка сервера (не JSON):", text.substring(0, 500));
+        }
+        alert(`❌ ${errorMsg}`);
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Ошибка сети:", error);
-      alert("❌ Нет соединения с сервером Django");
+      alert(`❌ Ошибка соединения: ${error?.message || 'Нет связи с сервером Django'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -496,10 +498,40 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
               </div>
            </div>
 
-           {/* Section 2: Responsible Persons - ОБНОВЛЕНО НА УМНЫЙ ПОИСК */}
-           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-              <h3 className="font-bold text-gray-900 mb-4 uppercase text-base tracking-wider border-b pb-2">Лица, ответственные за безопасность</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+           {/* Section 2: Responsible Persons */}
+           <div className={`bg-white p-6 rounded-xl border shadow-sm ${isApprovalEdit ? 'border-orange-200 bg-orange-50/30' : 'border-gray-200'}`}>
+              <h3 className="font-bold text-gray-900 mb-4 uppercase text-base tracking-wider border-b pb-2 flex items-center gap-2">
+                Лица, ответственные за безопасность
+                {isApprovalEdit && <span className="text-sm normal-case text-orange-600 font-medium ml-2">🔒 Только для просмотра</span>}
+              </h3>
+
+              {/* При редактировании во время согласования — только просмотр */}
+              {isApprovalEdit ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <span className="text-xs text-gray-400 uppercase font-bold">Наряд выдал (Выдающий)</span>
+                    <p className="font-medium text-gray-700 mt-1">{roles.issuer.name || '—'}</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <span className="text-xs text-gray-400 uppercase font-bold">Ответственный руководитель</span>
+                    <p className="font-medium text-gray-700 mt-1">{roles.responsible.name || 'Не назначен'}</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <span className="text-xs text-gray-400 uppercase font-bold">Допускающий к работе</span>
+                    <p className="font-medium text-gray-700 mt-1">{roles.admitting.name || '—'}</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <span className="text-xs text-gray-400 uppercase font-bold">Производитель работ</span>
+                    <p className="font-medium text-gray-700 mt-1">{roles.producer.name || '—'}</p>
+                  </div>
+                  <div className="md:col-span-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <span className="text-xs text-gray-400 uppercase font-bold">Согласовано (Нач. смены / Участка / Инженер ТБ)</span>
+                    <p className="font-medium text-gray-700 mt-1">{roles.supervisor.name || 'Не назначен'}</p>
+                  </div>
+                </div>
+              ) : (
+                /* При создании / редактировании черновика — полный доступ */
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
 
                  {/* 1. Наряд выдал (Авто-заполнение, READONLY) */}
                  <div>
@@ -515,10 +547,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                  {/* 2. Ответственный руководитель */}
                  <div>
                    <UserSearchSelect
-                      label={`Ответственный руководитель (если назначается)${isApprovalEdit && lockedRoles.responsible ? ' 🔒' : ''}`}
+                      label="Ответственный руководитель (если назначается)"
                       value={roles.responsible.name}
                       requiredRole="RESPONSIBLE"
-                      disabled={isApprovalEdit && lockedRoles.responsible}
                       excludeIds={[roles.issuer.id, roles.admitting.id, roles.producer.id, roles.supervisor.id].filter((id): id is number => id !== null)}
                       onChange={(user) => {
                              const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
@@ -536,16 +567,14 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                  {/* 3. Допускающий */}
                  <div>
                    <UserSearchSelect
-                      label={`Допускающий к работе${isApprovalEdit && lockedRoles.admitting ? ' 🔒' : ''}`}
+                      label="Допускающий к работе"
                       value={roles.admitting.name}
                       requiredRole="ADMITTING"
-                      disabled={isApprovalEdit && lockedRoles.admitting}
                       excludeIds={[roles.issuer.id, roles.responsible.id, roles.producer.id, roles.supervisor.id].filter((id): id is number => id !== null)}
                       onChange={(user) => {
                          const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
                          const userData = user ? { id: user.id, name: displayName, role: user.role } : { id: null, name: '' };
                          setRoles(prev => ({ ...prev, admitting: userData }));
-                         // Дублируем в "Наряд принял" для шага 2
                          if (user) updateForm('completionTakeOverName', displayName);
                      }}
                       placeholder="Начните вводить фамилию..."
@@ -555,16 +584,14 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                  {/* 4. Производитель работ */}
                  <div>
                    <UserSearchSelect
-                      label={`Производитель работ${isApprovalEdit && lockedRoles.producer ? ' 🔒' : ''}`}
+                      label="Производитель работ"
                       value={roles.producer.name}
                       requiredRole="WORK_PRODUCER"
-                      disabled={isApprovalEdit && lockedRoles.producer}
                       excludeIds={[roles.issuer.id, roles.responsible.id, roles.admitting.id, roles.supervisor.id].filter((id): id is number => id !== null)}
                       onChange={(user) => {
                          const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
                          const userData = user ? { id: user.id, name: displayName, role: user.role } : { id: null, name: '' };
                          setRoles(prev => ({ ...prev, producer: userData }));
-                         // Дублируем в "Наряд сдал" для шага 2
                          if (user) updateForm('completionHandOverName', displayName);
                      }}
                       placeholder="Начните вводить фамилию..."
@@ -574,10 +601,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                  {/* 5. Согласующий */}
                   <div className="md:col-span-2 border-t pt-4 mt-2">
                    <UserSearchSelect
-                      label={`Согласовано (Нач. смены / Участка / Инженер ТБ)${isApprovalEdit && lockedRoles.supervisor ? ' 🔒' : ''}`}
+                      label="Согласовано (Нач. смены / Участка / Инженер ТБ)"
                       value={roles.supervisor.name}
                       requiredRole="COORDINATOR"
-                      disabled={isApprovalEdit && lockedRoles.supervisor}
                       excludeIds={[roles.issuer.id, roles.responsible.id, roles.admitting.id, roles.producer.id].filter((id): id is number => id !== null)}
                       onChange={(user) => {
                          const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
@@ -591,6 +617,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                  </div>
 
               </div>
+              )}
            </div>
 
            {/* Section 3: Safety Measures */}
