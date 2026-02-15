@@ -77,10 +77,24 @@ class PermitSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         validated_data['initiator'] = user
 
-        # 2. ГЕНЕРАЦИЯ НОМЕРА НАРЯДА (ВЕРНУЛИ ЭТОТ БЛОК)
-        # Генерируем уникальный ID, например: 2025-1704567890
-        # В будущем можно заменить на порядковый номер из базы
-        validated_data['permit_id'] = f"{time.strftime('%Y')}-{int(time.time())}"
+        # 2. ГЕНЕРАЦИЯ НОМЕРА НАРЯДА: OR-2026-00001
+        # OR = Опасные работы, 2026 = текущий год, 00001 = порядковый номер
+        current_year = time.strftime('%Y')
+        prefix = f"OR-{current_year}-"
+
+        # Находим последний номер за текущий год
+        last_permit = WorkPermit.objects.filter(
+            permit_id__startswith=prefix
+        ).order_by('-permit_id').first()
+
+        if last_permit:
+            # Извлекаем порядковый номер из "OR-2026-00005" -> 5
+            last_number = int(last_permit.permit_id.split('-')[-1])
+            next_number = last_number + 1
+        else:
+            next_number = 1
+
+        validated_data['permit_id'] = f"{prefix}{next_number:05d}"
 
         # 3. АВТОМАТИЧЕСКИ ПОДСТАВЛЯЕМ ШАБЛОН
         template_obj, _ = WorkPermitTemplate.objects.get_or_create(
