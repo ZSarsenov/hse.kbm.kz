@@ -7,7 +7,8 @@ import { StatusBadge } from '../components/StatusBadge';
 import { ElectricalPermitForm } from '../components/ElectricalPermitForm';
 import { useNCALayer } from '../hooks/useNCALayer';
 import { ApprovalTracker } from '../components/ApprovalTracker';
-import { FileCheck } from 'lucide-react';
+import { FileCheck, ClipboardList } from 'lucide-react';
+import ChecklistSection, { ChecklistData } from '../components/ChecklistSection';
 
 interface PermitDetailProps {
   permit: WorkPermit;
@@ -89,7 +90,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   }
 
   // --- ОБЫЧНЫЕ НАРЯДЫ ---
-  const [activeTab, setActiveTab] = useState<'info' | 'safety' | 'team'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'safety' | 'team' | 'checklist'>('info');
   const { execute, loading, error: ncaError } = useNCALayer();
 
     // 👇 ВСТАВИТЬ СЮДА:
@@ -283,6 +284,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
     { id: 'info', label: 'Основное' },
     { id: 'safety', label: 'Меры безопасности' },
     { id: 'team', label: 'Бригада' },
+    { id: 'checklist', label: 'Чек лист' },
   ];
 
   const renderUserName = (userObj: any, fallback: string = '—') => {
@@ -456,6 +458,26 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                            </table>
                        </div>
                    ) : (<div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">Состав бригады не указан</div>)}
+               </div>
+           )}
+
+           {activeTab === 'checklist' && (
+               <div className="animate-in fade-in duration-300">
+                   <div className="flex items-center gap-2 mb-4">
+                       <ClipboardList size={20} className="text-orange-500"/>
+                       <h3 className="text-lg font-bold text-slate-800">Чек-лист оценки риска</h3>
+                   </div>
+                   {data.checklist && Object.keys(data.checklist).length > 0 ? (
+                       <ChecklistSection
+                           checklist={data.checklist as ChecklistData}
+                           onChange={() => {}}
+                           readOnly={true}
+                       />
+                   ) : (
+                       <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                           Чек-лист не заполнен
+                       </div>
+                   )}
                </div>
            )}
         </div>

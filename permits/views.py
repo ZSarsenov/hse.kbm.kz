@@ -575,11 +575,311 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         }
 
         doc.render(context)
+
+        # ============================================================
+        # ДОБАВЛЯЕМ ЧЕК-ЛИСТЫ В ДОКУМЕНТ (после основного наряда)
+        # ============================================================
+        self._append_checklists_to_docx(doc, permit)
+
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
         response['Content-Disposition'] = f'attachment; filename="Permit_{permit.permit_id}.docx"'
         doc.save(response)
         return response
+
+    # ============================================================
+    # ЧЕКЛ-ЛИСТЫ В DOCX
+    # ============================================================
+    # Определение чек-листов (id -> название, список вопросов)
+    CHECKLIST_DEFINITIONS = {
+        'permit_check': {
+            'title': 'ПРОВЕРКА ПО НАРЯДУ ДОПУСКУ',
+            'required': True,
+            'questions': {
+                1: 'Пройдено ли персоналом обучение и имеются ли удостоверения?',
+                2: 'Проведен ли инструктаж перед началом работы?',
+                3: 'Обучены ли работники безопасным методам выполнения задания?',
+                4: 'Подготовлены ли все необходимые разрешительные документы, включая НДПР?',
+                5: 'Проведён ли инструктаж по действиям в случае пожара?',
+                6: 'Имеет ли персонал соответствующую квалификацию?',
+                7: 'Была ли проведена оценка рисков с определением всех опасностей?',
+                8: 'Обеспечено ли правильное выявление источников опасности?',
+                9: 'Проводилась ли новая оценка риска при изменении методов работ?',
+                10: 'Правильно ли указано место производства работ в НД?',
+                11: 'Все лица, выполняющие работу, понимают требования НД?',
+                12: 'Правильно ли заполнен НДПР без корректирующих записей?',
+                13: 'Учитывались ли все возможные опасности?',
+                14: 'Получено ли разрешение перед блокировкой защитных ограждений?',
+            },
+        },
+        'safety_bypass': {
+            'title': 'ПРОВЕРКА ПО ОБХОДУ МЕР БЕЗОПАСНОСТИ',
+            'required': True,
+            'questions': {
+                1: 'Используется ли оборудование для безопасности?',
+                2: 'Ознакомлена ли бригада с планом аварийно-спасательных работ?',
+                3: 'Были ли изменены или приспособлены СИЗ?',
+                4: 'Обеспечено ли наличие средств пожаротушения?',
+                5: 'Устранены ли все посторонние предметы?',
+                6: 'Проверено ли наличие схемы распределения нагрузки?',
+                7: 'Применяются ли защитные ограждения или барьеры?',
+                8: 'Применяются ли средства защиты от движущихся частей?',
+            },
+        },
+        'general_questions': {
+            'title': 'ПРОВЕРКА ПО ОБЩИМ ВОПРОСАМ',
+            'required': True,
+            'questions': {
+                1: 'Осуществляется ли регулярная проверка энергетических систем?',
+                2: 'Зафиксированы ли все происшествия и аварийные ситуации?',
+                3: 'Проводится ли медицинский осмотр работников?',
+                4: 'Установлены ли зоны для безопасного хранения баллонов с газами?',
+                5: 'Осуществляется ли контроль за состоянием скважин и трубопроводов?',
+                6: 'Используются ли подъемные механизмы для тяжелых объектов?',
+                7: 'Проверяется ли правильность крепления груза при подъеме?',
+                8: 'Проводится ли проверка оборудования на наличие дефектов?',
+            },
+        },
+        'confined_space': {
+            'title': 'ПРОВЕРКА ПО РАБОТАМ В ЗАМКНУТОМ ПРОСТРАНСТВЕ',
+            'required': False,
+            'questions': {
+                1: 'Проведена ли оценка замкнутого объема?',
+                2: 'Соответствует ли содержание вредных веществ нормам?',
+                3: 'Соответствует ли частота отбора проб воздушной среды?',
+                4: 'Обеспечена ли вентиляция в замкнутом объеме?',
+                5: 'Назначен ли ответственный наблюдатель по ТБ?',
+                6: 'Обеспечены ли работники спасательным оборудованием?',
+                7: 'Проверено ли электрооборудование в замкнутом объеме?',
+                8: 'Котлованы глубиной более 1,2 м имеют оборудованные места входа?',
+            },
+        },
+        'lifting_works': {
+            'title': 'ПРОВЕРКА ПО ГРУЗОПОДЪЕМНЫМ РАБОТАМ',
+            'required': False,
+            'questions': {
+                1: 'Проверены ли средства защиты от падения?',
+                2: 'Ознакомлена ли бригада с планом аварийно-спасательных работ?',
+                3: 'Отрегулированы ли средства защиты от падения?',
+                4: 'Ознакомлены ли члены бригады с правилами использования средств защиты?',
+                5: 'Используют ли работники 100% крепление ИСС?',
+                6: 'Проведена ли оценка риска падения предметов?',
+                7: 'Проинформированы ли члены бригады о запрете работы без напарника?',
+                8: 'Имеются ли средства защиты (ограждения, сетки)?',
+                9: 'Правильно ли возведены строительные леса?',
+                10: 'Безопасно ли установлены переносные лестницы?',
+                11: 'Утвержден ли письменный план грузоподъемных работ?',
+                12: 'Подтверждена ли квалификация крановщика и стропальщика?',
+                13: 'Проведена ли проверка веса груза на соответствие ГПМ?',
+                14: 'Соответствуют ли ГПМ и такелажное оборудование требованиям?',
+                15: 'Предохранительные устройства на ГПМ в рабочем состоянии?',
+                16: 'Согласован ли план взаимодействия всеми членами бригады?',
+                17: 'Разработан ли план по предупреждению опасных факторов?',
+                18: 'ГПМ находится в устойчивом положении?',
+                19: 'Имелись ли средства защиты для предотвращения входа?',
+                20: 'Подъемное устройство расположено без препятствий?',
+                21: 'Понимает ли оператор как осуществить аварийный останов?',
+            },
+        },
+        'fire_works': {
+            'title': 'ПРОВЕРКА ИНСПЕКТОРА ПО ОГНЕВЫМ РАБОТАМ',
+            'required': False,
+            'questions': {
+                1: 'Соблюдены ли требования по изоляции источников энергии?',
+                2: 'Проводился ли отбор проб воздушной среды?',
+                3: 'Установлена ли частота отбора проб?',
+                4: 'Проведена ли проверка герметичности?',
+                5: 'Источники возгорания перемещены на безопасное расстояние?',
+                6: 'Имеются ли средства пожаротушения?',
+                7: 'Участок огражден от разлета тепла и искр?',
+            },
+        },
+        'energy_isolation': {
+            'title': 'ПРОВЕРКА ПО ИЗОЛЯЦИИ ОПАСНЫХ ЭНЕРГИЙ',
+            'required': False,
+            'questions': {
+                1: 'Изолирующие устройства установлены по схеме?',
+                2: 'Изолирующие устройства соответствуют требованиям?',
+                3: 'На точках изоляции вывешены замки и ярлыки?',
+                4: 'Проведена ли проверка остаточной энергии?',
+                5: 'Определено ли нахождение работников "под ударом"?',
+                6: 'Дренажные и воздушные клапаны в открытом положении?',
+                7: 'Проверено ли соответствие точки разгерметизации?',
+                8: 'Проведена ли снятие устройств изоляции по плану?',
+            },
+        },
+        'danger_zone': {
+            'title': 'ПРОВЕРКА ПО ОПАСНОЙ ЗОНЕ',
+            'required': False,
+            'questions': {
+                1: 'Имелись ли ограждения для предотвращения доступа?',
+                2: 'Установлены ли предупреждающие знаки?',
+                3: 'Опасные зоны определены и доступ ограничен?',
+                4: 'Исполнители находились в безопасном месте?',
+                5: 'Определены и ограждены безопасные рабочие участки?',
+                6: 'Токоведущие части ограждены или изолированы?',
+                7: 'Осуществляется ли обмен информацией?',
+            },
+        },
+        'vehicle_driving': {
+            'title': 'ПРОВЕРКА ПО ВОЖДЕНИЮ ТРАНСПОРТНОГО СРЕДСТВА',
+            'required': False,
+            'questions': {
+                1: 'Водитель имеет действующее водительское удостоверение?',
+                2: 'ТС оборудовано средствами безопасности?',
+                3: 'Имеется штамп о медицинском освидетельствовании?',
+                4: 'В исправном ли состоянии фары и стоп-сигналы?',
+                5: 'Закреплен ли груз?',
+                6: 'Имеется разрешение на перевозку опасных грузов?',
+                7: 'Водитель выполняет требования безопасности?',
+                8: 'Имеются все действительные документы?',
+                9: 'Чисто ли ТС и видны ли средства идентификации?',
+                10: 'Имеется ли план движения по маршруту?',
+            },
+        },
+    }
+
+    def _append_checklists_to_docx(self, doc, permit):
+        """
+        Добавляет заполненные чек-листы как новые страницы в DOCX после рендеринга шаблона.
+        Добавляются только те чек-листы, которые были заполнены пользователем.
+        """
+        from docx.shared import Pt, Cm, RGBColor, Inches
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.enum.table import WD_TABLE_ALIGNMENT
+        from docx.enum.section import WD_ORIENT
+        from docx.oxml.ns import qn
+
+        checklist_data = permit.data.get('checklist', {})
+        if not checklist_data:
+            return
+
+        ANSWER_MAP = {'YES': 'ДА', 'NO': 'НЕТ', 'NA': 'Н/П'}
+
+        # Порядок: сначала обязательные, потом остальные
+        ordered_ids = [
+            'permit_check', 'safety_bypass', 'general_questions',
+            'confined_space', 'lifting_works', 'fire_works',
+            'energy_isolation', 'danger_zone', 'vehicle_driving',
+        ]
+
+        document = doc.docx  # Доступ к python-docx Document из docxtpl
+
+        for table_id in ordered_ids:
+            table_answers = checklist_data.get(table_id)
+            if not table_answers:
+                continue
+
+            # Пропускаем, если ни один вопрос не отвечен
+            has_any_answer = any(
+                a.get('answer', '') != ''
+                for a in table_answers.values() if isinstance(a, dict)
+            )
+            if not has_any_answer:
+                continue
+
+            table_def = self.CHECKLIST_DEFINITIONS.get(table_id)
+            if not table_def:
+                continue
+
+            # --- НОВАЯ СТРАНИЦА ---
+            document.add_page_break()
+
+            # --- ЗАГОЛОВОК ---
+            title_p = document.add_paragraph()
+            title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            title_run = title_p.add_run(table_def['title'])
+            title_run.bold = True
+            title_run.font.size = Pt(12)
+            title_run.font.name = 'Times New Roman'
+
+            if table_def.get('required'):
+                req_p = document.add_paragraph()
+                req_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                req_run = req_p.add_run('(Обязательный)')
+                req_run.bold = True
+                req_run.font.size = Pt(9)
+                req_run.font.name = 'Times New Roman'
+                req_run.font.color.rgb = RGBColor(0xCC, 0x66, 0x00)
+
+            # Пустая строка
+            spacer = document.add_paragraph()
+            spacer.space_after = Pt(4)
+
+            # --- ТАБЛИЦА ---
+            questions = table_def['questions']
+            num_rows = len(questions) + 1  # +1 для заголовка
+            tbl = document.add_table(rows=num_rows, cols=5)
+            tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+            tbl.style = 'Table Grid'
+
+            # Ширины столбцов
+            widths = [Cm(1), Cm(10), Cm(1.5), Cm(1.5), Cm(4)]
+
+            # --- ЗАГОЛОВОК ТАБЛИЦЫ ---
+            header_cells = tbl.rows[0].cells
+            header_texts = ['№', 'ДЕЙСТВИЯ', 'ДА/НЕТ/Н/П', 'Ответ', 'Комментарии']
+            for i, (cell, text) in enumerate(zip(header_cells, header_texts)):
+                cell.text = ''
+                p = cell.paragraphs[0]
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                run = p.add_run(text)
+                run.bold = True
+                run.font.size = Pt(8)
+                run.font.name = 'Times New Roman'
+                # Задаем ширину
+                cell.width = widths[i]
+                # Цвет фона заголовка
+                shading = cell._element.get_or_add_tcPr()
+                shd_elem = shading.makeelement(qn('w:shd'), {
+                    qn('w:val'): 'clear',
+                    qn('w:color'): 'auto',
+                    qn('w:fill'): 'D9E2F3',
+                })
+                shading.append(shd_elem)
+
+            # --- СТРОКИ ДАННЫХ ---
+            for row_idx, (q_num, q_text) in enumerate(questions.items(), start=1):
+                row_cells = tbl.rows[row_idx].cells
+
+                # Получаем ответ
+                q_answer_data = table_answers.get(str(q_num), {})
+                if isinstance(q_answer_data, dict):
+                    answer_code = q_answer_data.get('answer', '')
+                    comment = q_answer_data.get('comment', '')
+                else:
+                    answer_code = ''
+                    comment = ''
+
+                answer_text = ANSWER_MAP.get(answer_code, '—')
+
+                row_data = [str(q_num), q_text, '', answer_text, comment]
+
+                for i, (cell, text) in enumerate(zip(row_cells, row_data)):
+                    cell.text = ''
+                    p = cell.paragraphs[0]
+                    run = p.add_run(text)
+                    run.font.size = Pt(8)
+                    run.font.name = 'Times New Roman'
+                    cell.width = widths[i]
+
+                    if i == 0:  # Номер — по центру
+                        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    elif i == 3:  # Ответ — по центру, с цветом
+                        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        run.bold = True
+                        if answer_code == 'YES':
+                            run.font.color.rgb = RGBColor(0x00, 0x80, 0x00)
+                        elif answer_code == 'NO':
+                            run.font.color.rgb = RGBColor(0xCC, 0x00, 0x00)
+
+            # Информация о наряде внизу таблицы
+            footer_p = document.add_paragraph()
+            footer_p.space_before = Pt(8)
+            footer_run = footer_p.add_run(f'Наряд-допуск №{permit.permit_id}')
+            footer_run.font.size = Pt(8)
+            footer_run.font.name = 'Times New Roman'
+            footer_run.font.color.rgb = RGBColor(0x88, 0x88, 0x88)
 
     @action(detail=True, methods=['get'], url_path='download_docx')
     def download_docx(self, request, pk=None):

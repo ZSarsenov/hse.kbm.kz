@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, Save, FileText, AlertTriangle, Users, CheckCircle2, Lock, Zap, ShieldAlert, Building, Edit3 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, FileText, AlertTriangle, Users, CheckCircle2, Lock, Zap, ShieldAlert, Building, Edit3, ClipboardCheck } from 'lucide-react';
 import { TeamMember, RegulationFormData, UserRole, WORK_TYPES_LIST, RiskTableRow, RiskGroupMember, PermitExtension, PermitCategory, WorkPermit } from '../types';
 import { IsolationMatrixForm } from '../components/IsolationMatrixForm';
 import { ElectricalPermitForm } from '../components/ElectricalPermitForm';
 import { UserSearchSelect } from '../components/UserSearchSelect';
 import { SearchableSelect } from  "../components/SearchableSelect"
+import ChecklistSection, { ChecklistData, validateRequiredChecklists } from '../components/ChecklistSection';
 
 
 // Интерфейс для объекта пользователя в роли
@@ -125,6 +126,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
   const isApprovalEdit = isEditing && initialData?.status === 'PENDING_APPROVAL';
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [checklistData, setChecklistData] = useState<ChecklistData>({});
   const [departmentsList, setDepartmentsList] = useState<any[]>([]);
   const [workTypesList, setWorkTypesList] = useState<any[]>([]);
 
@@ -196,6 +198,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
           // 3. Восстанавливаем сложные массивы (Бригада, Риски, Расширения)
           if (savedData.teamMembers) setTeamMembers(savedData.teamMembers);
+          if (savedData.checklist) setChecklistData(savedData.checklist);
           // Остальные массивы (riskTable, extensions) уже попали через setFormData
 
       } else if (!isEditing) {
@@ -304,13 +307,21 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       if (!roles.producer.id && !roles.producer.name) {
           alert("Не заполнен Производитель работ!"); setIsSubmitting(false); return;
       }
-      // Можно добавить другие проверки
+
+      // Валидация обязательных чек-листов
+      const checklistValidation = validateRequiredChecklists(checklistData);
+      if (!checklistValidation.valid) {
+          alert(`❌ Не заполнены обязательные чек-листы:\n\n${checklistValidation.missing.map(m => `• ${m}`).join('\n')}\n\nОтветьте на все вопросы в обязательных чек-листах (шаг "Оценка риска").`);
+          setIsSubmitting(false);
+          return;
+      }
 
       // 1. Собираем ВСЕ данные
       const fullDataPayload = {
         ...formData,
         ...roles, // Отправляем объекты ролей ({id, name, role})
         teamMembers: teamMembers,
+        checklist: checklistData,
         riskTable: formData.riskTable,
         riskGroup: formData.riskGroup,
         isolationMatrix: formData.isolationMatrix,
@@ -1022,6 +1033,22 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            {/* ЧЕК-ЛИСТ ОЦЕНКИ РИСКА */}
+            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h3 className="font-bold text-gray-900 mb-2 uppercase text-base tracking-wider flex items-center gap-2 border-b pb-3">
+                    <ClipboardCheck size={22} className="text-orange-500"/>
+                    Чек-лист оценки риска
+                </h3>
+                <p className="text-sm text-gray-500 mb-4">
+                    Раскройте каждый раздел и ответьте на вопросы. Разделы с пометкой <span className="font-bold text-orange-600">"Обязательно"</span> должны быть заполнены.
+                </p>
+                <ChecklistSection
+                    checklist={checklistData}
+                    onChange={setChecklistData}
+                    readOnly={false}
+                />
             </div>
          </div>
        )}
