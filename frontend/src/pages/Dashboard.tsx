@@ -289,11 +289,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
             className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm active:bg-gray-50 transition-colors relative overflow-hidden"
           >
             <div className="absolute top-0 right-0 p-0">
-               <div className={`px-4 py-1.5 text-xs font-bold uppercase rounded-bl-lg border-b border-l
-                 ${permit.status === PermitStatus.APPROVED ? 'bg-green-100 text-green-700 border-green-200' :
-                   permit.status === PermitStatus.PENDING_APPROVAL ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
-                 {permit.status === PermitStatus.APPROVED ? 'Согласован' : permit.status}
-               </div>
+               <StatusBadge status={permit.status} />
             </div>
 
             <div className="flex justify-between items-start mb-4 mt-2">

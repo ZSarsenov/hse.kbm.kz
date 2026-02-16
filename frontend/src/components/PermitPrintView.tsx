@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Printer, X, QrCode } from 'lucide-react';
+import { getStatusLabel } from './StatusBadge';
 
 // --- Types based on your specification ---
 export interface PermitPrintData {
@@ -91,7 +92,7 @@ export const PermitPrintView: React.FC<PermitPrintViewProps> = ({ data, onClose 
                <QrCode size={48} />
              </div>
              <div className="text-[10px] text-right">
-               <div>Статус: <span className="font-bold uppercase">{data.status}</span></div>
+               <div>Статус: <span className="font-bold uppercase">{getStatusLabel(data.status)}</span></div>
                <div>UUID: {data.id.substring(0, 12)}...</div>
              </div>
           </div>
