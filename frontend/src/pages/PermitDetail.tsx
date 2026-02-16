@@ -127,7 +127,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   };
 
 
-// 👇 НОВАЯ ФУНКЦИЯ СКАЧИВАНИЯ PDF и Docx
+// Скачивание наряда (сервер отдаёт PDF, при недоступности LibreOffice — DOCX)
   const handleDownloadPdf = async () => {
       try {
           const response = await fetch(`/api/v1/permits/${permit.id}/download_docx/`, {
@@ -138,19 +138,20 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
           });
 
           if (response.ok) {
-              // Получаем blob (бинарный файл)
               const blob = await response.blob();
-              // Создаем ссылку для скачивания
+              const contentType = response.headers.get('Content-Type') || '';
+              const isPdf = contentType.includes('application/pdf');
+              const ext = isPdf ? 'pdf' : 'docx';
               const url = window.URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
-              a.download = `Наряд_${permit.permitId}.docx`; // Имя файла
+              a.download = `Наряд_${permit.permitId}.${ext}`;
               document.body.appendChild(a);
               a.click();
               a.remove();
               window.URL.revokeObjectURL(url);
           } else {
-              alert("Ошибка при скачивании PDF. Возможно, файл еще не сгенерирован.");
+              alert("Ошибка при скачивании документа.");
           }
       } catch (error) {
           console.error("Download error:", error);

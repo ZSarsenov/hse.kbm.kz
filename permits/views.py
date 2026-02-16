@@ -446,11 +446,10 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             print(f"🔥 PDF ERROR: {e}")
             return HttpResponse(f"Ошибка генерации PDF: {e}", status=500)
 
-    def _build_docx_response(self, permit, qr_url):
-        """Собирает DOCX по наряду и возвращает HttpResponse. QR в документе ведёт на qr_url (верификация)."""
-        from django.http import HttpResponse
+    def _get_rendered_doc(self, permit, qr_url):
+        """Собирает и рендерит DOCX по наряду, возвращает DocxTemplate или None."""
         from django.conf import settings
-        from docxtpl import DocxTemplate, InlineImage, RichText
+        from docxtpl import DocxTemplate, InlineImage
         from docx.shared import Mm
         import os
         import qrcode
@@ -581,6 +580,56 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         # ============================================================
         self._append_checklists_to_docx(doc, permit)
 
+        return doc
+
+    def _convert_docx_to_pdf(self, docx_bytes):
+        """
+        Конвертирует DOCX (bytes) в PDF через LibreOffice.
+        Возвращает bytes PDF или None при ошибке / отсутствии LibreOffice.
+        """
+        import subprocess
+        import tempfile
+        import os
+
+        if not docx_bytes:
+            return None
+        tmpdir = tempfile.mkdtemp()
+        try:
+            docx_path = os.path.join(tmpdir, 'permit.docx')
+            with open(docx_path, 'wb') as f:
+                f.write(docx_bytes)
+            # LibreOffice / OpenOffice: --headless --convert-to pdf --outdir <dir> <file>
+            pdf_path = os.path.join(tmpdir, 'permit.pdf')
+            for cmd_name in ('libreoffice', 'soffice'):
+                try:
+                    cmd = [
+                        cmd_name, '--headless', '--convert-to', 'pdf',
+                        '--outdir', tmpdir, docx_path
+                    ]
+                    result = subprocess.run(cmd, capture_output=True, timeout=60, cwd=tmpdir)
+                    if result.returncode == 0 and os.path.isfile(pdf_path):
+                        with open(pdf_path, 'rb') as f:
+                            return f.read()
+                except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+                    continue
+            return None
+        except Exception:
+            return None
+        finally:
+            try:
+                for f in os.listdir(tmpdir):
+                    os.unlink(os.path.join(tmpdir, f))
+                os.rmdir(tmpdir)
+            except OSError:
+                pass
+
+    def _build_docx_response(self, permit, qr_url):
+        """Собирает DOCX по наряду и возвращает HttpResponse (DOCX)."""
+        from django.http import HttpResponse
+
+        doc = self._get_rendered_doc(permit, qr_url)
+        if doc is None:
+            return None
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
         response['Content-Disposition'] = f'attachment; filename="Permit_{permit.permit_id}.docx"'
@@ -883,20 +932,38 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='download_docx')
     def download_docx(self, request, pk=None):
-        """Скачивание DOCX наряда (требуется авторизация). QR в документе ведёт на verify_docx."""
+        """Скачивание наряда в формате PDF (конвертация из DOCX). При отсутствии LibreOffice отдаётся DOCX."""
+        from django.http import HttpResponse
         from django.conf import settings
+        from io import BytesIO
+
         permit = self.get_object()
         base = getattr(settings, 'HSE_BASE_URL', 'https://hse.kbm.kz')
         qr_url = f"{base}/api/v1/permits/{permit.id}/verify_docx/"
         try:
-            response = self._build_docx_response(permit, qr_url)
-            if response is None:
+            doc = self._get_rendered_doc(permit, qr_url)
+            if doc is None:
                 return Response({"error": "Шаблон не найден"}, status=500)
+
+            buffer = BytesIO()
+            doc.save(buffer)
+            buffer.seek(0)
+            docx_bytes = buffer.getvalue()
+
+            pdf_bytes = self._convert_docx_to_pdf(docx_bytes)
+            if pdf_bytes:
+                response = HttpResponse(pdf_bytes, content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="Permit_{permit.permit_id}.pdf"'
+                return response
+
+            # Fallback: отдаём DOCX, если LibreOffice недоступен
+            response = HttpResponse(docx_bytes, content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            response['Content-Disposition'] = f'attachment; filename="Permit_{permit.permit_id}.docx"'
             return response
         except Exception as e:
             import traceback
             traceback.print_exc()
-            return Response({"error": f"Ошибка генерации DOCX: {str(e)}"}, status=500)
+            return Response({"error": f"Ошибка генерации документа: {str(e)}"}, status=500)
 
     @action(detail=True, methods=['get'], url_path='verify_docx', permission_classes=[AllowAny])
     def verify_docx(self, request, pk=None):
