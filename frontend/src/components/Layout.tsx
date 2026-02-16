@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Menu, Bell, User, FilePlus, CheckSquare, 
   FileText, LogOut, ChevronDown, LayoutDashboard, ClipboardList
@@ -33,7 +33,25 @@ export const Layout: React.FC<LayoutProps> = ({
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
 
-    // Уведомления (храним только непрочитанные)
+  const profileRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Закрытие по клику вне элемента (click-outside)
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (profileRef.current && !profileRef.current.contains(target)) setIsProfileOpen(false);
+      if (notifRef.current && !notifRef.current.contains(target)) setIsNotifOpen(false);
+      if (isSidebarOpen && sidebarRef.current && !sidebarRef.current.contains(target) && menuButtonRef.current && !menuButtonRef.current.contains(target)) {
+        setIsSidebarOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isSidebarOpen]);
+
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const hasPermission = (permission: Permission) => user?.permissions?.includes(permission);
 
@@ -73,7 +91,7 @@ export const Layout: React.FC<LayoutProps> = ({
       <header className="bg-white border-b border-gray-100 sticky top-0 z-[60] h-16 shadow-sm shrink-0">
         <div className="px-4 h-full flex items-center justify-between w-full">
           <div className="flex items-center gap-4">
-            <button onClick={toggleSidebar} className="lg:hidden p-2 text-gray-500 hover:bg-gray-50 rounded-md transition-colors">
+            <button ref={menuButtonRef} onClick={toggleSidebar} className="lg:hidden p-2 text-gray-500 hover:bg-gray-50 rounded-md transition-colors">
               <Menu size={24} />
             </button>
             <div className="flex items-center gap-3 cursor-pointer" onClick={onNavigate}>
@@ -86,7 +104,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
           <div className="flex items-center gap-4">
             {/* Уведомления */}
-            <div className="relative">
+            <div className="relative" ref={notifRef}>
                 <button onClick={() => setIsNotifOpen(!isNotifOpen)} className={`relative p-2 rounded-full transition-colors ${isNotifOpen ? 'bg-blue-50 text-blue-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
                   <Bell size={22} />
                   {notifications.length > 0 && (
@@ -117,7 +135,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 )}
             </div>
             {/* Профиль */}
-            <div className="relative">
+            <div className="relative" ref={profileRef}>
               <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="flex items-center gap-3 pl-2 pr-1 py-1 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-100 transition-colors">
                 <div className="text-right hidden md:block">
                   <div className="text-sm font-semibold text-gray-700">{user?.name || 'Пользователь'}</div>
@@ -143,7 +161,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
       {/* Sidebar and Main Content */}
       <div className="flex flex-1 overflow-hidden relative w-full">
-        <aside className={`fixed lg:static inset-y-0 left-0 z-20 w-72 bg-white border-r border-gray-100 text-slate-500 transform transition-transform duration-300 ease-in-out shadow-lg lg:shadow-none ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} flex flex-col h-full pt-16 lg:pt-0 shrink-0`}>
+        <aside ref={sidebarRef} className={`fixed lg:static inset-y-0 left-0 z-20 w-72 bg-white border-r border-gray-100 text-slate-500 transform transition-transform duration-300 ease-in-out shadow-lg lg:shadow-none ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} flex flex-col h-full pt-16 lg:pt-0 shrink-0`}>
           <div className="flex-1 p-4 space-y-1 overflow-y-auto">
             <div className="px-3 py-4 mb-2"><h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Меню</h3></div>
 
