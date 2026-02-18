@@ -30,17 +30,22 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const initiatorId = String(initiator.id || data.issuer?.id || '');
   const isInitiator = currentUserId === initiatorId;
 
-  // Ищем мой шаг
+  // Ищем все мои шаги (может быть несколько ролей)
   const steps = (permit as any).approvalSteps || [];
-  const myStep = steps.find((s: any) => String(s.approver_id) === currentUserId);
+  const mySteps = steps.filter((s: any) => String(s.approver_id) === currentUserId);
+  const myPendingSteps = mySteps.filter((s: any) => s.status === 'PENDING');
+  
+  // Для обратной совместимости оставляем myStep (первый найденный)
+  const myStep = mySteps[0];
 
   // 🔥 ЛОГИКА РЕДАКТИРОВАНИЯ ВО ВРЕМЯ СОГЛАСОВАНИЯ
   // Разрешаем редактировать: Ответственному, Допускающему и Производителю
   const editableRoles = ['RESPONSIBLE', 'ADMITTING', 'WORK_PRODUCER'];
   const isEditableRole = editableRoles.includes(myStep?.role || '');
 
-  // Условие: Статус PENDING + Сейчас мой шаг + Моя роль в списке разрешенных
-  const canEditAsManager = permit.status === 'PENDING_APPROVAL' && myStep?.status === 'PENDING' && isEditableRole;
+  // Условие: Статус PENDING + Есть хотя бы один активный шаг + Роль в списке разрешенных
+  const canEditAsManager = permit.status === 'PENDING_APPROVAL' && myPendingSteps.length > 0 && 
+                          myPendingSteps.some((s: any) => editableRoles.includes(s.role));
 
   // Проверяем, является ли текущий пользователь "Допускающим" (чтобы дать ему право закрыть наряд)
   const admittingStep = steps.find((s: any) => s.role === 'ADMITTING');
@@ -50,11 +55,11 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // Кнопка "Подписать" (только для автора, если статус Черновик)
   const showSignDraft = permit.status === 'DRAFT' && isInitiator;
 
-  // Кнопка "Согласовать" (только если наряд в работе И мой шаг сейчас активен)
-  const showApprove = permit.status === 'PENDING_APPROVAL' && myStep?.status === 'PENDING';
+  // Кнопка "Согласовать" (если наряд в работе И есть хотя бы один активный шаг)
+  const showApprove = permit.status === 'PENDING_APPROVAL' && myPendingSteps.length > 0;
 
-  // Кнопка "Отклонить" (аналогично)
-  const showReject = permit.status === 'PENDING_APPROVAL' && myStep?.status === 'PENDING';
+  // Кнопка "Отклонить" (если есть хотя бы один активный шаг)
+  const showReject = permit.status === 'PENDING_APPROVAL' && myPendingSteps.length > 0;
 
   // 👇 ЛОГИКА ДЛЯ КНОПКИ КОПИРОВАНИЯ
   // Показывать только инициатору, если наряд ОТКЛОНЕН, ЗАКРЫТ или АРХИВИРОВАН.
@@ -159,19 +164,52 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
       }
   };
 
-  const handleSign = async () => {
+  const handleSign = async (role?: string) => {
     try {
+      // Если несколько ролей и роль не указана - показываем выбор
+      if (myPendingSteps.length > 1 && !role) {
+        const roleOptions = myPendingSteps.map((s: any) => ({
+          role: s.role,
+          display: s.role_label || s.role,
+          step_order: s.step_order
+        })).sort((a: any, b: any) => a.step_order - b.step_order);
+        
+        const roleList = roleOptions.map((r: any, idx: number) => 
+          `${idx + 1}. ${r.display} (очередь ${r.step_order})`
+        ).join('\n');
+        
+        const choice = prompt(
+          `У вас несколько ролей для подписания:\n\n${roleList}\n\nВведите номер роли (1-${roleOptions.length}):`
+        );
+        
+        if (!choice) return;
+        const choiceNum = parseInt(choice);
+        if (isNaN(choiceNum) || choiceNum < 1 || choiceNum > roleOptions.length) {
+          alert("Неверный выбор.");
+          return;
+        }
+        role = roleOptions[choiceNum - 1].role;
+      } else if (myPendingSteps.length === 1 && !role) {
+        // Если только одна роль - используем её автоматически
+        role = myPendingSteps[0].role;
+      }
+
       const signerIIN = currentUser.iin || initiator.iin;
       if (!signerIIN) {
           alert("Ошибка: Не найден ИИН пользователя. Проверьте профиль.");
           return;
       }
-      console.log("Начинаем подписание...", signerIIN);
+      console.log("Начинаем подписание...", signerIIN, role ? `за роль ${role}` : '');
       const xmlToSign = `<WorkPermit><ID>${permit.permitId}</ID><Date>${new Date().toISOString()}</Date></WorkPermit>`;
       const args = ['PKCS12', 'SIGNATURE', xmlToSign, '', ''];
 
       const signedXml = await execute('signXml', args);
       if (!signedXml) throw new Error("Получен пустой ответ от NCALayer");
+
+      const requestBody: any = { signed_xml: signedXml };
+      if (role) {
+        requestBody.role = role;
+      }
 
       const response = await fetch(`/api/v1/permits/${permit.id}/sign/`, {
         method: 'POST',
@@ -179,15 +217,24 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
           'Content-Type': 'application/json',
           'Authorization': `Token ${localStorage.getItem('auth_token')}`
         },
-        body: JSON.stringify({ signed_xml: signedXml }),
+        body: JSON.stringify(requestBody),
       });
 
       const resData = await response.json();
       if (response.ok && resData.ok) {
-         alert(`✅ УСПЕХ! ${resData.status}`);
+         const roleDisplay = role ? myPendingSteps.find((s: any) => s.role === role)?.role_label || role : '';
+         alert(`✅ УСПЕХ! Подписано${roleDisplay ? ` за роль "${roleDisplay}"` : ''}. ${resData.status || ''}`);
          onBack();
       } else {
-         alert(`❌ ОШИБКА: ${resData.error || 'Не удалось подписать'}`);
+         // Если ошибка о нескольких ролях - показываем список
+         if (resData.available_roles && Array.isArray(resData.available_roles)) {
+           const rolesList = resData.available_roles.map((r: any) => 
+             typeof r === 'string' ? r : `${r.role_display} (очередь ${r.step_order})`
+           ).join('\n');
+           alert(`❌ ${resData.error}\n\nДоступные роли:\n${rolesList}`);
+         } else {
+           alert(`❌ ОШИБКА: ${resData.error || 'Не удалось подписать'}`);
+         }
       }
     } catch (e: any) {
       console.error(e);
@@ -532,23 +579,56 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
             )}
 
             {/* 3. ПОДПИСАТЬ / СОГЛАСОВАТЬ */}
-            {(showSignDraft || showApprove) && (
+            {showSignDraft && (
                 <button
-                    onClick={handleSign}
+                    onClick={() => handleSign()}
                     disabled={loading}
                     className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-white font-medium shadow-sm flex items-center justify-center gap-2 transition-all
                     ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
                 >
                    {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <FileSignature size={18} />}
-                   {showSignDraft ? 'Подписать (ЭЦП)' : 'Согласовать (ЭЦП)'}
+                   Подписать (ЭЦП)
+                </button>
+            )}
+            
+            {/* Если несколько ролей - показываем кнопки для каждой роли */}
+            {showApprove && myPendingSteps.length > 1 && (
+                <div className="flex flex-col gap-2 w-full sm:w-auto">
+                    {myPendingSteps
+                        .sort((a: any, b: any) => a.step_order - b.step_order)
+                        .map((step: any) => (
+                            <button
+                                key={step.role}
+                                onClick={() => handleSign(step.role)}
+                                disabled={loading}
+                                className={`px-6 py-2.5 rounded-lg text-white font-medium shadow-sm flex items-center justify-center gap-2 transition-all
+                                ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                            >
+                                {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <FileSignature size={18} />}
+                                Согласовать как {step.role_label || step.role} (очередь {step.step_order})
+                            </button>
+                        ))}
+                </div>
+            )}
+            
+            {/* Если одна роль - показываем одну кнопку */}
+            {showApprove && myPendingSteps.length === 1 && (
+                <button
+                    onClick={() => handleSign(myPendingSteps[0].role)}
+                    disabled={loading}
+                    className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-white font-medium shadow-sm flex items-center justify-center gap-2 transition-all
+                    ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                >
+                   {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <FileSignature size={18} />}
+                   Согласовать (ЭЦП) {myPendingSteps[0].role_label ? `как ${myPendingSteps[0].role_label}` : ''}
                 </button>
             )}
 
             {/* 4. ИНФОРМАЦИЯ (Если нечего нажимать, но наряд активен) */}
             {!showSignDraft && !showApprove && permit.status === 'PENDING_APPROVAL' && (
                 <div className="flex items-center text-gray-500 text-sm italic px-4 bg-gray-50 rounded-lg border border-gray-100 py-2">
-                    {myStep?.status === 'APPROVED'
-                        ? <span className="text-green-600 flex items-center gap-2"><CheckCircle2 size={16}/> Вы уже подписали этот наряд</span>
+                    {mySteps.some((s: any) => s.status === 'APPROVED')
+                        ? <span className="text-green-600 flex items-center gap-2"><CheckCircle2 size={16}/> Вы уже подписали этот наряд{mySteps.filter((s: any) => s.status === 'APPROVED').length > 1 ? ` (${mySteps.filter((s: any) => s.status === 'APPROVED').length} роли)` : ''}</span>
                         : <span className="flex items-center gap-2"><Clock size={16}/> Ожидайте своей очереди подписания</span>
                     }
                 </div>

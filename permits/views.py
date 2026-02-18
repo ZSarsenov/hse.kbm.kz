@@ -98,19 +98,54 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 return Response({"ok": False, "error": f"Ошибка запуска согласования: {e}"}, status=400)
 
         # ---------------------------------------------------------------
-        # 2. ПОИСК ТЕКУЩЕГО ШАГА
+        # 2. ПОИСК ТЕКУЩЕГО ШАГА (с поддержкой нескольких ролей)
         # ---------------------------------------------------------------
-        try:
-            current_step = ApprovalStep.objects.get(
-                permit=permit,
-                approver=user,
-                status='PENDING'
-            )
-        except ApprovalStep.DoesNotExist:
+        requested_role = request.data.get('role')  # Параметр роли из запроса
+        
+        # Ищем все PENDING шаги пользователя
+        pending_steps = ApprovalStep.objects.filter(
+            permit=permit,
+            approver=user,
+            status='PENDING'
+        )
+        
+        if not pending_steps.exists():
             return Response(
                 {"ok": False, "error": "Вы не можете подписать этот наряд (нет активного шага)."},
                 status=status.HTTP_403_FORBIDDEN
             )
+        
+        # Если указана роль - ищем конкретный шаг
+        if requested_role:
+            try:
+                current_step = pending_steps.get(role=requested_role)
+            except ApprovalStep.DoesNotExist:
+                available_roles = [s.get_role_display() for s in pending_steps]
+                return Response(
+                    {
+                        "ok": False,
+                        "error": f"Роль '{requested_role}' не найдена среди ваших активных шагов.",
+                        "available_roles": [s.role for s in pending_steps],
+                        "available_roles_display": available_roles
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            # Если роль не указана - проверяем количество
+            if pending_steps.count() == 1:
+                current_step = pending_steps.first()
+            else:
+                # Несколько шагов - требуем указать роль
+                available_roles = [{"role": s.role, "role_display": s.get_role_display(), "step_order": s.step_order} 
+                                 for s in pending_steps.order_by('step_order')]
+                return Response(
+                    {
+                        "ok": False,
+                        "error": "У вас несколько активных ролей для подписания. Укажите параметр 'role'.",
+                        "available_roles": available_roles
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         # ---------------------------------------------------------------
         # 3. ПРОВЕРКА ЭЦП

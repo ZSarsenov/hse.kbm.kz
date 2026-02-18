@@ -202,19 +202,11 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
           // Остальные массивы (riskTable, extensions) уже попали через setFormData
 
       } else if (!isEditing) {
-          // --- РЕЖИМ СОЗДАНИЯ (Автозаполнение себя) ---
+          // --- РЕЖИМ СОЗДАНИЯ: поле "Наряд выдал" оставляем пустым — выбирает сам создатель
           const savedUser = localStorage.getItem('user_data');
           if (savedUser) {
               try {
                   const user = JSON.parse(savedUser);
-                  setRoles(prev => ({
-                      ...prev,
-                      issuer: {
-                          id: user.id,
-                          name: `${user.name} (${user.position || 'Сотрудник'})`,
-                          role: user.role
-                      }
-                  }));
                   if (user.department) updateForm('department', user.department);
               } catch (e) { console.error(e); }
           }
@@ -304,6 +296,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       console.log("🚀 Начало отправки наряда...");
 
       // Валидация перед отправкой
+      if (!roles.issuer.id && !roles.issuer.name) {
+          alert("Укажите, кто выдал наряд (поле «Наряд выдал (Выдающий)»)."); setIsSubmitting(false); return;
+      }
       if (!roles.producer.id && !roles.producer.name) {
           alert("Не заполнен Производитель работ!"); setIsSubmitting(false); return;
       }
@@ -544,14 +539,20 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                 /* При создании / редактировании черновика — полный доступ */
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
 
-                 {/* 1. Наряд выдал (Авто-заполнение, READONLY) */}
+                 {/* 1. Наряд выдал (Выдающий) — при создании выбирает сам создатель наряда */}
                  <div>
-                   <label className="block text-sm font-bold text-gray-700 mb-1">Наряд выдал (Выдающий)</label>
-                   <input
-                     type="text"
-                     value={roles.issuer.name || 'Загрузка...'}
-                     disabled
-                     className={`${commonInputClasses} cursor-not-allowed text-gray-500`}
+                   <UserSearchSelect
+                      label="Наряд выдал (Выдающий)"
+                      value={roles.issuer.name}
+                      requiredRole="ISSUER"
+                      onChange={(user) => {
+                         const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
+                         setRoles(prev => ({
+                             ...prev,
+                             issuer: user ? { id: user.id, name: displayName, role: user.role } : { id: null, name: '' }
+                         }));
+                      }}
+                      placeholder="Начните вводить фамилию..."
                    />
                  </div>
 
@@ -561,7 +562,6 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                       label="Ответственный руководитель (если назначается)"
                       value={roles.responsible.name}
                       requiredRole="RESPONSIBLE"
-                      excludeIds={[roles.issuer.id, roles.admitting.id, roles.producer.id, roles.supervisor.id].filter((id): id is number => id !== null)}
                       onChange={(user) => {
                              const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
                              setRoles(prev => ({
@@ -581,7 +581,6 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                       label="Допускающий к работе"
                       value={roles.admitting.name}
                       requiredRole="ADMITTING"
-                      excludeIds={[roles.issuer.id, roles.responsible.id, roles.producer.id, roles.supervisor.id].filter((id): id is number => id !== null)}
                       onChange={(user) => {
                          const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
                          const userData = user ? { id: user.id, name: displayName, role: user.role } : { id: null, name: '' };
@@ -598,7 +597,6 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                       label="Производитель работ"
                       value={roles.producer.name}
                       requiredRole="WORK_PRODUCER"
-                      excludeIds={[roles.issuer.id, roles.responsible.id, roles.admitting.id, roles.supervisor.id].filter((id): id is number => id !== null)}
                       onChange={(user) => {
                          const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
                          const userData = user ? { id: user.id, name: displayName, role: user.role } : { id: null, name: '' };
@@ -615,14 +613,13 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                       label="Согласовано (Нач. смены / Участка / Инженер ТБ)"
                       value={roles.supervisor.name}
                       requiredRole="COORDINATOR"
-                      excludeIds={[roles.issuer.id, roles.responsible.id, roles.admitting.id, roles.producer.id].filter((id): id is number => id !== null)}
                       onChange={(user) => {
                          const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
                          setRoles(prev => ({
                              ...prev,
                              supervisor: user ? { id: user.id, name: displayName, role: user.role } : { id: null, name: '' }
                          }));
-                     }}
+                      }}
                       placeholder="Начните вводить фамилию..."
                    />
                  </div>
