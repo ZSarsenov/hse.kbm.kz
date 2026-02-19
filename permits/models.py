@@ -74,6 +74,13 @@ class WorkPermit(models.Model):
     scan_file = models.FileField(upload_to='%Y/%m/', verbose_name='Скан закрытого наряда',
                                  null=True, blank=True)
 
+    safety_document = models.FileField(
+        upload_to='safety_docs/%Y/%m/',
+        verbose_name='Документ к мерам безопасности',
+        null=True,
+        blank=True,
+    )
+
     # ------------------ FSM LOGIC ------------------
     # 1. Отправка на согласование
     @transition(field=status, source=[STATUS_DRAFT, STATUS_REJECTED], target=STATUS_PENDING)

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, Save, FileText, AlertTriangle, Users, CheckCircle2, Lock, Zap, ShieldAlert, Building, Edit3, ClipboardCheck } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, FileText, AlertTriangle, Users, CheckCircle2, Lock, Zap, ShieldAlert, Building, Edit3, ClipboardCheck, Paperclip, X } from 'lucide-react';
 import { TeamMember, RegulationFormData, UserRole, WORK_TYPES_LIST, RiskTableRow, RiskGroupMember, PermitExtension, PermitCategory, WorkPermit } from '../types';
 import { IsolationMatrixForm } from '../components/IsolationMatrixForm';
 import { ElectricalPermitForm } from '../components/ElectricalPermitForm';
@@ -124,6 +124,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
   // Редактирование во время согласования: блок подписантов полностью заблокирован
   const isApprovalEdit = isEditing && initialData?.status === 'PENDING_APPROVAL';
+
+  // Документ к мерам безопасности (PDF/JPG, макс. 10 МБ)
+  const maxSafetyDocSizeMb = 10;
+  const [safetyDocumentFile, setSafetyDocumentFile] = useState<File | null>(null);
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [checklistData, setChecklistData] = useState<ChecklistData>({});
@@ -355,6 +359,22 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
       if (response.ok) {
         const result = await response.json();
+        const permitId = result.id || initialData?.id;
+
+        if (safetyDocumentFile && permitId) {
+          const formDataUpload = new FormData();
+          formDataUpload.append('safety_document', safetyDocumentFile);
+          const uploadRes = await fetch(`/api/v1/permits/${permitId}/upload_safety_document/`, {
+            method: 'POST',
+            headers: { 'Authorization': `Token ${localStorage.getItem('auth_token')}` },
+            body: formDataUpload
+          });
+          if (!uploadRes.ok) {
+            const errData = await uploadRes.json().catch(() => ({}));
+            alert(`Наряд сохранён, но документ не прикреплён: ${errData.error || uploadRes.status}`);
+          }
+        }
+
         alert(isEditing ? '✅ Наряд успешно обновлен!' : `✅ Наряд №${result.permit_id} успешно создан!`);
         onSubmit();
       } else {
@@ -665,6 +685,54 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                     </div>
                  </div>
                ))}
+               {/* Кнопка прикрепления документа */}
+               <div className="pt-4 border-t border-gray-100">
+                 <input
+                   type="file"
+                   id="safety-doc-upload"
+                   accept=".pdf,.jpg,.jpeg"
+                   className="hidden"
+                   onChange={(e) => {
+                     const file = e.target.files?.[0];
+                     if (!file) return;
+                     const ext = file.name.split('.').pop()?.toLowerCase();
+                     if (!['pdf','jpg','jpeg'].includes(ext || '')) {
+                       alert('Разрешены только PDF и JPG.');
+                       return;
+                     }
+                     if (file.size > maxSafetyDocSizeMb * 1024 * 1024) {
+                       alert(`Файл слишком большой. Максимум: ${maxSafetyDocSizeMb} МБ.`);
+                       return;
+                     }
+                     setSafetyDocumentFile(file);
+                   }}
+                 />
+                 <div className="flex items-center gap-3 flex-wrap">
+                   <label
+                     htmlFor="safety-doc-upload"
+                     className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 cursor-pointer transition-colors"
+                   >
+                     <Paperclip size={18} />
+                     Прикрепить документ
+                   </label>
+                   {safetyDocumentFile && (
+                     <span className="flex items-center gap-2 text-gray-700">
+                       <span className="text-sm">{safetyDocumentFile.name}</span>
+                       <button
+                         type="button"
+                         onClick={() => { setSafetyDocumentFile(null); (document.getElementById('safety-doc-upload') as HTMLInputElement).value = ''; }}
+                         className="p-1 text-red-500 hover:bg-red-50 rounded"
+                       >
+                         <X size={18} />
+                       </button>
+                     </span>
+                   )}
+                   {(initialData as any)?.safety_document && !safetyDocumentFile && (
+                     <span className="text-sm text-green-600">Документ уже прикреплён</span>
+                   )}
+                 </div>
+                 <p className="text-xs text-gray-500 mt-1">PDF или JPG, не более {maxSafetyDocSizeMb} МБ</p>
+               </div>
              </div>
            </div>
          </div>

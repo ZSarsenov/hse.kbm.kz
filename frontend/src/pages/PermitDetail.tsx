@@ -517,7 +517,23 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                            if (!value) return null;
                            return (<div key={field.key} className="p-4 border-l-4 border-green-500 bg-green-50/30 rounded-r-lg"><h4 className="font-bold text-gray-700 text-sm mb-1">{field.label}</h4><p className="text-gray-900">{value}</p></div>);
                        })}
-                       {safetyFields.every(f => !data[f.key]) && <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">Меры безопасности не указаны</div>}
+                       {(permit as any).safety_document && (
+                         <div className="p-4 border-l-4 border-blue-500 bg-blue-50/30 rounded-r-lg">
+                           <h4 className="font-bold text-gray-700 text-sm mb-2">Прикреплённый документ</h4>
+                           <a
+                             href={(permit as any).safety_document}
+                             target="_blank"
+                             rel="noopener noreferrer"
+                             className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium"
+                           >
+                             <FileText size={18} />
+                             Открыть документ
+                           </a>
+                         </div>
+                       )}
+                       {safetyFields.every(f => !data[f.key]) && !(permit as any).safety_document && (
+                         <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">Меры безопасности не указаны</div>
+                       )}
                    </div>
                </div>
            )}

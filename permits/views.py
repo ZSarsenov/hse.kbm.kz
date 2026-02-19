@@ -1270,6 +1270,52 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         # Если проверка пройдена, сохраняем (ваш старый код инициатора)
         serializer.save(initiator=user)
 
+    @action(detail=True, methods=['post'], url_path='upload_safety_document')
+    def upload_safety_document(self, request, pk=None):
+        """
+        Прикрепить документ к мерам безопасности (PDF или JPG).
+        Доступно при создании/редактировании наряда (DRAFT, REJECTED) или во время согласования.
+        """
+        permit = self.get_object()
+        user = request.user
+
+        # Право загрузки: инициатор черновика/отклонённого или согласующий с правом редактирования
+        can_edit = (
+            (permit.status in ('DRAFT', 'REJECTED') and permit.initiator == user) or
+            (permit.status == 'PENDING_APPROVAL' and permit.approval_steps.filter(
+                approver=user, status='PENDING', role__in=['RESPONSIBLE', 'ADMITTING', 'WORK_PRODUCER']
+            ).exists()) or
+            user.is_superuser
+        )
+        if not can_edit:
+            return Response({'error': 'Нет прав на прикрепление документа.'}, status=403)
+
+        doc_file = request.FILES.get('safety_document')
+        if not doc_file:
+            return Response({'error': 'Не выбран файл. Прикрепите PDF или JPG.'}, status=400)
+
+        allowed_extensions = ('.pdf', '.jpg', '.jpeg')
+        file_ext = os.path.splitext(doc_file.name)[1].lower()
+        if file_ext not in allowed_extensions:
+            return Response({
+                'error': f'Недопустимый формат ({file_ext}). Разрешены только: PDF, JPG.'
+            }, status=400)
+
+        max_size_mb = 10
+        if doc_file.size > max_size_mb * 1024 * 1024:
+            file_size_mb = round(doc_file.size / (1024 * 1024), 1)
+            return Response({
+                'error': f'Файл слишком большой: {file_size_mb} МБ. Максимум: {max_size_mb} МБ.'
+            }, status=400)
+
+        permit.safety_document = doc_file
+        permit.save(update_fields=['safety_document'])
+
+        return Response({
+            'status': 'Документ прикреплён.',
+            'safety_document_url': permit.safety_document.url if permit.safety_document else None
+        })
+
     @action(detail=True, methods=['post'], url_path='close')
     def close_permit(self, request, pk=None):
         """
