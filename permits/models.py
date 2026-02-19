@@ -99,11 +99,12 @@ class WorkPermit(models.Model):
         # Формируем цепочку (Порядок важен!)
         steps_config = []
 
-        # 1. Выдающий (Это всегда инициатор наряда)
-        steps_config.append({
-            'role': 'ISSUER',
-            'user': self.initiator
-        })
+        # 1. Выдающий наряд — тот, кого указали в поле "Наряд выдал (Выдающий)", иначе создатель наряда
+        issuer_id = get_user_id('issuer')
+        if issuer_id:
+            steps_config.append({'role': 'ISSUER', 'user_id': issuer_id})
+        else:
+            steps_config.append({'role': 'ISSUER', 'user': self.initiator})
 
         # 2. Ответственный руководитель
         resp_id = get_user_id('responsible')

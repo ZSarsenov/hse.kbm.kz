@@ -302,6 +302,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       if (!roles.producer.id && !roles.producer.name) {
           alert("Не заполнен Производитель работ!"); setIsSubmitting(false); return;
       }
+      if (!roles.admitting.id && !roles.admitting.name) {
+          alert("Не заполнен Допускающий к работе!"); setIsSubmitting(false); return;
+      }
 
       // Валидация обязательных чек-листов
       const checklistValidation = validateRequiredChecklists(checklistData);
@@ -556,11 +559,12 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                    />
                  </div>
 
-                 {/* 2. Ответственный руководитель */}
+                 {/* 2. Ответственный руководитель (необязательный — без звёздочки) */}
                  <div>
                    <UserSearchSelect
                       label="Ответственный руководитель (если назначается)"
                       value={roles.responsible.name}
+                      required={false}
                       requiredRole="RESPONSIBLE"
                       onChange={(user) => {
                              const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
@@ -607,11 +611,12 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                    />
                  </div>
 
-                 {/* 5. Согласующий */}
+                 {/* 5. Согласующий (необязательный — без звёздочки) */}
                   <div className="md:col-span-2 border-t pt-4 mt-2">
                    <UserSearchSelect
                       label="Согласовано (Нач. смены / Участка / Инженер ТБ)"
                       value={roles.supervisor.name}
+                      required={false}
                       requiredRole="COORDINATOR"
                       onChange={(user) => {
                          const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';

@@ -33,6 +33,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // Ищем все мои шаги (может быть несколько ролей)
   const steps = (permit as any).approvalSteps || [];
   const mySteps = steps.filter((s: any) => String(s.approver_id) === currentUserId);
+  // Выдающий наряд для блока «Ответственные лица» — из Хода согласования (шаг 1 ISSUER), не инициатор
+  const issuerStep = steps.find((s: any) => s.role === 'ISSUER');
   const myPendingSteps = mySteps.filter((s: any) => s.status === 'PENDING');
   
   // Для обратной совместимости оставляем myStep (первый найденный)
@@ -52,10 +54,10 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const isAdmittingUser = admittingStep && String(admittingStep.approver_id) === currentUserId;
 
   // 3. ЛОГИКА ВИДИМОСТИ КНОПОК
-  // Кнопка "Подписать" (только для автора, если статус Черновик)
-  const showSignDraft = permit.status === 'DRAFT' && isInitiator;
+  // Кнопка "Отправить на согласование" — создатель черновика или отклонённого наряда (без подписи ЭЦП)
+  const showSubmitForApproval = (permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator;
 
-  // Кнопка "Согласовать" (если наряд в работе И есть хотя бы один активный шаг)
+  // Кнопка "Согласовать (ЭЦП)" — только те, кого указали в наряде и кому пришла очередь
   const showApprove = permit.status === 'PENDING_APPROVAL' && myPendingSteps.length > 0;
 
   // Кнопка "Отклонить" (если есть хотя бы один активный шаг)
@@ -162,6 +164,29 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
           console.error("Download error:", error);
           alert("Ошибка сети при скачивании.");
       }
+  };
+
+  const handleSubmitForApproval = async () => {
+    try {
+      const response = await fetch(`/api/v1/permits/${permit.id}/submit_for_approval/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({})
+      });
+      const resData = await response.json();
+      if (response.ok && resData.ok) {
+        alert(`✅ ${resData.status || 'Наряд отправлен на согласование.'}`);
+        onBack();
+      } else {
+        alert(resData.error || 'Ошибка при отправке на согласование.');
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert(`Ошибка: ${e.message || 'Сеть'}`);
+    }
   };
 
   const handleSign = async (role?: string) => {
@@ -340,6 +365,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
       if (typeof userObj === 'string' && userObj.trim() !== '') return userObj;
       return fallback;
   };
+  // В блоке «Ответственные лица» Выдающий наряд = подписант шага 1 (Ход согласования)
+  const issuerDisplayName = issuerStep?.approver_name || renderUserName(data.issuer, '—');
 
   const safetyFields = [
       { key: 'm5_1_stop', label: '5.1 Остановить' },
@@ -471,7 +498,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 <div>
                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><User size={20} className="text-slate-400"/> Ответственные лица</h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Выдающий наряд</span><p className="font-medium text-gray-900">{initiator?.name || renderUserName(data.issuer, '—')}</p></div>
+                      <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Выдающий наряд</span><p className="font-medium text-gray-900">{issuerDisplayName}</p></div>
                       <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Ответственный руководитель</span><p className="font-medium text-gray-900">{renderUserName(data.responsible, 'Не назначался')}</p></div>
                       <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Производитель работ</span><p className="font-medium text-gray-900">{renderUserName(data.producer, '—')}</p></div>
                       <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Допускающий</span><p className="font-medium text-gray-900">{renderUserName(data.admitting, '—')}</p></div>
@@ -578,19 +605,17 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 </>
             )}
 
-            {/* 3. ПОДПИСАТЬ / СОГЛАСОВАТЬ */}
-            {showSignDraft && (
+            {/* 3. ОТПРАВИТЬ НА СОГЛАСОВАНИЕ (только создатель черновика, без ЭЦП) */}
+            {showSubmitForApproval && (
                 <button
-                    onClick={() => handleSign()}
-                    disabled={loading}
-                    className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-white font-medium shadow-sm flex items-center justify-center gap-2 transition-all
-                    ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                    onClick={handleSubmitForApproval}
+                    className="flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-white font-medium shadow-sm flex items-center justify-center gap-2 transition-all bg-blue-600 hover:bg-blue-700"
                 >
-                   {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <FileSignature size={18} />}
-                   Подписать (ЭЦП)
+                   <FileSignature size={18} />
+                   Отправить на согласование
                 </button>
             )}
-            
+
             {/* Если несколько ролей - показываем кнопки для каждой роли */}
             {showApprove && myPendingSteps.length > 1 && (
                 <div className="flex flex-col gap-2 w-full sm:w-auto">
@@ -625,7 +650,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
             )}
 
             {/* 4. ИНФОРМАЦИЯ (Если нечего нажимать, но наряд активен) */}
-            {!showSignDraft && !showApprove && permit.status === 'PENDING_APPROVAL' && (
+            {!showSubmitForApproval && !showApprove && permit.status === 'PENDING_APPROVAL' && (
                 <div className="flex items-center text-gray-500 text-sm italic px-4 bg-gray-50 rounded-lg border border-gray-100 py-2">
                     {mySteps.some((s: any) => s.status === 'APPROVED')
                         ? <span className="text-green-600 flex items-center gap-2"><CheckCircle2 size={16}/> Вы уже подписали этот наряд{mySteps.filter((s: any) => s.status === 'APPROVED').length > 1 ? ` (${mySteps.filter((s: any) => s.status === 'APPROVED').length} роли)` : ''}</span>

@@ -65,15 +65,25 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(permits, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], url_path='submit_for_approval')
     def submit(self, request, pk=None):
+        """Отправить наряд на согласование (без подписи). Только для черновика или отклонённого."""
         permit = self.get_object()
+        if permit.status not in ('DRAFT', 'REJECTED'):
+            return Response(
+                {'ok': False, 'error': 'Отправить на согласование можно только черновик или отклонённый наряд.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         try:
             permit.submit()
             permit.save()
-            return Response({'status': 'Наряд отправлен', 'current_status': permit.status})
+            return Response({
+                'ok': True,
+                'status': 'Наряд отправлен на согласование.',
+                'current_status': permit.status
+            })
         except Exception as e:
-            return Response({'error': str(e)}, status=400)
+            return Response({'ok': False, 'error': str(e)}, status=400)
 
     # --- МЕТОД ПОДПИСАНИЯ ---
     @action(detail=True, methods=["post"], url_path="sign", permission_classes=[IsAuthenticated])
@@ -85,20 +95,15 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         if not signed_xml:
             return Response({"ok": False, "error": "Нет данных подписи"}, status=400)
 
-        # ---------------------------------------------------------------
-        # 1. АВТО-ЗАПУСК СОГЛАСОВАНИЯ (ДЛЯ ЧЕРНОВИКА)
-        # ---------------------------------------------------------------
+        # Подписание только для наряда уже на согласовании (черновик отправляют через submit_for_approval)
         if permit.status == 'DRAFT':
-            # Если статус DRAFT, вызываем transition submit(), который меняет статус
-            # на PENDING_APPROVAL и создает шаги.
-            try:
-                permit.submit()  # <--- Transition метод (из models.py)
-                permit.save()
-            except Exception as e:
-                return Response({"ok": False, "error": f"Ошибка запуска согласования: {e}"}, status=400)
+            return Response(
+                {"ok": False, "error": "Сначала нажмите «Отправить на согласование» на странице наряда."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         # ---------------------------------------------------------------
-        # 2. ПОИСК ТЕКУЩЕГО ШАГА (с поддержкой нескольких ролей)
+        # ПОИСК ТЕКУЩЕГО ШАГА (с поддержкой нескольких ролей)
         # ---------------------------------------------------------------
         requested_role = request.data.get('role')  # Параметр роли из запроса
         
@@ -610,6 +615,9 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
         doc.render(context)
 
+        # Оптимизация: основной наряд (13 пунктов) — на одну страницу
+        self._compact_permit_to_one_page(doc)
+
         # ============================================================
         # ДОБАВЛЯЕМ ЧЕК-ЛИСТЫ В ДОКУМЕНТ (после основного наряда)
         # ============================================================
@@ -823,6 +831,47 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         },
     }
 
+    def _compact_permit_to_one_page(self, doc):
+        """
+        Оптимизация: уменьшает поля, отступы и межстрочные интервалы основного наряда,
+        чтобы все 13 пунктов поместились на одну страницу.
+        """
+        from docx.shared import Pt, Cm
+
+        document = doc.docx
+        if not document.sections:
+            return
+
+        # Уменьшаем поля страницы (по умолчанию ~1.25 см — делаем ~1 см)
+        section = document.sections[0]
+        section.top_margin = Cm(0.8)
+        section.bottom_margin = Cm(0.8)
+        section.left_margin = Cm(1.0)
+        section.right_margin = Cm(1.0)
+
+        def compact_paragraph(paragraph):
+            pf = paragraph.paragraph_format
+            pf.space_before = Pt(1)
+            pf.space_after = Pt(1)
+            pf.line_spacing = Pt(10)  # межстрочный
+            for run in paragraph.runs:
+                try:
+                    if run.font.size is not None and run.font.size.pt > 10:
+                        run.font.size = Pt(9)
+                except (AttributeError, TypeError):
+                    pass
+
+        # Компактные стили для всех параграфов в теле документа
+        for paragraph in document.paragraphs:
+            compact_paragraph(paragraph)
+
+        # Параграфы внутри таблиц
+        for table in document.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        compact_paragraph(paragraph)
+
     def _append_checklists_to_docx(self, doc, permit):
         """
         Добавляет заполненные чек-листы как новые страницы в DOCX после рендеринга шаблона.
@@ -849,6 +898,9 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
         document = doc.docx  # Доступ к python-docx Document из docxtpl
 
+        # Все заполненные чек-листы на одной странице: один разрыв перед секцией, между таблицами — без разрыва
+        first_checklist = True
+
         for table_id in ordered_ids:
             table_answers = checklist_data.get(table_id)
             if not table_answers:
@@ -866,8 +918,15 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             if not table_def:
                 continue
 
-            # --- НОВАЯ СТРАНИЦА ---
-            document.add_page_break()
+            # --- Одна новая страница только перед первым чек-листом ---
+            if first_checklist:
+                document.add_page_break()
+                first_checklist = False
+            else:
+                # Между чек-листами — небольшой отступ, без разрыва страницы
+                spacer_between = document.add_paragraph()
+                spacer_between.space_before = Pt(12)
+                spacer_between.space_after = Pt(6)
 
             # --- ЗАГОЛОВОК ---
             title_p = document.add_paragraph()
@@ -1204,10 +1263,9 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
 
-        # 👇 ПРОВЕРКА РОЛИ (Всего 3 строки)
-        # Разрешаем создание только Выдающему (ISSUER) или Админу
-        if user.role != 'ISSUER' and not user.is_superuser:
-            raise PermissionDenied("Только 'Выдающий наряд' имеет право создавать новые наряды.")
+        # 👇 ПРОВЕРКА РОЛИ: создавать наряд могут только Выдающий наряд (ISSUER), Допускающий (ADMITTING) или Админ
+        if user.role not in ('ISSUER', 'ADMITTING') and not user.is_superuser:
+            raise PermissionDenied("Создавать наряды могут только пользователи с ролями «Выдающий наряд» или «Допускающий».")
 
         # Если проверка пройдена, сохраняем (ваш старый код инициатора)
         serializer.save(initiator=user)

@@ -16,6 +16,7 @@ interface UserSearchSelectProps {
   placeholder?: string;
   disabled?: boolean;
   requiredRole?: string; // 👇 Новая фишка: Требуемая роль
+  required?: boolean; // Показывать звёздочку (*) как обязательное поле (по умолчанию true)
   excludeIds?: number[]; // ID пользователей, уже выбранных в других ролях
 }
 
@@ -37,6 +38,7 @@ export const UserSearchSelect: React.FC<UserSearchSelectProps> = ({
   placeholder = "Введите фамилию...",
   disabled = false,
   requiredRole,
+  required = true,
   excludeIds = []
 }) => {
   const [query, setQuery] = useState('');
@@ -119,7 +121,7 @@ export const UserSearchSelect: React.FC<UserSearchSelectProps> = ({
     <div className="relative" ref={wrapperRef}>
       <label className="block text-sm font-bold text-gray-700 mb-1">
         {label}
-        {requiredRole && <span className="text-red-500 ml-1">*</span>}
+        {required && requiredRole && <span className="text-red-500 ml-1">*</span>}
       </label>
 
       <div className="relative">

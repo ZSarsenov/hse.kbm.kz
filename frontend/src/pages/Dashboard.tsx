@@ -18,7 +18,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
   const [currentPage, setCurrentPage] = useState(1);
 
   const user = JSON.parse(localStorage.getItem('user_data') || '{}');
-  const canCreatePermit = user.role === 'ISSUER' || user.role === 'ADMIN';
+  const canCreatePermit = user.role === 'ISSUER' || user.role === 'ADMITTING' || user.role === 'ADMIN';
 
   // 🔥 НОВАЯ ЛОГИКА ФИЛЬТРАЦИИ
   const filteredPermits = permits.filter(p => {

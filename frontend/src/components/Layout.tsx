@@ -57,7 +57,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
   const localUser = JSON.parse(localStorage.getItem('user_data') || '{}');
   const userRole = user?.role || localUser.role || '';
-  const canCreatePermit = userRole === 'ISSUER' || userRole === 'ADMIN';
+  const canCreatePermit = userRole === 'ISSUER' || userRole === 'ADMITTING' || userRole === 'ADMIN';
 
   const fetchNotifs = () => {
       const token = localStorage.getItem('auth_token');
@@ -185,7 +185,7 @@ export const Layout: React.FC<LayoutProps> = ({
             {/* 👇 АКТИВИРОВАЛИ КНОПКУ АРХИВ */}
             <SidebarLink
                 icon={<FileText size={20}/>}
-                label="Архив"
+                label="Журнал"
                 active={currentView === 'ARCHIVE'}
                 onClick={onNavigateArchive}
             />
