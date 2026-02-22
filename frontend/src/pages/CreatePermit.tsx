@@ -900,9 +900,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                </div>
             </div>
 
-            {/* 13. Работа окончена */}
+            {/* 13. Работа окончена — дата заполняется при закрытии наряда Допускающим */}
              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                <h3 className="font-bold text-gray-900 uppercase text-base tracking-wider border-b pb-2 mb-4">13. Работа окончена</h3>
+               <p className="text-sm text-gray-500 mb-4">Дата и время окончания работ указываются при закрытии наряда Допускающим (статус «Закрыт»).</p>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="md:col-span-2 flex items-end gap-2">
                        <span className="text-lg text-gray-700 font-semibold whitespace-nowrap">Дата, время:</span>
@@ -910,7 +911,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                          type="datetime-local"
                          value={formData.completionDateTime}
                          onChange={e => updateForm('completionDateTime', e.target.value)}
-                         className={commonInputClasses}
+                         className={`${commonInputClasses} bg-gray-100 cursor-not-allowed`}
+                         disabled
+                         title="Заполняется при закрытии наряда Допускающим"
                        />
                        <span className="text-lg text-gray-700 ml-2">убрано, персонал с места производства работ выведен.</span>
                    </div>

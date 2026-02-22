@@ -88,11 +88,22 @@ class WorkPermit(models.Model):
         """
         Переводит наряд в статус согласования и генерирует цепочку подписей
         на основе данных JSON (self.data).
+        При повторной отправке после отклонения: шаги не пересоздаём, подписи сохраняются,
+        только шаг отклонявшего сбрасывается в PENDING — подписывает снова только он.
         """
         if not self.data:
             raise ValidationError("Нельзя отправить пустой наряд. Заполните данные.")
 
-        # Очищаем старые шаги (на случай повторной отправки)
+        # Повторная отправка после отклонения: тот же наряд, тот же номер, подписи сохраняются
+        if self.status == self.STATUS_REJECTED:
+            rejected_step = self.approval_steps.filter(status='REJECTED').first()
+            if rejected_step:
+                rejected_step.status = 'PENDING'
+                rejected_step.signed_at = None
+                rejected_step.save()
+                return
+
+        # Первая отправка (DRAFT) или отклонённый без сохранённых шагов — создаём цепочку заново
         self.approval_steps.all().delete()
 
         # Функция-помощник для получения ID из JSON-объекта роли

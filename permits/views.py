@@ -74,9 +74,20 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 {'ok': False, 'error': 'Отправить на согласование можно только черновик или отклонённый наряд.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        was_rejected = permit.status == 'REJECTED'
         try:
             permit.submit()
             permit.save()
+            # При повторной отправке после отклонения уведомляем того, кто отказал — наряд снова ждёт его подписи
+            if was_rejected:
+                pending_step = permit.approval_steps.filter(status='PENDING').first()
+                if pending_step and pending_step.approver != permit.initiator:
+                    Notification.objects.create(
+                        user=pending_step.approver,
+                        permit_id=permit.id,
+                        title="Наряд повторно отправлен на согласование",
+                        message=f"Наряд №{permit.permit_id} исправлен. Требуется ваша подпись повторно ({pending_step.get_role_display()})."
+                    )
             return Response({
                 'ok': True,
                 'status': 'Наряд отправлен на согласование.',
@@ -1229,8 +1240,8 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         permit = self.get_object()
         user = self.request.user
 
-        # 1. Инициатор редактирует черновик — без ограничений
-        if permit.status == 'DRAFT' and permit.initiator == user:
+        # 1. Инициатор (Выдающий наряд) редактирует черновик или отклонённый наряд — без ограничений
+        if permit.initiator == user and permit.status in ('DRAFT', 'REJECTED'):
             serializer.save()
             return
 
@@ -1364,6 +1375,8 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             }, status=400)
 
         permit.scan_file = scan_file
+        # Фиксируем дату/время окончания работ в Первичный допуск (при закрытии наряда)
+        permit.valid_to = timezone.now()
         permit.close_work()
         permit.save()
 

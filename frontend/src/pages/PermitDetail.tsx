@@ -604,8 +604,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
             )}
 
             {/* 2. РЕДАКТИРОВАТЬ / УДАЛИТЬ */}
-            {/* 🔥 NEW: Показываем если я автор черновика ИЛИ если я Руководитель (canEditAsManager) */}
-            {((permit.status === 'DRAFT' && isInitiator) || canEditAsManager) && (
+            {/* Показываем: автор черновика/отклонённого ИЛИ согласующий с правом редактирования */}
+            {(((permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator) || canEditAsManager) && (
                 <>
                     {/* Кнопка Удалить - только для черновика и только для автора */}
                     {permit.status === 'DRAFT' && isInitiator && (
