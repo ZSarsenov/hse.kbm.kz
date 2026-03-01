@@ -331,8 +331,18 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             new_data['riskApprovedBy'] = ""
             new_data['extensions'] = []
 
-            # 3. Генерируем новый permit_id (как в сериализаторе)
-            new_permit_id = f"{time.strftime('%Y')}-{int(time.time())}"
+            # 3. Генерируем номер по стандарту: OR-2026-00001
+            current_year = time.strftime('%Y')
+            prefix = f"OR-{current_year}-"
+            last_permit = WorkPermit.objects.filter(
+                permit_id__startswith=prefix
+            ).order_by('-permit_id').first()
+            if last_permit:
+                last_number = int(last_permit.permit_id.split('-')[-1])
+                next_number = last_number + 1
+            else:
+                next_number = 1
+            new_permit_id = f"{prefix}{next_number:05d}"
 
             # 4. Создаем новый объект
             new_permit = WorkPermit.objects.create(
@@ -352,6 +362,66 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         except Exception as e:
             print(f"Ошибка при дублировании: {e}")  # Выведет ошибку в консоль сервера
             return Response({"ok": False, "error": str(e)}, status=400)
+
+    @action(detail=False, methods=['get'], url_path='export_journal')
+    def export_journal(self, request):
+        """
+        Экспорт журнала (закрытые/отклонённые наряды) в xlsx.
+        Параметры: date_from, date_to (YYYY-MM-DD), status (CLOSED|REJECTED) — необязательные.
+        Если записей нет — файл скачивается пустым (только заголовки).
+        """
+        from django.http import HttpResponse
+        from openpyxl import Workbook
+        from openpyxl.utils import get_column_letter
+        from datetime import datetime
+        from io import BytesIO
+
+        qs = self.get_queryset().filter(status__in=['CLOSED', 'REJECTED']).order_by('-valid_from', '-created_at')
+
+        date_from_s = request.query_params.get('date_from')
+        date_to_s = request.query_params.get('date_to')
+        status_param = request.query_params.get('status')
+        if status_param in ('CLOSED', 'REJECTED'):
+            qs = qs.filter(status=status_param)
+        if date_from_s:
+            try:
+                dt_from = datetime.strptime(date_from_s, '%Y-%m-%d')
+                qs = qs.filter(valid_from__date__gte=dt_from.date())
+            except ValueError:
+                pass
+        if date_to_s:
+            try:
+                dt_to = datetime.strptime(date_to_s, '%Y-%m-%d')
+                qs = qs.filter(valid_from__date__lte=dt_to.date())
+            except ValueError:
+                pass
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Журнал нарядов-допусков"
+        headers = [
+            '№', 'Начало (Первичный допуск)', 'Окончание (Первичный допуск)', '№ наряда-допуска',
+            'Лицо, выдавшее наряд', 'Наименование работ', 'Статус'
+        ]
+        for col, h in enumerate(headers, 1):
+            ws.cell(row=1, column=col, value=h)
+        for idx, permit in enumerate(qs, 1):
+            issuer_step = permit.approval_steps.filter(role='ISSUER').first()
+            issuer_name = issuer_step.approver.get_full_name() if issuer_step and issuer_step.approver else (permit.initiator.get_full_name() if permit.initiator else '—')
+            valid_from_str = permit.valid_from.strftime('%d.%m.%Y %H:%M') if permit.valid_from else '—'
+            valid_to_str = permit.valid_to.strftime('%d.%m.%Y %H:%M') if permit.valid_to else '—'
+            work_name = (permit.data or {}).get('workName') or '—'
+            status_display = dict(WorkPermit.STATUS_CHOICES).get(permit.status, permit.status)
+            ws.append([idx, valid_from_str, valid_to_str, permit.permit_id, issuer_name, work_name, status_display])
+        for col in range(1, len(headers) + 1):
+            ws.column_dimensions[get_column_letter(col)].width = 18
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        response = HttpResponse(buf.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        fname = f"journal_{date_from_s or 'all'}_{date_to_s or 'all'}_{status_param or 'all'}.xlsx"
+        response['Content-Disposition'] = f'attachment; filename="{fname}"'
+        return response
 
     # --- МЕТОД СКАЧИВАНИЯ ---
     # 👇 НОВЫЙ МЕТОД ГЕНЕРАЦИИ PDF

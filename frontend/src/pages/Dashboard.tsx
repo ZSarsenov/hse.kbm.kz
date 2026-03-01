@@ -15,13 +15,15 @@ const ITEMS_PER_PAGE = 10;
 export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, onCreateNew, isArchiveView = false }) => {
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
   const user = JSON.parse(localStorage.getItem('user_data') || '{}');
   const canCreatePermit = user.role === 'ISSUER' || user.role === 'ADMITTING' || user.role === 'ADMIN';
 
   // 🔥 НОВАЯ ЛОГИКА ФИЛЬТРАЦИИ
-  const filteredPermits = permits.filter(p => {
+  let filteredPermits = permits.filter(p => {
     // Является ли наряд архивным? (Закрыт или Отклонен)
     const isArchived = p.status === 'CLOSED' || p.status === 'REJECTED';
 
@@ -38,9 +40,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
     const matchesSearch = 
       (p.permitId?.toLowerCase() || '').includes(query) ||
       (p.initiator?.name?.toLowerCase() || '').includes(query) ||
-      (p.location?.name?.toLowerCase() || '').includes(query);
+      (p.location?.name?.toLowerCase() || '').includes(query) ||
+      (p.data?.workName?.toLowerCase() || '').includes(query);
     return matchesStatus && matchesSearch;
   });
+
+  // В Журнале: дополнительный фильтр по периоду (С / По)
+  if (isArchiveView && (dateFrom || dateTo)) {
+    filteredPermits = filteredPermits.filter(p => {
+      const d = p.validFrom ? new Date(p.validFrom) : null;
+      if (!d) return false;
+      const day = d.toISOString().slice(0, 10);
+      if (dateFrom && day < dateFrom) return false;
+      if (dateTo && day > dateTo) return false;
+      return true;
+    });
+  }
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredPermits.length / ITEMS_PER_PAGE);
@@ -48,7 +63,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
   const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
   const currentItems = filteredPermits.slice(indexOfFirstItem, indexOfLastItem);
 
-  useEffect(() => { setCurrentPage(1); }, [filterStatus, searchQuery, isArchiveView]);
+  useEffect(() => { setCurrentPage(1); }, [filterStatus, searchQuery, dateFrom, dateTo, isArchiveView]);
 
   const goToPage = (pageNumber: number) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {
@@ -72,10 +87,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
           </p>
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-5 py-3 rounded-lg text-base font-medium hover:bg-gray-50 transition-all shadow-sm">
-            <Download size={20} />
-            <span className="hidden sm:inline">Экспорт отчета</span>
-          </button>
+          {/* Кнопка "Экспорт отчета" только во вкладке Журнал */}
+          {isArchiveView && (
+            <button
+              onClick={async () => {
+                const token = localStorage.getItem('auth_token');
+                const params = new URLSearchParams();
+                if (dateFrom) params.set('date_from', dateFrom);
+                if (dateTo) params.set('date_to', dateTo);
+                if (filterStatus !== 'ALL') params.set('status', filterStatus);
+                const url = `/api/v1/permits/export_journal/${params.toString() ? '?' + params.toString() : ''}`;
+                try {
+                  const res = await fetch(url, { headers: token ? { 'Authorization': `Token ${token}` } : {} });
+                  if (!res.ok) throw new Error('Ошибка экспорта');
+                  const blob = await res.blob();
+                  const name = res.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/)?.[1] || 'journal.xlsx';
+                  const a = document.createElement('a');
+                  a.href = URL.createObjectURL(blob);
+                  a.download = name;
+                  a.click();
+                  URL.revokeObjectURL(a.href);
+                } catch (e) {
+                  console.error(e);
+                  alert('Не удалось скачать отчёт.');
+                }
+              }}
+              className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-5 py-3 rounded-lg text-base font-medium hover:bg-gray-50 transition-all shadow-sm"
+            >
+              <Download size={20} />
+              <span className="hidden sm:inline">Экспорт отчета</span>
+            </button>
+          )}
 
           {/* Кнопку "Создать" показываем только на ГЛАВНОЙ (в архиве она не нужна) */}
           {!isArchiveView && canCreatePermit && (
@@ -96,71 +138,110 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
           <SlidersHorizontal size={18} />
           <span>Фильтры данных</span>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className={`grid grid-cols-1 gap-4 ${isArchiveView ? 'md:grid-cols-4 items-end' : 'md:grid-cols-4'}`}>
 
           {/* Status Filter */}
-          <div className="relative group">
-             <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 group-focus-within:text-blue-600 transition-colors">
+          <div className={isArchiveView ? '' : 'relative group'}>
+            {isArchiveView && <label className="block text-sm font-medium text-gray-600 mb-1">Статус</label>}
+            <div className="relative group">
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 group-focus-within:text-blue-600 transition-colors">
                 <Filter size={18} />
               </span>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white transition-shadow outline-none cursor-pointer hover:border-gray-400"
-            >
-              <option value="ALL">Все статусы</option>
-              {isArchiveView ? (
-                  <>
-                      <option value={PermitStatus.CLOSED}>Закрыт</option>
-                      <option value={PermitStatus.REJECTED}>Отклонено</option>
-                  </>
-              ) : (
-                  <>
-                      <option value={PermitStatus.DRAFT}>Черновик</option>
-                      <option value={PermitStatus.PENDING_APPROVAL}>На согласовании</option>
-                      <option value={PermitStatus.APPROVED}>Согласовано</option>
-                  </>
-              )}
-            </select>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white transition-shadow outline-none cursor-pointer hover:border-gray-400"
+              >
+                <option value="ALL">Все статусы</option>
+                {isArchiveView ? (
+                    <>
+                        <option value={PermitStatus.CLOSED}>Закрыт</option>
+                        <option value={PermitStatus.REJECTED}>Отклонено</option>
+                    </>
+                ) : (
+                    <>
+                        <option value={PermitStatus.DRAFT}>Черновик</option>
+                        <option value={PermitStatus.PENDING_APPROVAL}>На согласовании</option>
+                        <option value={PermitStatus.APPROVED}>Согласовано</option>
+                    </>
+                )}
+              </select>
+            </div>
           </div>
 
-           {/* Date Range */}
-           <div className="relative group">
-             <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 group-focus-within:text-blue-600 transition-colors">
-                <Calendar size={18} />
-              </span>
-            <input
-              type="date"
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-600 outline-none transition-shadow"
-            />
-          </div>
-
-          {/* Department */}
-          <div className="relative group">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 group-focus-within:text-blue-600 transition-colors">
-                <Building2 size={18} />
-            </span>
-            <select className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-600 appearance-none outline-none cursor-pointer hover:border-gray-400">
-              <option>Все цеха / отделы</option>
-              <option>Цех №1</option>
-              <option>Цех №2</option>
-              <option>Ремонтная служба</option>
-            </select>
-          </div>
+           {/* В Журнале: период С и По; на Главной: одна дата + цех */}
+          {isArchiveView ? (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">С</label>
+                <div className="relative group">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                    <Calendar size={18} />
+                  </span>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-600 outline-none transition-shadow"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">По</label>
+                <div className="relative group">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                    <Calendar size={18} />
+                  </span>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-600 outline-none transition-shadow"
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="relative group">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 group-focus-within:text-blue-600 transition-colors">
+                  <Calendar size={18} />
+                </span>
+                <input
+                  type="date"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-600 outline-none transition-shadow"
+                />
+              </div>
+              <div className="relative group">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 group-focus-within:text-blue-600 transition-colors">
+                  <Building2 size={18} />
+                </span>
+                <select className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-600 appearance-none outline-none cursor-pointer hover:border-gray-400">
+                  <option>Все цеха / отделы</option>
+                  <option>Цех №1</option>
+                  <option>Цех №2</option>
+                  <option>Ремонтная служба</option>
+                </select>
+              </div>
+            </>
+          )}
 
            {/* Search */}
-           <div className="relative group">
-             <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 group-focus-within:text-blue-600 transition-colors">
-                <Search size={18} />
-              </span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Поиск по номеру, ФИО..."
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow"
-            />
-          </div>
+           <div>
+             {isArchiveView && <label className="block text-sm font-medium text-gray-600 mb-1">Поиск</label>}
+             <div className="relative group">
+               <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 group-focus-within:text-blue-600 transition-colors">
+                 <Search size={18} />
+               </span>
+               <input
+                 type="text"
+                 value={searchQuery}
+                 onChange={(e) => setSearchQuery(e.target.value)}
+                 placeholder="Поиск по номеру, ФИО, месту, наименованию работ..."
+                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow"
+               />
+             </div>
+           </div>
         </div>
       </div>
 
@@ -224,7 +305,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                       </td>
                       <td className="px-4 py-5 font-mono font-medium text-blue-600 group-hover:text-blue-800">{permit.permitId}</td>
                       <td className="px-4 py-5 text-gray-700">{issuerName}</td>
-                      <td className="px-4 py-5 font-semibold text-gray-800">{permit.templateType || 'Наряд повышенной опасности'}</td>
+                      <td className="px-4 py-5 font-semibold text-gray-800 truncate max-w-[220px]" title={permit.data?.workName || ''}>{permit.data?.workName || '—'}</td>
                       <td className="px-4 py-5 text-center">
                         <StatusBadge status={permit.status} />
                       </td>
@@ -241,7 +322,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                     className="group cursor-pointer transition-colors even:bg-slate-50/50 hover:bg-blue-50/60"
                   >
                     <td className="px-6 py-5 font-mono font-medium text-blue-600 group-hover:text-blue-800">{permit.permitId}</td>
-                    <td className="px-6 py-5 font-semibold text-gray-800">{permit.templateType}</td>
+                    <td className="px-6 py-5 font-semibold text-gray-800 truncate max-w-[220px]" title={permit.data?.workName || ''}>{permit.data?.workName || permit.templateType || '—'}</td>
                     <td className="px-6 py-5 text-gray-600">
                       <div className="flex items-center gap-2">
                         <MapPin size={16} className="text-gray-400 shrink-0" />
