@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<companies>
+    <company>
+        <company-id>770704034</company-id>
+        <name lang="ru">Якорь</name>
+        <address lang="ru">город Екатеринбург, просп. Ленина, 101, а</address>
+        <country lang="ru">Россия</country>
+        <address-add lang="ru">ТЦ Ромашка, 2 этаж, офис 203</address-add>
+        <phone>
+            <number>+7 (343) 375-13-99</number>
+            <ext>555</ext>
+            <info>секретарь</info>
+            <type>phone</type>
+        </phone>
+        <phone>
+            <ext/><type>phone</type>
+            <number>+7 (800) 200-23-45</number>
+            <info/>
+        </phone>
+        <email>info@yakor-anapa.ru</email>
+        <url>http://www.yakor-anapa.ru</url>
+        <add-url>http://www.yakoranapa.ru</add-url>
+        <info-page>http://www.test.ru/yakor-anapa</info-page>
+        <working-time lang="ru">ежедн. 10:00-21:00</working-time>
+        <rubric-id>184106414</rubric-id>
+        <rubric-id>184106394</rubric-id>
+        <inn>123456789123</inn> 
+        <ogrn>9876543219876</ogrn>
+        <actualization-date>1511724300</actualization-date>
+        <photos gallery-url="http://test.ru/yakor-anapa/gallery">
+            <photo url="http://test.ru/yakor-anapa/11_b.jpg" alt="Ресторан отеля" type="interior"/>
+            <photo url="http://test.ru/yakor-anapa/19_b.jpg" type="exterior"/>
+            <photo url="http://test.ru/yakor-anapa/25_b.jpg"/>
+            <photo url="http://test.ru/yakor-anapa/26_b.jpg"/>
+            <photo url="http://test.ru/yakor-anapa/17_b.jpg"/>
+            <photo url="http://test.ru/yakor-anapa/drink1.jpg" alt="Коктейль в баре отеля" type="food"/>
+        </photos>
+        <feature-boolean name="internet" value="1"/>
+        <feature-enum-single name="star" value="five"/>
+        <feature-numeric-single name="room_number" value="15"/>
+        <feature-enum-multiple name="hotel_type" value="art_hotel"/>
+        <feature-text-single value="Yakor_free_wi-fi" name="ssid"/>
+    </company>
+</companies>

@@ -304,6 +304,7 @@ class Location(models.Model):
         return self.name
 
 
+
 class DangerousWorkType(models.Model):
     """
     Модуль 'Виды опасных работ' [cite: 509]

@@ -270,6 +270,37 @@ function App() {
   // 👇 ГЛАВНОЕ ИСПРАВЛЕНИЕ: Преобразуем оба ID в строку для сравнения
   const getSelectedPermit = () => permits.find(p => String(p.id) === String(selectedPermitId));
 
+  const refetchSelectedPermit = () => {
+    if (!selectedPermitId || !token) return;
+    fetch(`/api/v1/permits/${selectedPermitId}/`, { headers: { 'Authorization': `Token ${token}` } })
+      .then(res => res.ok ? res.json() : Promise.reject(new Error('Не удалось загрузить наряд')))
+      .then(p => {
+        const formattedPermit: WorkPermit = {
+          id: p.id,
+          permitId: p.permit_id,
+          templateType: p.templateType || 'Наряд повышенной опасности',
+          status: p.status,
+          scan_file: p.scan_file,
+          safety_document: p.safety_document,
+          initiator: {
+            name: p.initiator?.name || [p.initiator?.last_name, p.initiator?.first_name, p.initiator?.surname].filter(Boolean).join(' ') || '—',
+            position: p.initiator?.position,
+            iin: p.initiator?.iin,
+            bin: p.initiator?.bin,
+            id: p.initiator?.id,
+          },
+          location: { name: p.location_name || 'Место не указано' },
+          createdAt: p.created_at,
+          validFrom: p.valid_from,
+          validTo: p.valid_to,
+          data: p.data,
+          approvalSteps: p.approval_steps,
+        };
+        setPermits(prev => prev.map(permit => String(permit.id) === String(formattedPermit.id) ? formattedPermit : permit));
+      })
+      .catch(err => console.error('Ошибка обновления наряда:', err));
+  };
+
   // --- RENDER ---
   if (!isLoggedIn) {
     return <Login onLogin={handleLogin} />;
@@ -306,6 +337,7 @@ function App() {
                 onBack={handleNavigateDashboard}
                 onEdit={() => handleEditPermit(getSelectedPermit()!)}
                 onDelete={() => handleDeletePermit(selectedPermitId)}
+                onRefresh={refetchSelectedPermit}
               />
           ) : (
               isLoading ? (
@@ -338,6 +370,7 @@ function App() {
                 onBack={handleNavigateDashboard}
                 onEdit={() => handleEditPermit(getSelectedPermit()!)}
                 onDelete={() => handleDeletePermit(selectedPermitId)}
+                onRefresh={refetchSelectedPermit}
               />
           ) : (
               <div className="flex flex-col justify-center items-center h-full min-h-[50vh] text-slate-500">

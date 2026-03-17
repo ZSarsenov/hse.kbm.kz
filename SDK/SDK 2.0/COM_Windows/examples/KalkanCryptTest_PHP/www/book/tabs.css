@@ -1,0 +1,79 @@
+.tabs {
+    width: 100%;
+    height: 820px;
+}
+.tabs ul,
+.tabs li {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.tabs,
+.tabs input[type="radio"][name="tabs-0"]:checked + label {
+    position: relative;
+}
+.tabs li,
+.tabs input[type="radio"][name="tabs-0"] + label {
+    display: inline-block;
+}
+.tabs li > div,
+.tabs input[type="radio"][name="tabs-0"] {
+    position: absolute;
+}
+.tabs li > div,
+.tabs input[type="radio"][name="tabs-0"] + label {
+    border: solid 1px #ccc; /*цвет рамки*/
+}
+.tabs {
+font: normal 13px Arial, Sans-serif;
+    color: #000000; /*цвет шрифта*/
+}
+.tabs li {
+    vertical-align: top;
+}
+.tabs li:first-child {
+margin-left: 8px;
+}
+.tabs li > div {
+    top: 33px;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 8px;
+    overflow: auto;
+    background: #fff; /*цвет фона таблицы*/
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+}
+.tabs input[type="radio"][name="tabs-0"] + label {
+    margin: 0 2px 0 0;
+    padding: 0 18px;
+    line-height: 32px;
+    background: #f1f1f1; /*цвет вкладок*/
+    text-align: center;
+    border-radius: 5px 5px 0 0;
+    cursor: pointer;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+.tabs input[type="radio"][name="tabs-0"]:checked + label {
+    z-index: 1;
+    background: #fff;
+    border-bottom-color: #fff;
+    cursor: default;
+}
+.tabs input[type="radio"][name="tabs-0"] {
+    opacity: 0;
+}
+.tabs input[type="radio"][name="tabs-0"] ~ div {
+    display: none;
+}
+.tabs input[type="radio"][name="tabs-0"]:checked:not(:disabled) ~ div {
+    display: block;
+}
+.tabs input[type="radio"][name="tabs-0"]:disabled + label {
+    opacity: .5;
+    cursor: no-drop;
+}

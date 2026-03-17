@@ -1,0 +1,170 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <script src="book/lib.js"></script>
+    <script type="text/javascript" src="book/ajax.js"></script>
+    <meta http-equiv="Content-Type" content="text/html; charset=windows-1251" />
+    <link rel="stylesheet" href="book/tabs.css" type="text/css"/> 
+    <title>Подписание и проверка </title>
+</head>
+<body>
+
+<div class="tabs">
+  <ul>
+    <li>
+     <input type="radio" name="tabs-0" checked="checked" id="tabs-0-0" />
+        <label for="tabs-0-0">Подпись/проверка XML и данных</label>
+     <div>
+       <form name="form1" id="form1" action="KalkanCryptCOM.php" method="post"> 
+
+        <table border="1">   
+        <!--___________________________________________Выпадающий список: тип хранилища_____________________--> 
+         <tr>
+            <td align="center"> Тип ключевого </br> хранилища  </td>
+            <td>
+               <select size="1" name="type_store" style="width: 330px"  onkeydown="PathRecip(this);" onchange="PathRecip(this);" >
+                <option id="ne_vibrano" >Не выбрано</option>
+                <option id="PKCS#12">Файловая система - PKCS#12 (*.p12)</option>
+                <option id="KZIDCard">Удостоверение личности гражданина РК (KZIDCard)</option>
+                <option id="Kaztoken">Kaztoken</option>
+                <option id="eToken72K">eToken72K</option>
+                <option id="JaCarta">JaCarta</option>
+                <option id="PEM">Сертификат PEM (*.cer, *.crt, *.pem)</option>
+              </select>  
+            </td>
+          <!--_____________________Выбор OCSP URL и  CRL___________________-->
+            <td rowspan="2">
+              <input type="radio" name="CLS" id="CLS" value="OCSP URL">OCSP URL <input id="keyPathOCSP" name="keyPathOCSP" style="width: 180px" type="text" value="http://ocsp.pki.gov.kz/"> <br><br>
+              <input type="radio" name="CLS" id="CLS" value="CRL">CRL <input name="keyPathCRL" type="file"  style="width: 228px" accept="application/pkix-crl">
+            </td>
+               <!--____________________________________________Правый столбик_________________________________-->
+            <td rowspan="6">
+              <input type="button" id="showCertif"    name="showCertif"   value="Показать сертификат"         style="width: 280px" ><br>
+              <input type="button" id="infoCertif"    name="infoCertif"   value="Информация о сертификате"  style="width: 280px" ><br><br>
+              <input type="button" id="hashData"      name="hashData"     value="Хэшировать данные"   style="width: 280px" ><br>
+              <input type="button" id="signHashData"  name="signHashData" value="Подписать хэш-данные"  style="width: 280px" ><br><br>
+              <input type="button" id="signData"      name="signData"     value="Подписать данные"  style="width: 280px" ><br>
+              <input type="button" id="verifyData"    name="verifyData"   value="Проверить данные"  style="width: 280px" ><br>
+              <input type="button" id="getTimeSig"    name="getTimeSig"   value="Получить время подписи"  style="width: 280px"><br><br>
+              <input type="button" id="signXML"       name="signXML"      value="Подписать XML"   style="width: 280px" ><br>
+              <input type="button" id="verifyXML"     name="verifyXML"    value="Проверить XML"   style="width: 280px"><br><br>
+              <input type="button" id="getCerFromXML" name="getCerFromXML"  value="Получить сертификат из XML"  style="width: 220px" > Sign ID<br>
+              <input type="button" id="getCerFromCMS" name="getCerFromCMS"  value="Получить сертификат из CMS"  style="width: 220px" > &nbsp 
+              <input type="text"   id="signID"        name="signID"       value="1" style="width: 20px"> <br><br>
+              <input type="button" id="checkCert"     name="checkCert"    value="Проверка сертификата"  style="width: 280px" ><br><br>
+              <input type="button" id="signFile"      name="signFile"     value="Подписать файл"  style="width: 200px">
+              <input type="button" id="signFileOpen"  name="signFileOpen" value="Выбрать" onclick="document.getElementById('file11').click();"  style="width: 75px">
+              <input type="file"   id="file11"        name="file11"         style="display:none;"><br>
+              <input type="button" id="verifyFile"    name="verifyFile"   value="Проверить файл"  style="width: 280px" ><br><br>
+              
+          <!--_________________________________Входные и выходные данные________________________________-->
+              <em  style="font-size:15">Формат входных и выходных данных:</em><br>
+              <table border = "0">
+              <tr>
+                <td>
+                  <input type="radio" id="inputData" name="inputData" value="inBase64">IN Base64<br>
+                  <input type="radio" id="inputData" name="inputData" value="inPEM">IN PEM<br>
+                  <input type="radio" id="inputData" name="inputData" value="inDER">IN DER<br>
+                </td>
+                <td>
+                  <input type="radio" name="outputData" value="outBase64">OUT Base64 <br>
+                  <input type="radio" name="outputData" value="outPEM">OUT PEM<br>
+                  <input type="radio" name="outputData" value="outDER">OUT DER<br>
+                </td>
+              </tr>
+          <!--_________________________________CHECKBOX_________________________________________________-->
+                <tr>
+                  <td> 
+                    <input type=hidden name="in2Base64" value="0">
+                      <input type=checkbox name="in2Base64" value="1">IN2 Base64<br>
+                  </td>
+                </tr>
+                <tr >
+                  <td colspan="2" style="font-size:15">
+                    <input type=hidden name="VDraftSign" value="0">
+                      <input type=checkbox name="VDraftSign" value="1">Сырая подпись (V-Draft Sign, 0-CMS)<br>
+                    <input type=hidden name="detachedSign" value="0">
+                      <input type=checkbox name="detachedSign" value="1">Подпись хранится отдельно от данных<br>
+                    <input type=hidden name="addTimeStamp" value="0">
+                      <input type=checkbox name="addTimeStamp" value="1">Добавить метку времени в подпись<br>
+                  </td>
+                </tr>
+              </table><br>
+
+              <input type="button"  id="cleanForm" name="cleanForm"  value="Clear" style="width: 280px" " onclick="Clear_func(this);"><br>
+              <input type="reset" name="cleanForm"  value="Clear all" style="width: 280px" ><br><br>
+
+            </td>
+          </tr>
+            <!--____________________________________________ПИН КОД и другое_______________________________-->  
+          <tr>
+            <td align="center">PIN код</td>
+            <td ><input name="pinCODE" id="pinCODE" type="password" value="Qwerty12"  style="width: 320px"></td>
+          </tr>
+          <tr>
+            <td align="center">Путь к ключу</td>
+            <td><input name="keyStore" id="keyStore" type="file"   style="width: 327px" ></td>
+            <td><select size="1" name="alias" id="alias" style="width: 280px" disabled="disabled" ></select>
+                
+ </td>
+            
+          </tr>
+        <!--__________________________________________3 выходных окна____________________________________--> 
+          <tr><td colspan="3" style="width: 710px; height: 220px"><textarea name="textBOX1" class="result maxWidth" style="width: 710px; height: 220px"></textarea></td></tr>
+          <tr><td colspan="3" style="width: 710px; height: 220px"><textarea name="textBOX2" class="maxWidth" style="width: 710px; height: 220px"></textarea></td></tr>
+          <tr><td colspan="3" style="width: 710px; height: 140px"><textarea name="textBOX3" class="maxWidth" style="width: 710px; height: 140px"></textarea></td></tr>
+      </table>
+
+     <input name="infoIden"     id="infoIden"     type="hidden" value="">
+     <input name="adres_form1"  id="adres_form1"  type="hidden" value="">
+     <input name="port_form1"   id="port_form1"   type="hidden" value="">
+     <input name="login_form1"  id="login_form1"  type="hidden" value="">
+     <input name="pass_form1"   id="pass_form1"   type="hidden" value="">
+     <input name="proxy_server_form1" id="proxy_server_form1" type="hidden" value="">
+     <input name="with_proxy"   id="with_proxy"   type="hidden" value="0">
+     <input name="alias_text"   id="alias_text"   type="hidden" value="">
+     <input name="alias_num"   id="alias_num"   type="hidden" value="0">
+     
+     </form>
+    </div>
+   </li>
+<!--_________________________________________________________________________________________________________-->   
+   <li>
+     <input type="radio" name="tabs-0" id="tabs-0-1" />
+       <label for="tabs-0-1">Настройки</label>
+     <div>
+    <form name="form2" id="form2" method="post" action="KalkanCryptCOM.php"> 
+
+        <table border="0" >   
+        <!--___________________________________________Выпадающий список: тип хранилища_____________________--> 
+            <tr>
+                <td colspan="2" style="width: 280px; height: 10px" align="center"> Настройки прокси </td>
+            </tr>
+            <tr>
+                <td>Адрес</td>
+                <td><input type="text" name="adres" id="adres" style="width: 220px"></td>
+            </tr>
+            <tr>
+                <td>Порт</td>
+                <td><input type="text" name="port" id="port" style="width: 220px"></td>
+            </tr>
+            <tr>
+                <td colspan="2"> <input type=checkbox name="proxy_server" id="proxy_server" value="1"  onchange="block(this);"> <em >Прокси-сервер требует авторизации</em></td>
+            </tr>
+             <tr>
+                <td>Логин</td><td><input type="text" name="login" id="login" disabled="disabled"  style="width: 220px" ></td>
+            </tr>
+            <tr>
+                <td>Пароль</td><td><input type="text" name="pass" id="pass" disabled="disabled" style="width: 220px"></td>
+            </tr>
+            <tr>
+                <td colspan="2" align="right"><input type="button" name="button" id="button" value="Сохранить" style="width: 120px" onclick="save(this);"></td>
+            </tr>
+        </table>
+    </form>
+    </div>
+    </li>
+  </ul>
+</div>
+</body>
+</html>

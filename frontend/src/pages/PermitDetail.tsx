@@ -9,15 +9,17 @@ import { useNCALayer } from '../hooks/useNCALayer';
 import { ApprovalTracker } from '../components/ApprovalTracker';
 import { FileCheck, ClipboardList } from 'lucide-react';
 import ChecklistSection, { ChecklistData } from '../components/ChecklistSection';
+import { SignaturePadModal, getSignatureUrl } from '../components/SignaturePadModal';
 
 interface PermitDetailProps {
   permit: WorkPermit;
   onBack: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onRefresh?: () => void;
 }
 
-export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEdit, onDelete }) => {
+export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEdit, onDelete, onRefresh }) => {
   // Распаковка данных (безопасный доступ)
   const data: any = permit.data || (permit as any).formData || {};
   const initiator = (permit.initiator as any) || {};
@@ -70,6 +72,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // 👇 НОВОЕ: Показывать кнопку скачивания ТОЛЬКО если наряд согласован или закрыт
   const showDownload = permit.status === 'APPROVED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED';
 
+
+  const [signingMemberIndex, setSigningMemberIndex] = useState<number | null>(null);
 
   // --- ЭЛЕКТРОУСТАНОВКИ ---
   const [lifecycle, setLifecycle] = useState<ElectricalLifecycle>({
@@ -544,11 +548,74 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                    {data.teamMembers && data.teamMembers.length > 0 ? (
                        <div className="overflow-x-auto border border-gray-200 rounded-lg">
                            <table className="w-full text-left text-sm">
-                               <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase"><tr><th className="px-4 py-3 w-10">№</th><th className="px-4 py-3">ФИО</th><th className="px-4 py-3">Должность</th><th className="px-4 py-3">Инструктаж провел</th><th className="px-4 py-3">Дата</th></tr></thead>
-                               <tbody className="divide-y divide-gray-100">{data.teamMembers.map((member: any, idx: number) => (<tr key={idx} className="hover:bg-gray-50"><td className="px-4 py-3 text-gray-400">{idx + 1}</td><td className="px-4 py-3 font-medium text-gray-900">{member.name}</td><td className="px-4 py-3 text-gray-600">{member.role}</td><td className="px-4 py-3 text-gray-600">{member.instructedBy}</td><td className="px-4 py-3 text-gray-500">{member.instructedAt ? new Date(member.instructedAt).toLocaleString() : '-'}</td></tr>))}</tbody>
+                             <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase">
+                               <tr>
+                                 <th className="px-4 py-3 w-10">№</th>
+                                 <th className="px-4 py-3">ФИО</th>
+                                 <th className="px-4 py-3">Должность</th>
+                                 <th className="px-4 py-3">Инструктаж провел</th>
+                                 <th className="px-4 py-3">Дата</th>
+                                 {permit.status === 'APPROVED' && <th className="px-4 py-3 w-32">Подпись</th>}
+                               </tr>
+                             </thead>
+                             <tbody className="divide-y divide-gray-100">
+                               {data.teamMembers.map((member: any, idx: number) => {
+                                 const sigList = data.brigade_signatures;
+                                 const sigPath = Array.isArray(sigList) ? sigList[idx] : (sigList && (sigList as any)[idx]) ?? (sigList && (sigList as any)[String(idx)]);
+                                 const hasSig = !!sigPath;
+                                 return (
+                                   <tr key={idx} className="hover:bg-gray-50">
+                                     <td className="px-4 py-3 text-gray-400">{idx + 1}</td>
+                                     <td className="px-4 py-3 font-medium text-gray-900">{member.name}</td>
+                                     <td className="px-4 py-3 text-gray-600">{member.role}</td>
+                                     <td className="px-4 py-3 text-gray-600">{member.instructedBy}</td>
+                                     <td className="px-4 py-3 text-gray-500">{member.instructedAt ? new Date(member.instructedAt).toLocaleString() : '-'}</td>
+                                     {permit.status === 'APPROVED' && (
+                                       <td className="px-4 py-3">
+                                         {hasSig ? (
+                                           <img src={getSignatureUrl(sigPath)} alt="Подпись" className="h-10 object-contain bg-gray-50 border border-gray-200 rounded" />
+                                         ) : (
+                                           <button
+                                             type="button"
+                                             onClick={() => setSigningMemberIndex(idx)}
+                                             className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                                           >
+                                             Подписать
+                                           </button>
+                                         )}
+                                       </td>
+                                     )}
+                                   </tr>
+                                 );
+                               })}
+                             </tbody>
                            </table>
                        </div>
                    ) : (<div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">Состав бригады не указан</div>)}
+                   {permit.status === 'APPROVED' && data.teamMembers?.length && signingMemberIndex !== null && (
+                     <SignaturePadModal
+                       open={true}
+                       memberLabel={`${data.teamMembers[signingMemberIndex]?.name || ''} (№ ${signingMemberIndex + 1})`}
+                       onClose={() => setSigningMemberIndex(null)}
+                       onConfirm={async (blob) => {
+                         const token = localStorage.getItem('auth_token');
+                         const form = new FormData();
+                         form.append('member_index', String(signingMemberIndex));
+                         form.append('signature', blob, 'signature.png');
+                         const res = await fetch(`/api/v1/permits/${permit.id}/brigade_signature/`, {
+                           method: 'POST',
+                           headers: token ? { 'Authorization': `Token ${token}` } : {},
+                           body: form,
+                         });
+                         if (!res.ok) {
+                           const err = await res.json().catch(() => ({}));
+                           const msg = err.error || err.detail || `Ошибка ${res.status}`;
+                           throw new Error(msg);
+                         }
+                         onRefresh?.();
+                       }}
+                     />
+                   )}
                </div>
            )}
 

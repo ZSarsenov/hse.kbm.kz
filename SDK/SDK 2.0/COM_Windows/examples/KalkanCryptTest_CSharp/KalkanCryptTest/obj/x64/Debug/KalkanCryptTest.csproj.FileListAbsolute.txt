@@ -1,0 +1,15 @@
+D:\SDK\SDK 2023.02.08\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\bin\x64\Debug\KalkanCryptTest.exe.config
+D:\SDK\SDK 2023.02.08\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\obj\x64\Debug\KalkanCryptTest.csproj.ResolveComReference.cache
+D:\SDK\SDK 2023.02.08\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\obj\x64\Debug\KalkanCryptTest.Form1.resources
+D:\SDK\SDK 2023.02.08\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\obj\x64\Debug\KalkanCryptTest.Properties.Resources.resources
+D:\SDK\SDK 2023.02.08\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\obj\x64\Debug\KalkanCryptTest.csproj.GenerateResource.Cache
+D:\SDK\SDK 2023.12.06\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\bin\x64\Debug\KalkanCryptTest.exe.config
+D:\SDK\SDK 2023.12.06\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\obj\x64\Debug\Interop.KalkanCryptCOMLib.dll
+D:\SDK\SDK 2023.12.06\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\obj\x64\Debug\KalkanCryptTest.csproj.ResolveComReference.cache
+D:\SDK\SDK 2023.12.06\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\bin\x64\Debug\KalkanCryptTest.exe
+D:\SDK\SDK 2023.12.06\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\bin\x64\Debug\KalkanCryptTest.pdb
+D:\SDK\SDK 2023.12.06\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\obj\x64\Debug\KalkanCryptTest.Form1.resources
+D:\SDK\SDK 2023.12.06\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\obj\x64\Debug\KalkanCryptTest.Properties.Resources.resources
+D:\SDK\SDK 2023.12.06\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\obj\x64\Debug\KalkanCryptTest.csproj.GenerateResource.Cache
+D:\SDK\SDK 2023.12.06\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\obj\x64\Debug\KalkanCryptTest.exe
+D:\SDK\SDK 2023.12.06\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\obj\x64\Debug\KalkanCryptTest.pdb

@@ -325,11 +325,12 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             # Если data нет, используем пустой dict, чтобы не упало
             new_data = (original.data or {}).copy()
 
-            # 2. Очищаем данные
+            # 2. Очищаем данные (подписи бригады не копируем — новый наряд подписывают заново)
             new_data['dateStart'] = ""
             new_data['dateEnd'] = ""
             new_data['riskApprovedBy'] = ""
             new_data['extensions'] = []
+            new_data['brigade_signatures'] = []
 
             # 3. Генерируем номер по стандарту: OR-2026-00001
             current_year = time.strftime('%Y')
@@ -422,6 +423,66 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         fname = f"journal_{date_from_s or 'all'}_{date_to_s or 'all'}_{status_param or 'all'}.xlsx"
         response['Content-Disposition'] = f'attachment; filename="{fname}"'
         return response
+
+    @action(detail=True, methods=['post'], url_path='brigade_signature')
+    def brigade_signature(self, request, pk=None):
+        """
+        Сохранение подписи члена бригады (рисование на экране).
+        Только для наряда в статусе Согласован. Тело: member_index (int), signature (image file).
+        """
+        permit = self.get_object()
+        if permit.status != 'APPROVED':
+            return Response(
+                {'error': 'Подписи бригады принимаются только для согласованного наряда.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        member_index = request.data.get('member_index')
+        if member_index is None:
+            return Response({'error': 'Укажите member_index (номер члена бригады, с 0).'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            member_index = int(member_index)
+        except (TypeError, ValueError):
+            return Response({'error': 'member_index должен быть числом.'}, status=status.HTTP_400_BAD_REQUEST)
+        team = permit.data.get('teamMembers') or []
+        if member_index < 0 or member_index >= len(team):
+            return Response({'error': 'Недопустимый номер члена бригады.'}, status=status.HTTP_400_BAD_REQUEST)
+        image_file = request.FILES.get('signature')
+        if not image_file:
+            return Response({'error': 'Приложите файл подписи (signature).'}, status=status.HTTP_400_BAD_REQUEST)
+        ct = (image_file.content_type or '').lower()
+        if ct and not ct.startswith('image/'):
+            return Response({'error': f'Разрешены только изображения (получен {image_file.content_type}).'}, status=status.HTTP_400_BAD_REQUEST)
+        if image_file.size > 2 * 1024 * 1024:
+            return Response({'error': 'Размер файла не более 2 МБ.'}, status=status.HTTP_400_BAD_REQUEST)
+        import os
+        try:
+            rel_dir = os.path.join('brigade_signatures', str(permit.pk))
+            dest_dir = os.path.join(settings.MEDIA_ROOT, rel_dir)
+            os.makedirs(dest_dir, exist_ok=True)
+            fname = f'sign_{member_index}.png'
+            rel_path = os.path.join(rel_dir, fname).replace('\\', '/')
+            full_path = os.path.join(settings.MEDIA_ROOT, rel_dir, fname)
+            with open(full_path, 'wb') as f:
+                for chunk in image_file.chunks():
+                    f.write(chunk)
+            data = dict(permit.data) if permit.data else {}
+            sigs = data.get('brigade_signatures')
+            if sigs is None:
+                sigs = [None] * len(team)
+            elif isinstance(sigs, dict):
+                sigs = [sigs.get(str(i)) for i in range(len(team))]
+            while len(sigs) <= member_index:
+                sigs.append(None)
+            sigs[member_index] = rel_path
+            data['brigade_signatures'] = sigs
+            permit.data = data
+            permit.save(update_fields=['data'])
+            return Response({'ok': True, 'member_index': member_index, 'signature_path': rel_path})
+        except Exception as e:
+            return Response(
+                {'error': f'Ошибка сохранения подписи: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     # --- МЕТОД СКАЧИВАНИЯ ---
     # 👇 НОВЫЙ МЕТОД ГЕНЕРАЦИИ PDF
@@ -641,16 +702,32 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             issuer_info['date'] = format_date(permit.created_at)
 
         raw_team = permit.data.get('teamMembers', [])
-        brigade_list = [
-            {
+        sig_paths = permit.data.get('brigade_signatures') or []
+        if isinstance(sig_paths, dict):
+            sig_paths = [sig_paths.get(str(i)) for i in range(len(raw_team))]
+        brigade_list = []
+        for idx, m in enumerate(raw_team, start=1):
+            row = {
                 'i': idx,
                 'date': format_str_date(m.get('instructedAt')),
                 'name': m.get('name', ''),
                 'job': m.get('role', ''),
                 'instr_by': m.get('instructedBy', ''),
             }
-            for idx, m in enumerate(raw_team, start=1)
-        ]
+            sig_path = sig_paths[idx - 1] if idx - 1 < len(sig_paths) else None
+            if sig_path:
+                full_path = os.path.join(settings.MEDIA_ROOT, sig_path)
+                if os.path.isfile(full_path):
+                    try:
+                        with open(full_path, 'rb') as f:
+                            row['signature_img'] = InlineImage(doc, BytesIO(f.read()), width=Mm(12))
+                    except Exception:
+                        row['signature_img'] = None
+                else:
+                    row['signature_img'] = None
+            else:
+                row['signature_img'] = None
+            brigade_list.append(row)
         team_count = len(brigade_list)
 
         raw_ext = permit.data.get('extensions', [])
@@ -668,7 +745,8 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         context = {
             'qr_code': qr_image,
             'permit_id': permit.permit_id,
-            'department': permit.location.name if permit.location else "Не указано",
+            'department': permit.department,
+            # 'department': permit.location.name if permit.location else "Не указано",
             'producer_name': prod_info['name'], 'producer_job': prod_info['job'], 'producer_date': prod_info['date'],
             'admitting_name': admit_info['name'], 'admitting_job': admit_info['job'], 'admitting_date': admit_info['date'],
             'responsible_name': resp_info['name'], 'responsible_job': resp_info['job'], 'responsible_date': resp_info['date'],
