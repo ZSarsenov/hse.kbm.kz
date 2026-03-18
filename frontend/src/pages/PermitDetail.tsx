@@ -102,7 +102,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
   // --- ОБЫЧНЫЕ НАРЯДЫ ---
   const [activeTab, setActiveTab] = useState<'info' | 'safety' | 'team' | 'checklist'>('info');
-  const { execute, loading, error: ncaError } = useNCALayer();
+  const { signXml, loading, error: ncaError } = useNCALayer();
 
     // 👇 ВСТАВИТЬ СЮДА:
   const [isClosing, setIsClosing] = useState(false); // Открыто ли меню закрытия
@@ -230,9 +230,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
       }
       console.log("Начинаем подписание...", signerIIN, role ? `за роль ${role}` : '');
       const xmlToSign = `<WorkPermit><ID>${permit.permitId}</ID><Date>${new Date().toISOString()}</Date></WorkPermit>`;
-      const args = ['PKCS12', 'SIGNATURE', xmlToSign, '', ''];
 
-      const signedXml = await execute('signXml', args);
+      const signedXml = await signXml(xmlToSign, signerIIN, currentUser.bin);
       if (!signedXml) throw new Error("Получен пустой ответ от NCALayer");
 
       const requestBody: any = { signed_xml: signedXml };
