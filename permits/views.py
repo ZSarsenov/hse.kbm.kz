@@ -745,8 +745,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         context = {
             'qr_code': qr_image,
             'permit_id': permit.permit_id,
-            # 'department': permit.department,
-            'department': permit.location.name if permit.location else "Не указано",
+            'department': permit.data.get('department', '') or (permit.location.department.name if (permit.location and permit.location.department) else "Не указано"),
             'producer_name': prod_info['name'], 'producer_job': prod_info['job'], 'producer_date': prod_info['date'],
             'admitting_name': admit_info['name'], 'admitting_job': admit_info['job'], 'admitting_date': admit_info['date'],
             'responsible_name': resp_info['name'], 'responsible_job': resp_info['job'], 'responsible_date': resp_info['date'],

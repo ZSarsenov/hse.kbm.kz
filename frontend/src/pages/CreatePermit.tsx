@@ -550,7 +550,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                     <p className="font-medium text-gray-700 mt-1">{roles.admitting.name || '—'}</p>
                   </div>
                   <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <span className="text-xs text-gray-400 uppercase font-bold">Производитель работ</span>
+                    <span className="text-xs text-gray-400 uppercase font-bold">Производитель работ (исполнитель работ)</span>
                     <p className="font-medium text-gray-700 mt-1">{roles.producer.name || '—'}</p>
                   </div>
                   <div className="md:col-span-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
@@ -615,10 +615,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                    />
                  </div>
 
-                 {/* 4. Производитель работ */}
+                 {/* 4. Производитель работ (исполнитель работ) */}
                  <div>
                    <UserSearchSelect
-                      label="Производитель работ"
+                      label="Производитель работ (исполнитель работ)"
                       value={roles.producer.name}
                       requiredRole="WORK_PRODUCER"
                       onChange={(user) => {
