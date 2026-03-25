@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   Menu, Bell, User, FilePlus, CheckSquare, 
-  FileText, LogOut, ChevronDown, LayoutDashboard, ClipboardList
+  FileText, LogOut, ChevronDown, LayoutDashboard, ClipboardList, Grid3X3
 } from 'lucide-react';
 import { Permission } from '../types';
 
@@ -10,7 +10,8 @@ interface LayoutProps {
   onNavigate: () => void;
   onNavigateLoto?: () => void;
   onNavigateMyTasks?: () => void;
-  onNavigateArchive?: () => void; // 👈 ДОБАВИЛИ НОВЫЙ ПРОПС
+  onNavigateArchive?: () => void;
+  onNavigateModules?: () => void;
   onCreate?: () => void;
   onLogout: () => void;
   user?: {
@@ -26,7 +27,7 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({
-  children, onNavigate, onNavigateLoto, onNavigateMyTasks, onNavigateArchive, onCreate, onLogout, user, currentView
+  children, onNavigate, onNavigateLoto, onNavigateMyTasks, onNavigateArchive, onNavigateModules, onCreate, onLogout, user, currentView
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -191,6 +192,9 @@ export const Layout: React.FC<LayoutProps> = ({
             />
           </div>
           <div className="p-4 border-t border-gray-100 bg-white">
+             {onNavigateModules && (
+               <button onClick={onNavigateModules} className="flex items-center gap-3 text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors w-full px-3 py-2 rounded-lg hover:bg-blue-50 hover:shadow-sm mb-1"><Grid3X3 size={18} /><span>Все модули</span></button>
+             )}
              <button onClick={onLogout} className="flex items-center gap-3 text-sm font-medium text-slate-400 hover:text-red-600 transition-colors w-full px-3 py-2 rounded-lg hover:bg-red-50 hover:shadow-sm"><LogOut size={18} /><span>Выйти из системы</span></button>
              <div className="text-[10px] text-gray-300 mt-4 text-center"><p>&copy; 2026 АО «Каражанбасмунай»</p></div>
           </div>

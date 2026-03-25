@@ -139,7 +139,14 @@ class WorkPermit(models.Model):
         if prod_id:
             steps_config.append({'role': 'WORK_PRODUCER', 'user_id': prod_id})
 
-        # 5. Согласующий (Нач. цеха)
+        # 5. Дополнительные согласующие (до 5, подписывают ДО основного)
+        additional_coords = self.data.get('additionalCoordinators', [])
+        if isinstance(additional_coords, list):
+            for ac in additional_coords[:5]:
+                if isinstance(ac, dict) and ac.get('id'):
+                    steps_config.append({'role': 'COORDINATOR', 'user_id': ac['id']})
+
+        # 6. Основной согласующий (Нач. цеха) — подписывает ПОСЛЕДНИМ
         coord_id = get_user_id('supervisor')
         if coord_id:
             steps_config.append({'role': 'COORDINATOR', 'user_id': coord_id})

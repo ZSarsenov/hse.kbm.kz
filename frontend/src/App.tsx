@@ -7,6 +7,7 @@ import { Login } from './pages/Login';
 import { LotoReports } from './pages/LotoReports';
 import { MyTasks } from './pages/MyTasks';
 import { PermitTypeSelector } from './components/PermitTypeSelector';
+import { ModuleSelector } from './components/ModuleSelector';
 import { WorkPermit, PageView, PermitCategory } from './types';
 import { AIAssistant } from './components/AIAssistant';
 
@@ -22,7 +23,7 @@ function App() {
   const isLoggedIn = !!token;
 
   // 2. Navigation State
-  const [currentView, setCurrentView] = useState<PageView>('DASHBOARD');
+  const [currentView, setCurrentView] = useState<PageView>('MODULE_SELECT');
   const [selectedPermitId, setSelectedPermitId] = useState<string | null>(null);
 
   // 3. Create/Edit State
@@ -167,7 +168,13 @@ function App() {
     setToken(newToken);
     localStorage.setItem('user_data', JSON.stringify(data));
     setUserData(data);
-    setCurrentView('DASHBOARD');
+    setCurrentView('MODULE_SELECT');
+  };
+
+  const handleSelectModule = (module: string) => {
+    if (module === 'permits') {
+      setCurrentView('DASHBOARD');
+    }
   };
 
   const handleLogout = () => {
@@ -306,6 +313,19 @@ function App() {
     return <Login onLogin={handleLogin} />;
   }
 
+  if (currentView === 'MODULE_SELECT') {
+    return (
+      <ModuleSelector
+        onSelectModule={handleSelectModule}
+        userName={
+          userData?.name ||
+          [userData?.last_name, userData?.first_name].filter(Boolean).join(' ') ||
+          'Пользователь'
+        }
+      />
+    );
+  }
+
   return (
     <>
       <Layout
@@ -313,6 +333,7 @@ function App() {
         onNavigateLoto={handleNavigateLoto}
         onNavigateMyTasks={handleNavigateMyTasks}
         onNavigateArchive={handleNavigateArchive}
+        onNavigateModules={() => setCurrentView('MODULE_SELECT')}
         onCreate={handleCreateNew}
         onLogout={handleLogout}
         user={{

@@ -506,6 +506,12 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                       <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Производитель работ</span><p className="font-medium text-gray-900">{renderUserName(data.producer, '—')}</p></div>
                       <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Допускающий</span><p className="font-medium text-gray-900">{renderUserName(data.admitting, '—')}</p></div>
                       <div className="p-4 border border-gray-200 rounded-lg "><span className="text-xs text-gray-400 uppercase font-bold">Согласовано (Нач. смены / Участка / Инженер ТБ)</span><p className="font-medium text-gray-900">{renderUserName(data.supervisor, '—')}</p></div>
+                      {data.additionalCoordinators && Array.isArray(data.additionalCoordinators) && data.additionalCoordinators.map((coord: any, idx: number) => (
+                        <div key={idx} className="p-4 border border-blue-200 rounded-lg bg-blue-50/30">
+                          <span className="text-xs text-blue-400 uppercase font-bold">Дополнительный согласующий {idx + 1}</span>
+                          <p className="font-medium text-gray-900">{renderUserName(coord, '—')}</p>
+                        </div>
+                      ))}
                    </div>
                 </div>
              </div>

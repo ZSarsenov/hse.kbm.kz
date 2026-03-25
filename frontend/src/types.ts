@@ -228,7 +228,7 @@ export interface WorkPermit {
   lifecycle?: Partial<ElectricalLifecycle>;
 }
 
-export type PageView = 'DASHBOARD' | 'CREATE' | 'MY_TASKS' | 'LOTO_REPORTS' | 'LOGIN' | 'ARCHIVE' | 'DETAIL';
+export type PageView = 'MODULE_SELECT' | 'DASHBOARD' | 'CREATE' | 'MY_TASKS' | 'LOTO_REPORTS' | 'LOGIN' | 'ARCHIVE' | 'DETAIL';
 
 export const ELECTRICAL_WORK_CATEGORIES = [
   "Со снятием напряжения",

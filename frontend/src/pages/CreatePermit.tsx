@@ -122,6 +122,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
     supervisor: { id: null, name: '' }
   });
 
+  const [additionalCoordinators, setAdditionalCoordinators] = useState<RoleUser[]>([]);
+
   // Редактирование во время согласования: блок подписантов полностью заблокирован
   const isApprovalEdit = isEditing && initialData?.status === 'PENDING_APPROVAL';
 
@@ -196,6 +198,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
               supervisor: restoreRole(savedData.supervisor),
           };
           setRoles(restoredRoles);
+
+          if (savedData.additionalCoordinators && Array.isArray(savedData.additionalCoordinators)) {
+              setAdditionalCoordinators(savedData.additionalCoordinators.map((c: any) => restoreRole(c)));
+          }
 
           // При редактировании во время согласования блок подписантов
           // полностью заблокирован — менять подписантов может только Выдающий наряд
@@ -322,6 +328,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       const fullDataPayload = {
         ...formData,
         ...roles, // Отправляем объекты ролей ({id, name, role})
+        additionalCoordinators: additionalCoordinators.filter(c => c.id),
         teamMembers: teamMembers,
         checklist: checklistData,
         riskTable: formData.riskTable,
@@ -647,6 +654,48 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                       }}
                       placeholder="Начните вводить фамилию..."
                    />
+
+                   {/* Дополнительные согласующие (до 5) */}
+                   {additionalCoordinators.map((coord, idx) => (
+                     <div key={idx} className="mt-3 flex items-start gap-2">
+                       <div className="flex-1">
+                         <UserSearchSelect
+                           label={`Дополнительный согласующий ${idx + 1}`}
+                           value={coord.name}
+                           required={false}
+                           requiredRole="COORDINATOR"
+                           onChange={(user) => {
+                             const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
+                             setAdditionalCoordinators(prev => {
+                               const updated = [...prev];
+                               updated[idx] = user ? { id: user.id, name: displayName, role: user.role } : { id: null, name: '' };
+                               return updated;
+                             });
+                           }}
+                           placeholder="Начните вводить фамилию..."
+                         />
+                       </div>
+                       <button
+                         type="button"
+                         onClick={() => setAdditionalCoordinators(prev => prev.filter((_, i) => i !== idx))}
+                         className="mt-8 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                         title="Удалить согласующего"
+                       >
+                         <Trash2 size={18} />
+                       </button>
+                     </div>
+                   ))}
+
+                   {additionalCoordinators.length < 5 && (
+                     <button
+                       type="button"
+                       onClick={() => setAdditionalCoordinators(prev => [...prev, { id: null, name: '' }])}
+                       className="mt-3 flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                     >
+                       <Plus size={16} />
+                       Добавить согласующего
+                     </button>
+                   )}
                  </div>
 
               </div>

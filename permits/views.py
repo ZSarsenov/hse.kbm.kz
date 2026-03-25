@@ -692,9 +692,35 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         prod_info = get_person('WORK_PRODUCER', 'producer')
         admit_info = get_person('ADMITTING', 'admitting')
         resp_info = get_person('RESPONSIBLE', 'responsible')
-        super_info = get_person('COORDINATOR', 'supervisor')
-        if '___' in super_info['name']:
-            super_info = get_person('SHIFT_SUPERVISOR', 'supervisor')
+
+        # Основной согласующий — последний COORDINATOR по step_order
+        coord_steps = list(permit.approval_steps.filter(role='COORDINATOR').order_by('step_order'))
+        empty_person = {'name': '_________________', 'job': '_________________', 'date': '"___" _________ 20___г.'}
+        if coord_steps:
+            main_coord_step = coord_steps[-1]
+            user = main_coord_step.approver
+            super_info = {
+                'name': user.get_full_name() if user else '_________________',
+                'job': getattr(user, 'job_title', getattr(user, 'position', 'Должность не указана')) if user else '_________________',
+                'date': format_date(main_coord_step.signed_at) if main_coord_step.status == 'APPROVED' and main_coord_step.signed_at else '"___" _________ 20___г.',
+            }
+        else:
+            super_info = get_person('COORDINATOR', 'supervisor')
+            if '___' in super_info['name']:
+                super_info = get_person('SHIFT_SUPERVISOR', 'supervisor')
+
+        # Дополнительные согласующие (все COORDINATOR кроме последнего) — секции 8.1-8.5
+        additional_coords_list = []
+        if len(coord_steps) > 1:
+            for step in coord_steps[:-1]:
+                user = step.approver
+                if user:
+                    additional_coords_list.append({
+                        'name': user.get_full_name(),
+                        'job': getattr(user, 'job_title', getattr(user, 'position', 'Должность не указана')),
+                        'date': format_date(step.signed_at) if step.status == 'APPROVED' and step.signed_at else '"___" _________ 20___г.',
+                    })
+
         issuer_info = get_person('ISSUER', 'issuer')
         if '___' in issuer_info['name']:
             issuer_info['name'] = permit.initiator.get_full_name()
@@ -769,6 +795,8 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             'brigade_list': brigade_list,
             'team_count': team_count,
             'extension_list': extension_list,
+            'additional_coords': additional_coords_list,
+            'has_additional_coords': len(additional_coords_list) > 0,
         }
 
         doc.render(context)
