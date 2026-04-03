@@ -201,15 +201,13 @@ function App() {
   const handleNavigateLoto = () => {
     setCurrentView('LOTO_REPORTS');
     setSelectedPermitId(null);
-    };
+  };
 
-  // 🔥 ДОБАВИЛИ ЭТОТ МЕТОД ДЛЯ АРХИВА
   const handleNavigateArchive = () => {
       setCurrentView('ARCHIVE');
       setSelectedPermitId(null);
   };
 
-  // Обработчик для перехода в "Мои задачи"
   const handleNavigateMyTasks = () => {
     setCurrentView('MY_TASKS' as any);
     setSelectedPermitId(null);

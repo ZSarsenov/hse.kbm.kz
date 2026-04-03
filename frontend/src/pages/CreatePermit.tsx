@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Plus, Trash2, Save, FileText, AlertTriangle, Users, CheckCircle2, Lock, Zap, ShieldAlert, Building, Edit3, ClipboardCheck, Paperclip, X } from 'lucide-react';
 import { TeamMember, RegulationFormData, UserRole, WORK_TYPES_LIST, RiskTableRow, RiskGroupMember, PermitExtension, PermitCategory, WorkPermit } from '../types';
 import { IsolationMatrixForm } from '../components/IsolationMatrixForm';
@@ -135,6 +135,112 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
   const [checklistData, setChecklistData] = useState<ChecklistData>({});
   const [departmentsList, setDepartmentsList] = useState<any[]>([]);
   const [workTypesList, setWorkTypesList] = useState<any[]>([]);
+  const canAutoSaveDraft = !isApprovalEdit && (!isEditing || initialData?.status === 'DRAFT');
+  const [draftPermitId, setDraftPermitId] = useState<number | null>(
+    isEditing && initialData?.status === 'DRAFT' ? Number(initialData.id) : null
+  );
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSaveInProgressRef = useRef(false);
+
+  const hasMeaningfulData = () =>
+    Boolean(
+      formData.workName ||
+      formData.department ||
+      formData.workPlace ||
+      formData.content ||
+      roles.issuer.id ||
+      roles.producer.id ||
+      roles.admitting.id ||
+      roles.responsible.id ||
+      roles.supervisor.id ||
+      additionalCoordinators.some(c => !!c.id) ||
+      teamMembers.length > 0
+    );
+
+  const buildApiPayload = () => {
+    const fullDataPayload = {
+      ...formData,
+      ...roles,
+      additionalCoordinators: additionalCoordinators.filter(c => c.id),
+      teamMembers: teamMembers,
+      checklist: checklistData,
+      riskTable: formData.riskTable,
+      riskGroup: formData.riskGroup,
+      isolationMatrix: formData.isolationMatrix,
+      extensions: formData.extensions,
+      templateType: 'Наряд повышенной опасности',
+      category: category
+    };
+
+    return {
+      location_name: formData.workPlace || "Не указано",
+      valid_from: formData.dateStart || null,
+      valid_to: formData.dateEnd || null,
+      data: fullDataPayload
+    };
+  };
+
+  const persistDraft = async () => {
+    if (!canAutoSaveDraft || !hasMeaningfulData() || autoSaveInProgressRef.current) return;
+    autoSaveInProgressRef.current = true;
+    try {
+      const token = localStorage.getItem('auth_token');
+      const permitIdForSave = draftPermitId || (isEditing ? Number(initialData?.id) : null);
+      const url = permitIdForSave ? `/api/v1/permits/${permitIdForSave}/` : '/api/v1/permits/';
+      const method = permitIdForSave ? 'PATCH' : 'POST';
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+        body: JSON.stringify(buildApiPayload())
+      });
+      if (response.ok) {
+        const result = await response.json();
+        if (result?.id) setDraftPermitId(Number(result.id));
+      }
+    } catch (e) {
+      console.error('Ошибка автосохранения черновика:', e);
+    } finally {
+      autoSaveInProgressRef.current = false;
+    }
+  };
+
+  // Автосохранение черновика в БД при вводе
+  useEffect(() => {
+    if (!canAutoSaveDraft) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      void persistDraft();
+    }, 1200);
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [formData, roles, additionalCoordinators, teamMembers, checklistData, activeStep, canAutoSaveDraft]);
+
+  // Попытка финального сохранения при закрытии/перезагрузке вкладки
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (!canAutoSaveDraft || !hasMeaningfulData()) return;
+      const token = localStorage.getItem('auth_token');
+      const permitIdForSave = draftPermitId || (isEditing ? Number(initialData?.id) : null);
+      const url = permitIdForSave ? `/api/v1/permits/${permitIdForSave}/` : '/api/v1/permits/';
+      const method = permitIdForSave ? 'PATCH' : 'POST';
+      void fetch(url, {
+        method,
+        keepalive: true,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+        body: JSON.stringify(buildApiPayload())
+      });
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [canAutoSaveDraft, draftPermitId, isEditing, initialData?.id, formData, roles, additionalCoordinators, teamMembers, checklistData, activeStep]);
 
   // Загружаем справочники
   useEffect(() => {
@@ -324,35 +430,15 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
           return;
       }
 
-      // 1. Собираем ВСЕ данные
-      const fullDataPayload = {
-        ...formData,
-        ...roles, // Отправляем объекты ролей ({id, name, role})
-        additionalCoordinators: additionalCoordinators.filter(c => c.id),
-        teamMembers: teamMembers,
-        checklist: checklistData,
-        riskTable: formData.riskTable,
-        riskGroup: formData.riskGroup,
-        isolationMatrix: formData.isolationMatrix,
-        extensions: formData.extensions,
-        templateType: 'Наряд повышенной опасности',
-        category: category
-      };
-
-      // 2. Готовим пакет для API
-      const apiPayload = {
-        location_name: formData.workPlace || "Не указано",
-        valid_from: formData.dateStart || null,
-        valid_to: formData.dateEnd || null,
-        data: fullDataPayload
-      };
+      const apiPayload = buildApiPayload();
 
       // 👇 ОПРЕДЕЛЯЕМ URL И МЕТОД (РЕДАКТИРОВАНИЕ ИЛИ СОЗДАНИЕ)
-      const url = isEditing
-          ? `/api/v1/permits/${initialData.id}/`
+      const permitIdForSubmit = isEditing ? Number(initialData?.id) : draftPermitId;
+      const url = permitIdForSubmit
+          ? `/api/v1/permits/${permitIdForSubmit}/`
           : '/api/v1/permits/';
 
-      const method = isEditing ? 'PUT' : 'POST';
+      const method = permitIdForSubmit ? 'PUT' : 'POST';
 
       // 3. Отправляем запрос
       const response = await fetch(url, {
@@ -382,6 +468,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
           }
         }
 
+        if (result?.id) setDraftPermitId(Number(result.id));
         alert(isEditing ? '✅ Наряд успешно обновлен!' : `✅ Наряд №${result.permit_id} успешно создан!`);
         onSubmit();
       } else {

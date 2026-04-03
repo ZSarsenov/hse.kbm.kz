@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
 
 const MEDIA_BASE = '/permits_scans';
@@ -17,7 +17,42 @@ export const SignaturePadModal: React.FC<SignaturePadModalProps> = ({
   onConfirm,
 }) => {
   const padRef = useRef<SignatureCanvas>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const [saving, setSaving] = useState(false);
+
+  // Synchronize canvas internal pixel size with rendered size.
+  // This fixes touch/mouse coordinate drift on phones.
+  useEffect(() => {
+    if (!open) return;
+    const syncCanvasSize = () => {
+      const sig = padRef.current;
+      const wrapper = wrapperRef.current;
+      if (!sig || !wrapper) return;
+
+      const canvas = sig.getCanvas();
+      const rect = wrapper.getBoundingClientRect();
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+
+      const width = Math.max(Math.floor(rect.width), 1);
+      const height = Math.max(Math.floor(rect.height), 1);
+
+      canvas.width = Math.floor(width * ratio);
+      canvas.height = Math.floor(height * ratio);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      }
+
+      sig.clear();
+    };
+
+    syncCanvasSize();
+    window.addEventListener('resize', syncCanvasSize);
+    return () => window.removeEventListener('resize', syncCanvasSize);
+  }, [open]);
 
   const handleClear = () => {
     padRef.current?.clear();
@@ -74,15 +109,20 @@ export const SignaturePadModal: React.FC<SignaturePadModalProps> = ({
           </button>
         </div>
         <div className="p-4">
-          <div className="border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 overflow-hidden">
+          <div
+            ref={wrapperRef}
+            className="border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 overflow-hidden h-48"
+          >
             <SignatureCanvas
               ref={padRef}
               canvasProps={{
-                className: 'w-full h-48 touch-none',
+                className: 'w-full h-full touch-none',
                 style: { touchAction: 'none' },
               }}
               backgroundColor="rgb(248, 250, 252)"
-              penColor="black"
+              penColor="#1e40af"
+              minWidth={1.2}
+              maxWidth={2.2}
             />
           </div>
           <p className="text-sm text-gray-500 mt-2">Распишитесь пальцем или мышью</p>

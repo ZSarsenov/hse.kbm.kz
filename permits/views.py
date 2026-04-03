@@ -746,7 +746,10 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 if os.path.isfile(full_path):
                     try:
                         with open(full_path, 'rb') as f:
-                            row['signature_img'] = InlineImage(doc, BytesIO(f.read()), width=Mm(12))
+                            # Увеличиваем подпись под ячейку блока 11, чтобы выглядела как "живая" подпись на бумаге.
+                            # Фиксируем обе стороны для одинакового рендера на ПК и телефоне.
+                            # ~25×9 мм: читаемо, плотнее заполняет ячейку подписи на A4 без «прилипания» к верху
+                            row['signature_img'] = InlineImage(doc, BytesIO(f.read()), width=Mm(25), height=Mm(9))
                     except Exception:
                         row['signature_img'] = None
                 else:
@@ -805,7 +808,12 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         self._compact_permit_to_one_page(doc)
 
         # ============================================================
-        # ДОБАВЛЯЕМ ЧЕК-ЛИСТЫ В ДОКУМЕНТ (после основного наряда)
+        # ДОБАВЛЯЕМ ТАБЛИЦУ АНАЛИЗА РИСКОВ (перед чек-листами)
+        # ============================================================
+        self._append_risk_table_to_docx(doc, permit)
+
+        # ============================================================
+        # ДОБАВЛЯЕМ ЧЕК-ЛИСТЫ В ДОКУМЕНТ (после таблицы анализа рисков)
         # ============================================================
         self._append_checklists_to_docx(doc, permit)
 
@@ -1057,6 +1065,86 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 for cell in row.cells:
                     for paragraph in cell.paragraphs:
                         compact_paragraph(paragraph)
+
+    def _append_risk_table_to_docx(self, doc, permit):
+        """
+        Добавляет "Таблицу анализа рисков" из data.riskTable перед чек-листами.
+        """
+        from docx.shared import Pt, Cm, RGBColor
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.enum.table import WD_TABLE_ALIGNMENT
+
+        risk_rows = permit.data.get('riskTable', []) if permit.data else []
+        if not risk_rows or not isinstance(risk_rows, list):
+            return
+
+        # Оставляем только строки с реальными данными
+        rows = []
+        for r in risk_rows:
+            if not isinstance(r, dict):
+                continue
+            if any((r.get('step'), r.get('hazards'), r.get('measures'), r.get('isControlled'))):
+                rows.append(r)
+
+        if not rows:
+            return
+
+        document = doc.docx
+        document.add_page_break()
+
+        title_p = document.add_paragraph()
+        title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        title_run = title_p.add_run('ТАБЛИЦА АНАЛИЗА РИСКОВ')
+        title_run.bold = True
+        title_run.font.size = Pt(12)
+        title_run.font.name = 'Times New Roman'
+
+        spacer = document.add_paragraph()
+        spacer.space_after = Pt(6)
+
+        tbl = document.add_table(rows=len(rows) + 1, cols=5)
+        tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+        tbl.style = 'Table Grid'
+
+        header = ['№', 'Шаг работы', 'Опасности', 'Меры контроля', 'Контроль (Да/Нет)']
+        widths = [Cm(1), Cm(4.2), Cm(5.2), Cm(5.2), Cm(2.0)]
+
+        for i, text in enumerate(header):
+            cell = tbl.rows[0].cells[i]
+            cell.text = text
+            cell.width = widths[i]
+            p = cell.paragraphs[0]
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = p.runs[0]
+            run.bold = True
+            run.font.size = Pt(8)
+            run.font.name = 'Times New Roman'
+
+        for idx, row in enumerate(rows, start=1):
+            values = [
+                str(idx),
+                str(row.get('step') or ''),
+                str(row.get('hazards') or ''),
+                str(row.get('measures') or ''),
+                str(row.get('isControlled') or ''),
+            ]
+            for col, val in enumerate(values):
+                cell = tbl.rows[idx].cells[col]
+                cell.text = val
+                cell.width = widths[col]
+                p = cell.paragraphs[0]
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER if col in (0, 4) else WD_ALIGN_PARAGRAPH.LEFT
+                run = p.runs[0] if p.runs else p.add_run(val)
+                run.font.size = Pt(8)
+                run.font.name = 'Times New Roman'
+                if col == 4:
+                    up = val.strip().upper()
+                    if up in ('ДА', 'YES', 'Y', '+'):
+                        run.bold = True
+                        run.font.color.rgb = RGBColor(0x00, 0x80, 0x00)
+                    elif up in ('НЕТ', 'NO', 'N', '-'):
+                        run.bold = True
+                        run.font.color.rgb = RGBColor(0xCC, 0x00, 0x00)
 
     def _append_checklists_to_docx(self, doc, permit):
         """
