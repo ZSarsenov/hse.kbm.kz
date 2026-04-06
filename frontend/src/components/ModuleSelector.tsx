@@ -1,4 +1,6 @@
+import { useTranslation } from 'react-i18next';
 import { ClipboardCheck, BookOpen, Truck, Shield } from 'lucide-react';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 interface ModuleSelectorProps {
   onSelectModule: (module: string) => void;
@@ -6,11 +8,12 @@ interface ModuleSelectorProps {
 }
 
 export const ModuleSelector = ({ onSelectModule, userName }: ModuleSelectorProps) => {
+  const { t } = useTranslation();
   const modules = [
     {
       id: 'permits',
-      title: 'Электронный наряд-допуск',
-      description: 'Создание, согласование и контроль нарядов-допусков на работы повышенной опасности',
+      titleKey: 'module.permitsTitle',
+      descKey: 'module.permitsDesc',
       icon: ClipboardCheck,
       color: 'from-blue-600 to-indigo-700',
       hoverColor: 'hover:shadow-blue-200',
@@ -20,8 +23,8 @@ export const ModuleSelector = ({ onSelectModule, userName }: ModuleSelectorProps
     },
     {
       id: 'journal',
-      title: 'Электронный журнал',
-      description: 'Ведение электронных журналов учёта и регистрации',
+      titleKey: 'module.journalTitle',
+      descKey: 'module.journalDesc',
       icon: BookOpen,
       color: 'from-emerald-600 to-teal-700',
       hoverColor: 'hover:shadow-emerald-200',
@@ -31,8 +34,8 @@ export const ModuleSelector = ({ onSelectModule, userName }: ModuleSelectorProps
     },
     {
       id: 'bdd',
-      title: 'БДД и транспорт',
-      description: 'Безопасность дорожного движения и управление транспортом',
+      titleKey: 'module.bddTitle',
+      descKey: 'module.bddDesc',
       icon: Truck,
       color: 'from-amber-500 to-orange-600',
       hoverColor: 'hover:shadow-amber-200',
@@ -46,21 +49,24 @@ export const ModuleSelector = ({ onSelectModule, userName }: ModuleSelectorProps
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex flex-col">
       {/* Header */}
       <div className="w-full bg-white/80 backdrop-blur-sm border-b border-slate-200 px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center">
               <Shield size={22} className="text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-slate-800">HSE Portal</h1>
-              <p className="text-xs text-slate-500">Система управления охраной труда</p>
+              <h1 className="text-lg font-bold text-slate-800">{t('module.portalTitle')}</h1>
+              <p className="text-xs text-slate-500">{t('module.portalSubtitle')}</p>
             </div>
           </div>
-          {userName && (
-            <p className="text-sm text-slate-600">
-              Добро пожаловать, <span className="font-semibold text-slate-800">{userName}</span>
-            </p>
-          )}
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            <LanguageSwitcher />
+            {userName && (
+              <p className="text-sm text-slate-600">
+                {t('module.welcome')} <span className="font-semibold text-slate-800">{userName}</span>
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -68,8 +74,8 @@ export const ModuleSelector = ({ onSelectModule, userName }: ModuleSelectorProps
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="max-w-5xl w-full">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-slate-800 mb-3">Выберите модуль</h2>
-            <p className="text-slate-500 text-lg">Выберите раздел для начала работы</p>
+            <h2 className="text-3xl font-bold text-slate-800 mb-3">{t('module.selectTitle')}</h2>
+            <p className="text-slate-500 text-lg">{t('module.selectSubtitle')}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -99,23 +105,23 @@ export const ModuleSelector = ({ onSelectModule, userName }: ModuleSelectorProps
                   </div>
 
                   <h3 className={`text-xl font-bold mb-2 ${mod.active ? 'text-slate-800' : 'text-slate-400'}`}>
-                    {mod.title}
+                    {t(mod.titleKey)}
                   </h3>
 
                   <p className={`text-sm leading-relaxed ${mod.active ? 'text-slate-500' : 'text-slate-400'}`}>
-                    {mod.description}
+                    {t(mod.descKey)}
                   </p>
 
                   {mod.active && (
                     <div className={`mt-6 inline-flex items-center gap-2 text-sm font-semibold bg-gradient-to-r ${mod.color} bg-clip-text text-transparent group-hover:gap-3 transition-all`}>
-                      Открыть
+                      {t('module.open')}
                       <span className="text-blue-600 group-hover:translate-x-1 transition-transform">&rarr;</span>
                     </div>
                   )}
 
                   {!mod.active && (
                     <div className="mt-6 text-sm font-medium text-slate-400">
-                      Скоро будет доступно
+                      {t('module.comingSoon')}
                     </div>
                   )}
                 </button>
@@ -128,7 +134,7 @@ export const ModuleSelector = ({ onSelectModule, userName }: ModuleSelectorProps
       {/* Footer */}
       <div className="w-full border-t border-slate-200 bg-white/60 px-6 py-4">
         <div className="max-w-6xl mx-auto text-center text-xs text-slate-400">
-          &copy; {new Date().getFullYear()} АО &laquo;Каражанбасмунай&raquo; &mdash; HSE Portal
+          {t('module.footer', { year: new Date().getFullYear() })}
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
-
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, AlertTriangle, Zap } from 'lucide-react';
 import { PermitCategory } from '../types';
 
@@ -10,6 +10,7 @@ interface PermitTypeSelectorProps {
 }
 
 export const PermitTypeSelector: React.FC<PermitTypeSelectorProps> = ({ isOpen, onClose, onSelect }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   return (
@@ -25,7 +26,7 @@ export const PermitTypeSelector: React.FC<PermitTypeSelectorProps> = ({ isOpen, 
         
         {/* Header */}
         <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 bg-gray-50/50">
-          <h2 className="text-2xl font-bold text-gray-900">Выберите тип наряда</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{t('permitType.title')}</h2>
           <button 
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
@@ -46,10 +47,10 @@ export const PermitTypeSelector: React.FC<PermitTypeSelectorProps> = ({ isOpen, 
               <AlertTriangle size={40} />
             </div>
             <h3 className="text-xl font-bold text-gray-900 mb-2 leading-snug">
-              Наряд повышенной опасности
+              {t('permitType.dangerousTitle')}
             </h3>
             <p className="text-sm text-gray-500 leading-relaxed">
-              Работы на высоте, в замкнутых пространствах, огневые работы и прочее.
+              {t('permitType.dangerousDesc')}
             </p>
           </button>
 
@@ -74,7 +75,7 @@ export const PermitTypeSelector: React.FC<PermitTypeSelectorProps> = ({ isOpen, 
         {/* Footer */}
         <div className="px-8 py-4 bg-gray-50 border-t border-gray-100 text-center">
           <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">
-            АО «Каражанбасмунай» • Система ЭНД
+            {t('permitType.footer')}
           </p>
         </div>
 

@@ -74,6 +74,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
 
   const [signingMemberIndex, setSigningMemberIndex] = useState<number | null>(null);
+  const [producerPadOpen, setProducerPadOpen] = useState(false);
 
   // --- ЭЛЕКТРОУСТАНОВКИ ---
   const [lifecycle, setLifecycle] = useState<ElectricalLifecycle>({
@@ -371,6 +372,22 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // В блоке «Ответственные лица» Выдающий наряд = подписант шага 1 (Ход согласования)
   const issuerDisplayName = issuerStep?.approver_name || renderUserName(data.issuer, '—');
 
+  const producerStep = steps.find((s: any) => s.role === 'WORK_PRODUCER');
+  const externalProducer = !!(data.producer && typeof data.producer === 'object' && data.producer.external);
+  const pendingExternalProducerSig =
+    permit.status === 'PENDING_APPROVAL' &&
+    producerStep?.status === 'PENDING' &&
+    externalProducer &&
+    !producerStep?.approver_id;
+  const issuerApprovedStep = steps.find((s: any) => s.role === 'ISSUER' && s.status === 'APPROVED');
+  const admitApprovedStep = steps.find((s: any) => s.role === 'ADMITTING' && s.status === 'APPROVED');
+  const canRecordProducerGraphicSig =
+    !!pendingExternalProducerSig &&
+    (
+      (issuerApprovedStep && String(issuerApprovedStep.approver_id) === currentUserId) ||
+      (admitApprovedStep && String(admitApprovedStep.approver_id) === currentUserId)
+    );
+
   const safetyFields = [
       { key: 'm5_1_stop', label: '5.1 Остановить' },
       { key: 'm5_2_disconnect', label: '5.2 Отключить' },
@@ -497,13 +514,50 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 {/* ТРЕКЕР СОГЛАСОВАНИЯ */}
                 <ApprovalTracker steps={(permit as any).approvalSteps} />
 
+                {pendingExternalProducerSig && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-amber-950">Графическая подпись производителя работ</p>
+                      <p className="text-sm text-amber-900/90 mt-1 leading-snug">
+                        Исполнитель — без ЭЦП. Выдающий или Допускающий (уже подписавшие наряд ЭЦП) могут открыть окно подписи и передать устройство производителю для росписи на экране.
+                      </p>
+                    </div>
+                    {canRecordProducerGraphicSig ? (
+                      <button
+                        type="button"
+                        onClick={() => setProducerPadOpen(true)}
+                        className="shrink-0 px-4 py-2.5 rounded-lg bg-amber-600 text-white font-medium hover:bg-amber-700"
+                      >
+                        Внести подпись
+                      </button>
+                    ) : (
+                      <p className="text-xs text-amber-800/80 shrink-0 max-w-xs">
+                        Кнопка доступна только Выдающему и Допускающему после их подписи.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* БЛОК ОТВЕТСТВЕННЫХ ЛИЦ (Сохранен оригинал с 5 блоками) */}
                 <div>
                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><User size={20} className="text-slate-400"/> Ответственные лица</h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Выдающий наряд</span><p className="font-medium text-gray-900">{issuerDisplayName}</p></div>
                       <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Ответственный руководитель</span><p className="font-medium text-gray-900">{renderUserName(data.responsible, 'Не назначался')}</p></div>
-                      <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Производитель работ</span><p className="font-medium text-gray-900">{renderUserName(data.producer, '—')}</p></div>
+                      <div className="p-4 border border-gray-200 rounded-lg">
+                        <span className="text-xs text-gray-400 uppercase font-bold">Производитель работ</span>
+                        <p className="font-medium text-gray-900">{renderUserName(data.producer, '—')}</p>
+                        {data.producer_signature && (
+                          <div className="mt-2">
+                            <span className="text-xs text-gray-400 uppercase font-bold block mb-1">Графическая подпись</span>
+                            <img
+                              src={getSignatureUrl(data.producer_signature)}
+                              alt="Подпись производителя"
+                              className="h-12 object-contain bg-gray-50 border border-gray-200 rounded"
+                            />
+                          </div>
+                        )}
+                      </div>
                       <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Допускающий</span><p className="font-medium text-gray-900">{renderUserName(data.admitting, '—')}</p></div>
                       <div className="p-4 border border-gray-200 rounded-lg "><span className="text-xs text-gray-400 uppercase font-bold">Согласовано (Нач. смены / Участка / Инженер ТБ)</span><p className="font-medium text-gray-900">{renderUserName(data.supervisor, '—')}</p></div>
                       {data.additionalCoordinators && Array.isArray(data.additionalCoordinators) && data.additionalCoordinators.map((coord: any, idx: number) => (
@@ -642,6 +696,31 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                        </div>
                    )}
                </div>
+           )}
+
+           {producerPadOpen && (
+             <SignaturePadModal
+               open={true}
+               memberLabel={renderUserName(data.producer, 'Производитель работ')}
+               onClose={() => setProducerPadOpen(false)}
+               onConfirm={async (blob) => {
+                 const token = localStorage.getItem('auth_token');
+                 const form = new FormData();
+                 form.append('signature', blob, 'signature.png');
+                 const res = await fetch(`/api/v1/permits/${permit.id}/producer_signature/`, {
+                   method: 'POST',
+                   headers: token ? { 'Authorization': `Token ${token}` } : {},
+                   body: form,
+                 });
+                 if (!res.ok) {
+                   const err = await res.json().catch(() => ({}));
+                   const msg = err.error || err.detail || `Ошибка ${res.status}`;
+                   throw new Error(msg);
+                 }
+                 setProducerPadOpen(false);
+                 onRefresh?.();
+               }}
+             />
            )}
         </div>
       </div>

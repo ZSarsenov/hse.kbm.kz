@@ -22,14 +22,27 @@ class UserInfoSerializer(serializers.ModelSerializer):
 
 # 2. Сериализатор для Шагов согласования
 class ApprovalStepSerializer(serializers.ModelSerializer):
-    approver_name = serializers.CharField(source='approver.get_full_name', read_only=True)
+    approver_name = serializers.SerializerMethodField()
     role_label = serializers.CharField(source='get_role_display', read_only=True)
-    approver_id = serializers.IntegerField(source='approver.id', read_only=True)
+    approver_id = serializers.SerializerMethodField()
 
     class Meta:
         model = ApprovalStep
         fields = ('id', 'step_order', 'approver_id', 'approver_name', 'role', 'role_label', 'status', 'signed_at',
                   'signed_xml', 'signer_details', 'rejection_reason')
+
+    def get_approver_id(self, obj):
+        return obj.approver_id
+
+    def get_approver_name(self, obj):
+        if obj.approver_id:
+            return obj.approver.get_full_name()
+        if obj.role == 'WORK_PRODUCER':
+            permit = obj.permit
+            pdata = (permit.data or {}).get('producer') or {}
+            if isinstance(pdata, dict) and pdata.get('external'):
+                return (pdata.get('name') or pdata.get('freeText') or '').strip() or 'Производитель работ (без ЭЦП)'
+        return '—'
 
 
 

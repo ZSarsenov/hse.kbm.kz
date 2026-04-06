@@ -134,10 +134,16 @@ class WorkPermit(models.Model):
         if admit_id:
             steps_config.append({'role': 'ADMITTING', 'user_id': admit_id})
 
-        # 4. Производитель работ (обязателен)
+        # 4. Производитель работ (из БД или исполнитель без ЭЦП — без учётной записи, графическая подпись)
         prod_id = get_user_id('producer')
+        prod_raw = self.data.get('producer')
+        external_line = ''
+        if isinstance(prod_raw, dict) and prod_raw.get('external'):
+            external_line = (prod_raw.get('name') or prod_raw.get('freeText') or '').strip()
         if prod_id:
             steps_config.append({'role': 'WORK_PRODUCER', 'user_id': prod_id})
+        elif external_line:
+            steps_config.append({'role': 'WORK_PRODUCER', 'external': True})
 
         # 5. Дополнительные согласующие (до 5, подписывают ДО основного)
         additional_coords = self.data.get('additionalCoordinators', [])
@@ -156,6 +162,16 @@ class WorkPermit(models.Model):
         User = get_user_model()
 
         for index, step_data in enumerate(steps_config):
+            if step_data.get('external') and step_data.get('role') == 'WORK_PRODUCER':
+                ApprovalStep.objects.create(
+                    permit=self,
+                    approver=None,
+                    role='WORK_PRODUCER',
+                    step_order=index + 1,
+                    status='PENDING' if index == 0 else 'WAITING',
+                )
+                continue
+
             # Определяем пользователя (либо объект user, либо user_id)
             user = step_data.get('user')
             if not user and step_data.get('user_id'):
@@ -228,7 +244,13 @@ class ApprovalStep(models.Model):
     permit = models.ForeignKey(WorkPermit, on_delete=models.CASCADE, # Если наряд удален, удаляем и шаги
                                related_name='approval_steps')
 
-    approver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, verbose_name='Согласующий')
+    approver = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        verbose_name='Согласующий',
+        null=True,
+        blank=True,
+    )
 
     # Последовательность шага
     step_order = models.PositiveSmallIntegerField(verbose_name='Порядок шага')

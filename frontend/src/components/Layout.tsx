@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Menu, Bell, User, FilePlus, CheckSquare, 
   FileText, LogOut, ChevronDown, LayoutDashboard, ClipboardList, Grid3X3
 } from 'lucide-react';
 import { Permission } from '../types';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -29,6 +31,7 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({
   children, onNavigate, onNavigateLoto, onNavigateMyTasks, onNavigateArchive, onNavigateModules, onCreate, onLogout, user, currentView
 }) => {
+  const { t } = useTranslation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -98,12 +101,13 @@ export const Layout: React.FC<LayoutProps> = ({
             <div className="flex items-center gap-3 cursor-pointer" onClick={onNavigate}>
               <div className="flex flex-col font-['PT_Sans']">
                 <span className="text-3xl font-bold text-blue-700 leading-none">ЭНД</span>
-                <span className="text-sm text-blue-600 font-bold tracking-wider uppercase">АО «Каражанбасмунай»</span>
+                <span className="text-sm text-blue-600 font-bold tracking-wider uppercase">{t('layout.brandSubtitle')}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <LanguageSwitcher className="hidden sm:inline-flex" />
             {/* Уведомления */}
             <div className="relative" ref={notifRef}>
                 <button onClick={() => setIsNotifOpen(!isNotifOpen)} className={`relative p-2 rounded-full transition-colors ${isNotifOpen ? 'bg-blue-50 text-blue-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}>
@@ -117,11 +121,11 @@ export const Layout: React.FC<LayoutProps> = ({
                 {isNotifOpen && (
                     <div className="absolute right-0 mt-3 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right">
                         <div className="p-3 border-b bg-gray-50/50 flex justify-between items-center">
-                            <span className="font-bold text-gray-700 text-sm">Уведомления</span>
-                            {notifications.length > 0 && (<button onClick={() => notifications.forEach(n => handleMarkAsRead(n.id))} className="text-xs text-blue-600 hover:underline">Прочитать все</button>)}
+                            <span className="font-bold text-gray-700 text-sm">{t('layout.notifications')}</span>
+                            {notifications.length > 0 && (<button onClick={() => notifications.forEach(n => handleMarkAsRead(n.id))} className="text-xs text-blue-600 hover:underline">{t('layout.markAllRead')}</button>)}
                         </div>
                         <div className="max-h-[350px] overflow-y-auto">
-                            {notifications.length === 0 ? <div className="p-8 text-center text-gray-400 text-sm">Нет новых уведомлений</div> :
+                            {notifications.length === 0 ? <div className="p-8 text-center text-gray-400 text-sm">{t('layout.noNotifications')}</div> :
                                 notifications.map(n => (
                                     <div key={n.id} onClick={() => handleMarkAsRead(n.id)} className="p-4 border-b border-gray-50 hover:bg-blue-50 cursor-pointer transition-colors group relative">
                                         <div className="absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full group-hover:bg-blue-600 transition-colors"></div>
@@ -139,8 +143,8 @@ export const Layout: React.FC<LayoutProps> = ({
             <div className="relative" ref={profileRef}>
               <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="flex items-center gap-3 pl-2 pr-1 py-1 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-100 transition-colors">
                 <div className="text-right hidden md:block">
-                  <div className="text-sm font-semibold text-gray-700">{user?.name || 'Пользователь'}</div>
-                  <div className="text-xs text-gray-400 truncate max-w-[150px]">{user?.position || 'Сотрудник'}</div>
+                  <div className="text-sm font-semibold text-gray-700">{user?.name || t('layout.user')}</div>
+                  <div className="text-xs text-gray-400 truncate max-w-[150px]">{user?.position || t('layout.employee')}</div>
                 </div>
                 <div className="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 border border-white shadow-sm overflow-hidden"><User size={20} /></div>
                 <ChevronDown size={14} className="text-gray-300 hidden md:block" />
@@ -152,7 +156,7 @@ export const Layout: React.FC<LayoutProps> = ({
                     <p className="text-xs text-blue-600 font-medium mb-3">{user?.position}</p>
                     <p className="text-xs text-gray-700">{user?.organization}</p>
                   </div>
-                  <button onClick={onLogout} className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"><LogOut size={16} className="mr-2" /> Выйти</button>
+                  <button onClick={onLogout} className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"><LogOut size={16} className="mr-2" /> {t('layout.logout')}</button>
                 </div>
               )}
             </div>
@@ -164,39 +168,42 @@ export const Layout: React.FC<LayoutProps> = ({
       <div className="flex flex-1 overflow-hidden relative w-full">
         <aside ref={sidebarRef} className={`fixed lg:static inset-y-0 left-0 z-20 w-72 bg-white border-r border-gray-100 text-slate-500 transform transition-transform duration-300 ease-in-out shadow-lg lg:shadow-none ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} flex flex-col h-full pt-16 lg:pt-0 shrink-0`}>
           <div className="flex-1 p-4 space-y-1 overflow-y-auto">
-            <div className="px-3 py-4 mb-2"><h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Меню</h3></div>
+            <div className="px-3 py-4 mb-2 flex items-center justify-between gap-2">
+              <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">{t('layout.menu')}</h3>
+              <LanguageSwitcher className="sm:hidden scale-90 origin-right" />
+            </div>
 
-            <SidebarLink icon={<LayoutDashboard size={20}/>} label="Главное" active={currentView === 'DASHBOARD'} onClick={onNavigate} />
+            <SidebarLink icon={<LayoutDashboard size={20}/>} label={t('layout.main')} active={currentView === 'DASHBOARD'} onClick={onNavigate} />
 
             {canCreatePermit && (
-                <SidebarLink icon={<FilePlus size={20}/>} label="Создать Наряд" active={currentView === 'CREATE'} onClick={onCreate} />
+                <SidebarLink icon={<FilePlus size={20}/>} label={t('layout.createPermit')} active={currentView === 'CREATE'} onClick={onCreate} />
             )}
 
             <SidebarLink
                 icon={<CheckSquare size={20}/>}
-                label="Мои Задачи"
+                label={t('layout.myTasks')}
                 badge={notifications.length > 0 ? notifications.length.toString() : undefined}
                 active={currentView === 'MY_TASKS'}
                 onClick={onNavigateMyTasks}
             />
 
-            {hasPermission('VIEW_LOTO_LOGS') && (<SidebarLink icon={<ClipboardList size={20}/>} label="Отчеты LOTO" active={currentView === 'LOTO_REPORTS'} onClick={onNavigateLoto}/>)}
+            {hasPermission('VIEW_LOTO_LOGS') && (<SidebarLink icon={<ClipboardList size={20}/>} label={t('layout.lotoReports')} active={currentView === 'LOTO_REPORTS'} onClick={onNavigateLoto}/>)}
             <div className="my-4 border-t border-gray-50"></div>
 
             {/* 👇 АКТИВИРОВАЛИ КНОПКУ АРХИВ */}
             <SidebarLink
                 icon={<FileText size={20}/>}
-                label="Журнал"
+                label={t('layout.journal')}
                 active={currentView === 'ARCHIVE'}
                 onClick={onNavigateArchive}
             />
           </div>
           <div className="p-4 border-t border-gray-100 bg-white">
              {onNavigateModules && (
-               <button onClick={onNavigateModules} className="flex items-center gap-3 text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors w-full px-3 py-2 rounded-lg hover:bg-blue-50 hover:shadow-sm mb-1"><Grid3X3 size={18} /><span>Все модули</span></button>
+               <button onClick={onNavigateModules} className="flex items-center gap-3 text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors w-full px-3 py-2 rounded-lg hover:bg-blue-50 hover:shadow-sm mb-1"><Grid3X3 size={18} /><span>{t('layout.allModules')}</span></button>
              )}
-             <button onClick={onLogout} className="flex items-center gap-3 text-sm font-medium text-slate-400 hover:text-red-600 transition-colors w-full px-3 py-2 rounded-lg hover:bg-red-50 hover:shadow-sm"><LogOut size={18} /><span>Выйти из системы</span></button>
-             <div className="text-[10px] text-gray-300 mt-4 text-center"><p>&copy; 2026 АО «Каражанбасмунай»</p></div>
+             <button onClick={onLogout} className="flex items-center gap-3 text-sm font-medium text-slate-400 hover:text-red-600 transition-colors w-full px-3 py-2 rounded-lg hover:bg-red-50 hover:shadow-sm"><LogOut size={18} /><span>{t('layout.logoutFull')}</span></button>
+             <div className="text-[10px] text-gray-300 mt-4 text-center"><p>{t('layout.copyright', { year: new Date().getFullYear() })}</p></div>
           </div>
         </aside>
 

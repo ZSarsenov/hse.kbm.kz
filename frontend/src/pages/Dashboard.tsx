@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Calendar, MapPin, Search, Download, Plus, ChevronRight, Building2, SlidersHorizontal, User, ChevronLeft, Filter } from 'lucide-react';
 import { WorkPermit, PermitStatus } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
@@ -13,6 +14,8 @@ interface DashboardProps {
 const ITEMS_PER_PAGE = 10;
 
 export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, onCreateNew, isArchiveView = false }) => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language?.startsWith('kk') ? 'kk-KZ' : 'ru-RU';
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -80,10 +83,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
         <div>
           {/* Меняем заголовок в зависимости от режима */}
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-              {isArchiveView ? 'Журнал учета выдачи наряда-допусков' : 'Оперативный контроль работ повышенной опасности.'}
+              {isArchiveView ? t('dashboard.titleArchive') : t('dashboard.titleMain')}
           </h1>
           <p className="text-slate-500 mt-2 text-lg">
-              {isArchiveView ? 'История закрытых и отклоненных работ' : 'Оперативный контроль работ повышенной опасности'}
+              {isArchiveView ? t('dashboard.subtitleArchive') : t('dashboard.subtitleMain')}
           </p>
         </div>
         <div className="flex gap-3">
@@ -109,13 +112,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                   URL.revokeObjectURL(a.href);
                 } catch (e) {
                   console.error(e);
-                  alert('Не удалось скачать отчёт.');
+                  alert(t('dashboard.exportFail'));
                 }
               }}
               className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-5 py-3 rounded-lg text-base font-medium hover:bg-gray-50 transition-all shadow-sm"
             >
               <Download size={20} />
-              <span className="hidden sm:inline">Экспорт отчета</span>
+              <span className="hidden sm:inline">{t('dashboard.exportReport')}</span>
             </button>
           )}
 
@@ -126,7 +129,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-base font-medium transition-all shadow-md shadow-blue-200 flex items-center gap-2"
               >
                 <Plus size={20} />
-                <span>Создать наряд</span>
+                <span>{t('dashboard.createPermit')}</span>
               </button>
           )}
         </div>
@@ -136,13 +139,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
         <div className="flex items-center gap-2 mb-4 text-base font-semibold text-gray-700">
           <SlidersHorizontal size={18} />
-          <span>Фильтры данных</span>
+          <span>{t('dashboard.filters')}</span>
         </div>
         <div className={`grid grid-cols-1 gap-4 ${isArchiveView ? 'md:grid-cols-4 items-end' : 'md:grid-cols-4'}`}>
 
           {/* Status Filter */}
           <div className={isArchiveView ? '' : 'relative group'}>
-            {isArchiveView && <label className="block text-sm font-medium text-gray-600 mb-1">Статус</label>}
+            {isArchiveView && <label className="block text-sm font-medium text-gray-600 mb-1">{t('dashboard.status')}</label>}
             <div className="relative group">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 group-focus-within:text-blue-600 transition-colors">
                 <Filter size={18} />
@@ -152,17 +155,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                 onChange={(e) => setFilterStatus(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white transition-shadow outline-none cursor-pointer hover:border-gray-400"
               >
-                <option value="ALL">Все статусы</option>
+                <option value="ALL">{t('dashboard.allStatuses')}</option>
                 {isArchiveView ? (
                     <>
-                        <option value={PermitStatus.CLOSED}>Закрыт</option>
-                        <option value={PermitStatus.REJECTED}>Отклонено</option>
+                        <option value={PermitStatus.CLOSED}>{t('dashboard.closed')}</option>
+                        <option value={PermitStatus.REJECTED}>{t('dashboard.rejected')}</option>
                     </>
                 ) : (
                     <>
-                        <option value={PermitStatus.DRAFT}>Черновик</option>
-                        <option value={PermitStatus.PENDING_APPROVAL}>На согласовании</option>
-                        <option value={PermitStatus.APPROVED}>Согласовано</option>
+                        <option value={PermitStatus.DRAFT}>{t('dashboard.draft')}</option>
+                        <option value={PermitStatus.PENDING_APPROVAL}>{t('dashboard.pending')}</option>
+                        <option value={PermitStatus.APPROVED}>{t('dashboard.approved')}</option>
                     </>
                 )}
               </select>
@@ -173,7 +176,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
           {isArchiveView ? (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">С</label>
+                <label className="block text-sm font-medium text-gray-600 mb-1">{t('dashboard.dateFrom')}</label>
                 <div className="relative group">
                   <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
                     <Calendar size={18} />
@@ -187,7 +190,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">По</label>
+                <label className="block text-sm font-medium text-gray-600 mb-1">{t('dashboard.dateTo')}</label>
                 <div className="relative group">
                   <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
                     <Calendar size={18} />
@@ -217,10 +220,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                   <Building2 size={18} />
                 </span>
                 <select className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-600 appearance-none outline-none cursor-pointer hover:border-gray-400">
-                  <option>Все цеха / отделы</option>
-                  <option>Цех №1</option>
-                  <option>Цех №2</option>
-                  <option>Ремонтная служба</option>
+                  <option>{t('dashboard.allDepts')}</option>
+                  <option>{t('dashboard.dept1')}</option>
+                  <option>{t('dashboard.dept2')}</option>
+                  <option>{t('dashboard.repair')}</option>
                 </select>
               </div>
             </>
@@ -228,7 +231,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
 
            {/* Search */}
            <div>
-             {isArchiveView && <label className="block text-sm font-medium text-gray-600 mb-1">Поиск</label>}
+             {isArchiveView && <label className="block text-sm font-medium text-gray-600 mb-1">{t('dashboard.search')}</label>}
              <div className="relative group">
                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 group-focus-within:text-blue-600 transition-colors">
                  <Search size={18} />
@@ -237,7 +240,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                  type="text"
                  value={searchQuery}
                  onChange={(e) => setSearchQuery(e.target.value)}
-                 placeholder="Поиск по номеру, ФИО, месту, наименованию работ..."
+                 placeholder={t('dashboard.searchPlaceholder')}
                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow"
                />
              </div>
@@ -253,23 +256,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
               <tr>
                 {isArchiveView ? (
                   <>
-                    <th className="px-4 py-5 w-12">№</th>
-                    <th className="px-4 py-5 w-[140px]">Первичный допуск</th>
-                    <th className="px-4 py-5 w-[140px]">Вторичный допуск</th>
-                    <th className="px-4 py-5 w-36">№ наряда-допуска</th>
-                    <th className="px-4 py-5">Лицо, выдавшее наряд</th>
-                    <th className="px-4 py-5">Характер выполняемых работ</th>
-                    <th className="px-4 py-5 text-center w-28">Статус</th>
+                    <th className="px-4 py-5 w-12">{t('dashboard.colNo')}</th>
+                    <th className="px-4 py-5 w-[140px]">{t('dashboard.colPrimary')}</th>
+                    <th className="px-4 py-5 w-[140px]">{t('dashboard.colSecondary')}</th>
+                    <th className="px-4 py-5 w-36">{t('dashboard.colPermitNo')}</th>
+                    <th className="px-4 py-5">{t('dashboard.colIssuer')}</th>
+                    <th className="px-4 py-5">{t('dashboard.colWorkNature')}</th>
+                    <th className="px-4 py-5 text-center w-28">{t('dashboard.colStatus')}</th>
                     <th className="px-4 py-5 w-12"></th>
                   </>
                 ) : (
                   <>
-                    <th className="px-6 py-5 w-36">Номер (ID)</th>
-                    <th className="px-6 py-5">Тип работ</th>
-                    <th className="px-6 py-5">Место работ (Установка)</th>
-                    <th className="px-6 py-5">Ответственный</th>
-                    <th className="px-6 py-5">Дата начала</th>
-                    <th className="px-6 py-5 text-center">Статус</th>
+                    <th className="px-6 py-5 w-36">{t('dashboard.colNumber')}</th>
+                    <th className="px-6 py-5">{t('dashboard.colWorkType')}</th>
+                    <th className="px-6 py-5">{t('dashboard.colLocation')}</th>
+                    <th className="px-6 py-5">{t('dashboard.colResponsible')}</th>
+                    <th className="px-6 py-5">{t('dashboard.colStartDate')}</th>
+                    <th className="px-6 py-5 text-center">{t('dashboard.colStatus')}</th>
                     <th className="px-6 py-5 w-12"></th>
                   </>
                 )}
@@ -281,7 +284,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                   if (!s) return '—';
                   try {
                     const d = new Date(s);
-                    return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    return d.toLocaleString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                   } catch { return '—'; }
                 };
                 const issuerStep = (permit as any).approvalSteps?.find((s: any) => s.role === 'ISSUER');
@@ -296,12 +299,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                     >
                       <td className="px-4 py-5 font-medium text-gray-700">{indexOfFirstItem + index + 1}</td>
                       <td className="px-4 py-5 text-gray-600 text-sm">
-                        <div className="leading-tight">Начало: {formatDt(permit.validFrom)}</div>
-                        <div className="leading-tight mt-0.5">Окончание: {formatDt(permit.validTo)}</div>
+                        <div className="leading-tight">{t('dashboard.startShort')} {formatDt(permit.validFrom)}</div>
+                        <div className="leading-tight mt-0.5">{t('dashboard.endShort')} {formatDt(permit.validTo)}</div>
                       </td>
                       <td className="px-4 py-5 text-gray-400 text-sm">
-                        <div className="leading-tight">Начало: —</div>
-                        <div className="leading-tight mt-0.5">Окончание: —</div>
+                        <div className="leading-tight">{t('dashboard.startShort')} —</div>
+                        <div className="leading-tight mt-0.5">{t('dashboard.endShort')} —</div>
                       </td>
                       <td className="px-4 py-5 font-mono font-medium text-blue-600 group-hover:text-blue-800">{permit.permitId}</td>
                       <td className="px-4 py-5 text-gray-700">{issuerName}</td>
@@ -326,7 +329,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                     <td className="px-6 py-5 text-gray-600">
                       <div className="flex items-center gap-2">
                         <MapPin size={16} className="text-gray-400 shrink-0" />
-                        <span className="truncate max-w-[200px]">{permit.location?.name || 'Не указано'}</span>
+                        <span className="truncate max-w-[200px]">{permit.location?.name || t('dashboard.notSpecified')}</span>
                       </div>
                     </td>
                     <td className="px-6 py-5 text-gray-700">
@@ -334,12 +337,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                         <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-sm text-slate-600 font-bold shrink-0">
                           {permit.initiator?.name?.charAt(0) || '?'}
                         </div>
-                        <span className="font-medium truncate">{permit.initiator?.name || 'Неизвестно'}</span>
+                        <span className="font-medium truncate">{permit.initiator?.name || t('dashboard.unknown')}</span>
                       </div>
                     </td>
                     <td className="px-6 py-5 text-gray-500 font-mono text-sm">
-                      {new Date(permit.createdAt).toLocaleDateString('ru-RU')}
-                      <span className="text-gray-400 ml-2">{new Date(permit.createdAt).toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'})}</span>
+                      {new Date(permit.createdAt).toLocaleDateString(dateLocale)}
+                      <span className="text-gray-400 ml-2">{new Date(permit.createdAt).toLocaleTimeString(dateLocale, {hour: '2-digit', minute:'2-digit'})}</span>
                     </td>
                     <td className="px-6 py-5 text-center">
                       <StatusBadge status={permit.status} />
@@ -358,11 +361,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                     <div className="inline-block p-5 rounded-full bg-gray-50 mb-4">
                       <Search size={40} className="text-gray-300" />
                     </div>
-                    <p className="text-xl font-medium">Наряды не найдены</p>
+                    <p className="text-xl font-medium">{t('dashboard.emptyTitle')}</p>
                     <p className="text-base mt-2">
                         {isArchiveView
-                            ? 'В архиве пока пусто'
-                            : 'В журнале нет активных нарядов. Попробуйте изменить фильтры.'}
+                            ? t('dashboard.emptyArchive')
+                            : t('dashboard.emptyMain')}
                     </p>
                   </td>
                 </tr>
@@ -375,7 +378,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
         {filteredPermits.length > 0 && (
           <div className="flex items-center justify-between px-6 py-5 border-t border-gray-200 bg-white">
             <div className="text-base text-gray-500">
-              Показано <span className="font-medium text-gray-900">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredPermits.length)}</span> из <span className="font-medium text-gray-900">{filteredPermits.length}</span>
+              {t('dashboard.shown')} <span className="font-medium text-gray-900">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredPermits.length)}</span> {t('dashboard.of')} <span className="font-medium text-gray-900">{filteredPermits.length}</span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -423,7 +426,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
             if (!s) return '—';
             try {
               const d = new Date(s);
-              return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+              return d.toLocaleString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
             } catch { return '—'; }
           };
           const issuerStep = (permit as any).approvalSteps?.find((s: any) => s.role === 'ISSUER');
@@ -445,7 +448,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                     <>
                       <span className="text-sm text-gray-500 block mb-1">№ {indexOfFirstItem + index + 1}</span>
                       <span className="text-sm font-mono text-blue-600 block mb-1">{permit.permitId}</span>
-                      <h3 className="font-bold text-gray-900 text-xl leading-tight">{permit.templateType || 'Наряд повышенной опасности'}</h3>
+                      <h3 className="font-bold text-gray-900 text-xl leading-tight">{permit.templateType || t('dashboard.defaultTemplate')}</h3>
                     </>
                   ) : (
                     <>
@@ -461,15 +464,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                   <>
                     <div className="flex items-start gap-2.5">
                       <Calendar size={18} className="text-gray-400 mt-0.5 shrink-0" />
-                      <span><strong>Первичный допуск:</strong> {formatDt(permit.validFrom)} — {formatDt(permit.validTo)}</span>
+                      <span><strong>{t('dashboard.primaryPermit')}</strong> {formatDt(permit.validFrom)} — {formatDt(permit.validTo)}</span>
                     </div>
                     <div className="flex items-start gap-2.5">
                       <Calendar size={18} className="text-gray-400 mt-0.5 shrink-0" />
-                      <span><strong>Вторичный допуск:</strong> —</span>
+                      <span><strong>{t('dashboard.secondaryPermit')}</strong> —</span>
                     </div>
                     <div className="flex items-start gap-2.5">
                       <User size={18} className="text-gray-400 mt-0.5 shrink-0" />
-                      <span><strong>Выдал наряд:</strong> {issuerName}</span>
+                      <span><strong>{t('dashboard.issuedBy')}</strong> {issuerName}</span>
                     </div>
                   </>
                 ) : (
@@ -492,7 +495,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
 
               <div className="flex items-center justify-end pt-4 border-t border-gray-100">
                 <span className="text-blue-600 text-base font-semibold flex items-center">
-                  Открыть карточку <ChevronRight size={18} className="ml-1"/>
+                  {t('dashboard.openCard')} <ChevronRight size={18} className="ml-1"/>
                 </span>
               </div>
             </div>
@@ -507,7 +510,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                 disabled={currentPage === 1}
                 className="flex-1 py-4 px-4 bg-white border border-gray-200 rounded-lg text-gray-700 font-medium disabled:opacity-50 shadow-sm text-lg"
               >
-                Назад
+                {t('dashboard.back')}
             </button>
             <span className="flex items-center font-medium text-gray-600 text-lg">
               {currentPage} / {totalPages}
@@ -517,7 +520,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                 disabled={currentPage === totalPages}
                 className="flex-1 py-4 px-4 bg-white border border-gray-200 rounded-lg text-gray-700 font-medium disabled:opacity-50 shadow-sm text-lg"
               >
-                Далее
+                {t('dashboard.next')}
             </button>
           </div>
         )}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { PermitDetail } from './pages/PermitDetail';
@@ -12,6 +13,7 @@ import { WorkPermit, PageView, PermitCategory } from './types';
 import { AIAssistant } from './components/AIAssistant';
 
 function App() {
+  const { t } = useTranslation();
   // 1. Auth & User Data
   const [token, setToken] = useState<string | null>(localStorage.getItem('auth_token'));
   const [userData, setUserData] = useState<any>(() => {
@@ -155,7 +157,7 @@ function App() {
             })
             .catch(err => {
                 console.error("Ошибка загрузки деталей наряда:", err);
-                alert("Ошибка: Не удалось открыть наряд.");
+                alert(t('app.openPermitFail'));
                 setCurrentView('MY_TASKS' as any);
             });
         }
@@ -229,7 +231,7 @@ function App() {
 
   // Удаление
   const handleDeletePermit = async (id: string) => {
-    if (!window.confirm('Вы действительно хотите удалить этот наряд? Это действие нельзя отменить.')) {
+    if (!window.confirm(t('app.deleteConfirm'))) {
       return;
     }
 
@@ -245,13 +247,13 @@ function App() {
         setPermits(prev => prev.filter(p => String(p.id) !== String(id)));
         setSelectedPermitId(null);
         setCurrentView('DASHBOARD');
-        alert('🗑 Наряд успешно удален');
+        alert(t('app.deleteOk'));
       } else {
-        alert('Ошибка при удалении наряда');
+        alert(t('app.deleteFail'));
       }
     } catch (error) {
       console.error(error);
-      alert('Ошибка соединения с сервером');
+      alert(t('app.connectionError'));
     }
   };
 

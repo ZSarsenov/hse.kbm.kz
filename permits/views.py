@@ -16,6 +16,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from rest_framework.exceptions import PermissionDenied
 
@@ -27,6 +28,97 @@ from .serializers import (PermitSerializer, WorkPermitTemplateSerializer, Depart
 from .kalkan import Kalkan # временно не используем способ подписания через Kalkan
 
 logger = logging.getLogger(__name__)
+
+
+def _issuer_admitting_approved_users(permit):
+    """Пользователи, уже подписавшие шаги Выдающий и Допускающий (для уведомлений о графической подписи производителя)."""
+    users = []
+    seen = set()
+    for role in ('ISSUER', 'ADMITTING'):
+        st = (
+            permit.approval_steps.filter(role=role, status='APPROVED')
+            .select_related('approver')
+            .first()
+        )
+        if st and st.approver_id and st.approver_id not in seen:
+            seen.add(st.approver_id)
+            users.append(st.approver)
+    return users
+
+
+def _advance_after_approval_step(permit, completed_step, acting_user):
+    """Перевод следующего шага в PENDING или финализация наряда; уведомления."""
+    next_step = ApprovalStep.objects.filter(
+        permit=permit,
+        step_order__gt=completed_step.step_order,
+    ).order_by('step_order').first()
+
+    if next_step:
+        next_step.status = 'PENDING'
+        next_step.save()
+
+        if next_step.approver_id:
+            Notification.objects.create(
+                user=next_step.approver,
+                permit_id=permit.id,
+                title="Требуется согласование",
+                message=f"Наряд №{permit.permit_id} ожидает вашей подписи ({next_step.get_role_display()}).",
+            )
+        else:
+            for nu in _issuer_admitting_approved_users(permit):
+                Notification.objects.create(
+                    user=nu,
+                    permit_id=permit.id,
+                    title="Графическая подпись производителя",
+                    message=(
+                        f"Наряд №{permit.permit_id}: внесите графическую подпись производителя работ "
+                        f"(исполнитель без ЭЦП) в карточке наряда (вкладка «Описание»)."
+                    ),
+                )
+
+        if permit.initiator_id != acting_user.id:
+            ext_prod = completed_step.role == 'WORK_PRODUCER' and completed_step.approver_id is None
+            if ext_prod:
+                parts = [
+                    f"По наряду №{permit.permit_id} зафиксирована графическая подпись производителя работ "
+                    f"({acting_user.get_full_name()})."
+                ]
+                if next_step.approver_id:
+                    parts.append(f"Передан следующему: {next_step.approver.get_full_name()}.")
+                Notification.objects.create(
+                    user=permit.initiator,
+                    permit_id=permit.id,
+                    title="Наряд подписан",
+                    message=" ".join(parts),
+                )
+            else:
+                suffix = (
+                    f" Передан следующему: {next_step.approver.get_full_name()}."
+                    if next_step.approver_id
+                    else " Ожидается графическая подпись производителя работ (исполнитель без ЭЦП)."
+                )
+                Notification.objects.create(
+                    user=permit.initiator,
+                    permit_id=permit.id,
+                    title="Наряд подписан",
+                    message=(
+                        f"Пользователь {acting_user.get_full_name()} подписал наряд №{permit.permit_id}."
+                        + suffix
+                    ),
+                )
+
+        if next_step.approver_id:
+            print(f"🔔 Уведомление отправлено пользователю {next_step.approver.get_full_name()}")
+    else:
+        permit.approve_final()
+        Notification.objects.create(
+            user=permit.initiator,
+            permit_id=permit.id,
+            title="Наряд утвержден",
+            message=f"Ваш наряд №{permit.permit_id} полностью согласован всеми участниками!",
+        )
+
+
 class WorkPermitTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Шаблоны нарядов-допусков (только чтение).
@@ -76,12 +168,14 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             )
         was_rejected = permit.status == 'REJECTED'
         try:
-            permit.submit()
-            permit.save()
+            # Одна транзакция: при ошибке на любом шаге не остаётся «обрезанной» цепочки (2 из 5 шагов).
+            with transaction.atomic():
+                permit.submit()
+                permit.save()
             # При повторной отправке после отклонения уведомляем того, кто отказал — наряд снова ждёт его подписи
             if was_rejected:
                 pending_step = permit.approval_steps.filter(status='PENDING').first()
-                if pending_step and pending_step.approver != permit.initiator:
+                if pending_step and pending_step.approver_id and pending_step.approver != permit.initiator:
                     Notification.objects.create(
                         user=pending_step.approver,
                         permit_id=permit.id,
@@ -93,8 +187,23 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 'status': 'Наряд отправлен на согласование.',
                 'current_status': permit.status
             })
+        except IntegrityError as e:
+            err = str(e)
+            if 'approver_id' in err and 'null' in err.lower():
+                return Response(
+                    {
+                        'ok': False,
+                        'error': (
+                            'В базе данных для шага согласования всё ещё обязателен согласующий (approver_id NOT NULL). '
+                            'Нужна миграция permits 0016 на том же сервере и той же БД, что использует это приложение: '
+                            'python manage.py migrate permits'
+                        ),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            return Response({'ok': False, 'error': err}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({'ok': False, 'error': str(e)}, status=400)
+            return Response({'ok': False, 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     # --- МЕТОД ПОДПИСАНИЯ ---
     @action(detail=True, methods=["post"], url_path="sign", permission_classes=[IsAuthenticated])
@@ -210,51 +319,18 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         # ---------------------------------------------------------------
         # 5. ПЕРЕХОД ХОДА ИЛИ ФИНАЛИЗАЦИЯ
         # ---------------------------------------------------------------
-        next_step = ApprovalStep.objects.filter(
-            permit=permit,
-            step_order__gt=current_step.step_order
-        ).order_by('step_order').first()
-
-        if next_step:
-            next_step.status = 'PENDING'
-            next_step.save()
-
-            # 👇 СОЗДАЕМ УВЕДОМЛЕНИЕ СЛЕДУЮЩЕМУ
-            Notification.objects.create(
-                user=next_step.approver,
-                permit_id=permit.id,
-                title="Требуется согласование",
-                message=f"Наряд №{permit.permit_id} ожидает вашей подписи ({next_step.get_role_display()})."
-            )
-            # 👇 НОВОЕ: Уведомляем ИНИЦИАТОРА (что процесс идет)
-            if permit.initiator != user:  # Чтобы не спамить себе же
-                Notification.objects.create(
-                    user=permit.initiator,
-                    permit_id=permit.id,
-                    title="Наряд подписан",
-                    message=f"Пользователь {user.get_full_name()} подписал наряд №{permit.permit_id}. "
-                            f"Передан следующему: {next_step.approver.get_full_name()}."
-                )
-
-            print(f"🔔 Уведомление отправлено пользователю {next_step.approver.get_full_name()}")
-
-        else:
-            permit.approve_final()
-
-            # Уведомляем инициатора, что все готово
-            Notification.objects.create(
-                user=permit.initiator,
-                permit_id=permit.id,
-                title="Наряд утвержден",
-                message=f"Ваш наряд №{permit.permit_id} полностью согласован всеми участниками!"
-            )
+        _advance_after_approval_step(permit, current_step, user)
 
         permit.save()
 
+        next_for_response = ApprovalStep.objects.filter(
+            permit=permit,
+            step_order__gt=current_step.step_order,
+        ).order_by('step_order').first()
         return Response({
             "ok": True,
             "status": "Наряд успешно подписан",
-            "next_step": next_step.role if next_step else "Согласование завершено"
+            "next_step": next_for_response.role if next_for_response else "Согласование завершено",
         })
 
     # --- МЕТОД ОТКЛОНЕНИЯ ---
@@ -331,6 +407,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             new_data['riskApprovedBy'] = ""
             new_data['extensions'] = []
             new_data['brigade_signatures'] = []
+            new_data.pop('producer_signature', None)
 
             # 3. Генерируем номер по стандарту: OR-2026-00001
             current_year = time.strftime('%Y')
@@ -482,6 +559,92 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             return Response(
                 {'error': f'Ошибка сохранения подписи: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['post'], url_path='producer_signature')
+    def producer_signature(self, request, pk=None):
+        """
+        Графическая подпись производителя работ, если исполнитель без ЭЦП (ввод ФИО вручную).
+        Право внести: только Выдающий или Допускающий после своей ЭЦП-подписи.
+        """
+        permit = self.get_object()
+        if permit.status != 'PENDING_APPROVAL':
+            return Response(
+                {'error': 'Подпись производителя доступна только на этапе согласования.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        producer_step = permit.approval_steps.filter(
+            role='WORK_PRODUCER', status='PENDING', approver__isnull=True,
+        ).first()
+        if not producer_step:
+            return Response(
+                {'error': 'Нет активного шага «Производитель работ» для исполнителя без ЭЦП.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        prod = permit.data.get('producer') if permit.data else {}
+        if not (isinstance(prod, dict) and prod.get('external')):
+            return Response(
+                {'error': 'Производитель работ указан из базы — используйте ЭЦП.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = request.user
+        issuer_ok = permit.approval_steps.filter(
+            role='ISSUER', approver=user, status='APPROVED',
+        ).exists()
+        admit_ok = permit.approval_steps.filter(
+            role='ADMITTING', approver=user, status='APPROVED',
+        ).exists()
+        if not (issuer_ok or admit_ok):
+            return Response(
+                {'error': 'Графическую подпись производителя могут внести только Выдающий или Допускающий после своей подписи.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        image_file = request.FILES.get('signature')
+        if not image_file:
+            return Response({'error': 'Приложите файл подписи (signature).'}, status=status.HTTP_400_BAD_REQUEST)
+        ct = (image_file.content_type or '').lower()
+        if ct and not ct.startswith('image/'):
+            return Response({'error': f'Разрешены только изображения (получен {image_file.content_type}).'}, status=status.HTTP_400_BAD_REQUEST)
+        if image_file.size > 2 * 1024 * 1024:
+            return Response({'error': 'Размер файла не более 2 МБ.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            rel_dir = os.path.join('brigade_signatures', str(permit.pk))
+            dest_dir = os.path.join(settings.MEDIA_ROOT, rel_dir)
+            os.makedirs(dest_dir, exist_ok=True)
+            fname = 'producer.png'
+            rel_path = os.path.join(rel_dir, fname).replace('\\', '/')
+            full_path = os.path.join(settings.MEDIA_ROOT, rel_dir, fname)
+            with open(full_path, 'wb') as f:
+                for chunk in image_file.chunks():
+                    f.write(chunk)
+
+            data = dict(permit.data) if permit.data else {}
+            data['producer_signature'] = rel_path
+            permit.data = data
+
+            producer_step.status = 'APPROVED'
+            producer_step.signed_at = timezone.now()
+            producer_step.signer_details = {
+                'graphic': True,
+                'recorded_by': user.id,
+                'recorded_by_name': user.get_full_name(),
+            }
+            producer_step.save(update_fields=['status', 'signed_at', 'signer_details'])
+
+            permit.save(update_fields=['data'])
+            _advance_after_approval_step(permit, producer_step, user)
+            permit.save()
+
+            return Response({'ok': True, 'signature_path': rel_path})
+        except Exception as e:
+            return Response(
+                {'error': f'Ошибка сохранения подписи: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
     # --- МЕТОД СКАЧИВАНИЯ ---
@@ -680,6 +843,16 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 if step.status == 'APPROVED' and step.signed_at:
                     data['date'] = format_date(step.signed_at)
                 return data
+            # Производитель без учётной записи (исполнитель без ЭЦП): шаг без approver, ФИО/должность в data.producer
+            if step and role_enum == 'WORK_PRODUCER' and step.approver_id is None and permit.data:
+                p_data = permit.data.get(json_key) or {}
+                if isinstance(p_data, dict) and p_data.get('external'):
+                    line = (p_data.get('name') or p_data.get('freeText') or '').strip()
+                    data['name'] = line or '_________________'
+                    data['job'] = '_________________'
+                    if step.status == 'APPROVED' and step.signed_at:
+                        data['date'] = format_date(step.signed_at)
+                    return data
             if permit.data and json_key in permit.data:
                 p_data = permit.data[json_key]
                 if isinstance(p_data, dict) and p_data.get('name'):

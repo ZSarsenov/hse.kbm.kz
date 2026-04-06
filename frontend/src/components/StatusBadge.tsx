@@ -1,4 +1,6 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n/config';
 import { PermitStatus } from '../types';
 
 /** Нормализует статус с бэкенда (например Pending_Approval) к enum-значению */
@@ -13,22 +15,14 @@ interface StatusBadgeProps {
   status: PermitStatus | string;
 }
 
-/** Возвращает русскую подпись для статуса (можно использовать вне бейджа) */
+/** Подпись статуса с учётом текущего языка интерфейса (вне React-компонентов) */
 export function getStatusLabel(status: PermitStatus | string): string {
   const n = normalizeStatus(status);
-  switch (n) {
-    case PermitStatus.DRAFT: return 'Черновик';
-    case PermitStatus.PENDING_APPROVAL: return 'На согласовании';
-    case PermitStatus.APPROVED: return 'Согласован';
-    case PermitStatus.ACTIVE: return 'В работе';
-    case PermitStatus.REJECTED: return 'Отклонён';
-    case PermitStatus.CLOSED: return 'Закрыт';
-    case 'ARCHIVED': return 'В архиве';
-    default: return n ? String(status).replace(/_/g, ' ') : '—';
-  }
+  return i18n.t(`status.${n}`, { defaultValue: n ? String(status).replace(/_/g, ' ') : '—' });
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
+  const { t } = useTranslation();
   const n = normalizeStatus(status);
 
   const getStyle = () => {
@@ -52,7 +46,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
     }
   };
 
-  const label = getStatusLabel(status);
+  const label = t(`status.${n}`, { defaultValue: n ? String(status).replace(/_/g, ' ') : '—' });
 
   return (
     <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[10px] font-bold border tracking-wide uppercase ${getStyle()}`}>

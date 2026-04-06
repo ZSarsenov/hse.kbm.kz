@@ -14,6 +14,7 @@ interface RoleUser {
     name: string;
     role?: string;
     position?: string;
+    external?: boolean;
 }
 
 interface CreatePermitProps {
@@ -124,6 +125,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
   const [additionalCoordinators, setAdditionalCoordinators] = useState<RoleUser[]>([]);
 
+  /** Исполнитель без ЭЦП: одна строка (ФИО, должность); графическая подпись на согласовании */
+  const [producerIsExternal, setProducerIsExternal] = useState(false);
+
   // Редактирование во время согласования: блок подписантов полностью заблокирован
   const isApprovalEdit = isEditing && initialData?.status === 'PENDING_APPROVAL';
 
@@ -150,6 +154,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       formData.content ||
       roles.issuer.id ||
       roles.producer.id ||
+      !!(roles.producer.name && roles.producer.name.trim()) ||
       roles.admitting.id ||
       roles.responsible.id ||
       roles.supervisor.id ||
@@ -158,9 +163,21 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
     );
 
   const buildApiPayload = () => {
+    const producerPayload: RoleUser | { id: null; external: true; name: string } = producerIsExternal
+      ? { id: null, external: true, name: roles.producer.name.trim() }
+      : (() => {
+          const p = { ...roles.producer };
+          delete (p as { external?: boolean }).external;
+          return p;
+        })();
+
     const fullDataPayload = {
       ...formData,
       ...roles,
+      producer: producerPayload,
+      ...(producerIsExternal && roles.producer.name.trim()
+        ? { completionHandOverName: roles.producer.name.trim() }
+        : {}),
       additionalCoordinators: additionalCoordinators.filter(c => c.id),
       teamMembers: teamMembers,
       checklist: checklistData,
@@ -304,6 +321,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
               supervisor: restoreRole(savedData.supervisor),
           };
           setRoles(restoredRoles);
+          setProducerIsExternal(
+            !!(savedData.producer && typeof savedData.producer === 'object' && (savedData.producer as RoleUser).external)
+          );
 
           if (savedData.additionalCoordinators && Array.isArray(savedData.additionalCoordinators)) {
               setAdditionalCoordinators(savedData.additionalCoordinators.map((c: any) => restoreRole(c)));
@@ -415,7 +435,11 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       if (!roles.issuer.id && !roles.issuer.name) {
           alert("Укажите, кто выдал наряд (поле «Наряд выдал (Выдающий)»)."); setIsSubmitting(false); return;
       }
-      if (!roles.producer.id && !roles.producer.name) {
+      if (producerIsExternal) {
+          if (!roles.producer.name.trim()) {
+            alert("Введите ФИО и должность производителя работ — исполнителя без ЭЦП (одной строкой)."); setIsSubmitting(false); return;
+          }
+      } else if (!roles.producer.id) {
           alert("Не заполнен Производитель работ!"); setIsSubmitting(false); return;
       }
       if (!roles.admitting.id && !roles.admitting.name) {
@@ -710,19 +734,61 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                  </div>
 
                  {/* 4. Производитель работ (исполнитель работ) */}
-                 <div>
-                   <UserSearchSelect
-                      label="Производитель работ (исполнитель работ)"
-                      value={roles.producer.name}
-                      requiredRole="WORK_PRODUCER"
-                      onChange={(user) => {
+                 <div className="flex flex-col min-w-0">
+                   {producerIsExternal ? (
+                     <>
+                       <label className="block text-sm font-bold text-gray-700 mb-1">
+                         Производитель работ (исполнитель работ)
+                         <span className="text-red-500 ml-1">*</span>
+                       </label>
+                       <textarea
+                         rows={2}
+                         value={roles.producer.name}
+                         onChange={(e) =>
+                           setRoles((prev) => ({
+                             ...prev,
+                             producer: { id: null, name: e.target.value, external: true },
+                           }))
+                         }
+                         placeholder="ФИО и должность одной строкой (как на бумажном наряде)"
+                         className={commonInputClasses}
+                       />
+                     </>
+                   ) : (
+                     <UserSearchSelect
+                       label="Производитель работ (исполнитель работ)"
+                       value={roles.producer.name}
+                       requiredRole="WORK_PRODUCER"
+                       onChange={(user) => {
                          const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
-                         const userData = user ? { id: user.id, name: displayName, role: user.role } : { id: null, name: '' };
-                         setRoles(prev => ({ ...prev, producer: userData }));
+                         const userData = user
+                           ? { id: user.id, name: displayName, role: user.role }
+                           : { id: null, name: '' };
+                         setProducerIsExternal(false);
+                         setRoles((prev) => ({ ...prev, producer: userData }));
                          if (user) updateForm('completionHandOverName', displayName);
-                     }}
-                      placeholder="Начните вводить фамилию..."
-                   />
+                       }}
+                       placeholder="Начните вводить фамилию..."
+                     />
+                   )}
+                   <div className="flex justify-end mt-1.5">
+                     <button
+                       type="button"
+                       onClick={() => {
+                         if (producerIsExternal) {
+                           setProducerIsExternal(false);
+                           setRoles((prev) => ({ ...prev, producer: { id: null, name: '' } }));
+                         } else {
+                           setProducerIsExternal(true);
+                           setRoles((prev) => ({ ...prev, producer: { id: null, name: '', external: true } }));
+                         }
+                       }}
+                       className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                     >
+                       <Plus size={14} className="shrink-0" />
+                       {producerIsExternal ? 'Выбрать из базы' : '+ исполнитель без ЭЦП'}
+                     </button>
+                   </div>
                  </div>
 
                  {/* 5. Согласующий (необязательный — без звёздочки) */}

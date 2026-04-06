@@ -9,9 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "i18next": "^26.0.3",
     "lucide-react": "^0.555.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-i18next": "^17.0.2",
     "react-signature-canvas": "^1.1.0-alpha.2"
   },
   "devDependencies": {
