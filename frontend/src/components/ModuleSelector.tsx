@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { ClipboardCheck, BookOpen, Truck, Shield } from 'lucide-react';
+import { ClipboardCheck, BookOpen, Shield } from 'lucide-react';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
 interface ModuleSelectorProps {
@@ -29,17 +29,6 @@ export const ModuleSelector = ({ onSelectModule, userName }: ModuleSelectorProps
       color: 'from-emerald-600 to-teal-700',
       hoverColor: 'hover:shadow-emerald-200',
       iconBg: 'bg-emerald-100 text-emerald-600',
-      active: false,
-      badge: 'BETA',
-    },
-    {
-      id: 'bdd',
-      titleKey: 'module.bddTitle',
-      descKey: 'module.bddDesc',
-      icon: Truck,
-      color: 'from-amber-500 to-orange-600',
-      hoverColor: 'hover:shadow-amber-200',
-      iconBg: 'bg-amber-100 text-amber-600',
       active: false,
       badge: 'BETA',
     },
@@ -78,7 +67,7 @@ export const ModuleSelector = ({ onSelectModule, userName }: ModuleSelectorProps
             <p className="text-slate-500 text-lg">{t('module.selectSubtitle')}</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {modules.map((mod) => {
               const Icon = mod.icon;
               return (

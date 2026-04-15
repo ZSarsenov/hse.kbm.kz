@@ -786,7 +786,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                        className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
                      >
                        <Plus size={14} className="shrink-0" />
-                       {producerIsExternal ? 'Выбрать из базы' : '+ исполнитель без ЭЦП'}
+                       {producerIsExternal ? 'Выбрать из базы' : 'исполнитель без ЭЦП'}
                      </button>
                    </div>
                  </div>
