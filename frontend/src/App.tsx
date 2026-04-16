@@ -95,7 +95,8 @@ function App() {
           validFrom: p.valid_from,
           validTo: p.valid_to,
           data: p.data,
-          approvalSteps: p.approval_steps
+          approvalSteps: p.approval_steps,
+          producer_closed: p.producer_closed,
         }));
         setPermits(formattedPermits);
       })
@@ -144,7 +145,8 @@ function App() {
                     validFrom: p.valid_from,
                     validTo: p.valid_to,
                     data: p.data,
-                    approvalSteps: p.approval_steps
+                    approvalSteps: p.approval_steps,
+                    producer_closed: p.producer_closed,
                 };
 
                 // Добавляем в список (с проверкой на дубликаты)
@@ -302,6 +304,7 @@ function App() {
           validTo: p.valid_to,
           data: p.data,
           approvalSteps: p.approval_steps,
+          producer_closed: p.producer_closed,
         };
         setPermits(prev => prev.map(permit => String(permit.id) === String(formattedPermit.id) ? formattedPermit : permit));
       })

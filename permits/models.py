@@ -74,6 +74,8 @@ class WorkPermit(models.Model):
     scan_file = models.FileField(upload_to='%Y/%m/', verbose_name='Скан закрытого наряда',
                                  null=True, blank=True)
 
+    producer_closed = models.BooleanField(default=False, verbose_name='Производитель подтвердил закрытие')
+
     safety_document = models.FileField(
         upload_to='safety_docs/%Y/%m/',
         verbose_name='Документ к мерам безопасности',

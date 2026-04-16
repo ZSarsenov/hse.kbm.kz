@@ -81,6 +81,7 @@ class PermitSerializer(serializers.ModelSerializer):
             'data',
             'scan_file',
             'safety_document',
+            'producer_closed',
         )
         read_only_fields = ('id', 'permit_id', 'created_at', 'initiator', 'status', 'approval_steps', 'template',
                             'templateType', 'location_name')

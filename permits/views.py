@@ -117,6 +117,19 @@ def _advance_after_approval_step(permit, completed_step, acting_user):
             title="Наряд утвержден",
             message=f"Ваш наряд №{permit.permit_id} полностью согласован всеми участниками!",
         )
+        # Если производитель внешний — уведомляем Выдающего и Допускающего о необходимости закрыть наряд
+        prod_data = (permit.data or {}).get('producer') or {}
+        if isinstance(prod_data, dict) and prod_data.get('external'):
+            for nu in _issuer_admitting_approved_users(permit):
+                Notification.objects.create(
+                    user=nu,
+                    permit_id=permit.id,
+                    title="Требуется закрытие наряда",
+                    message=(
+                        f"Наряд №{permit.permit_id} согласован. Производитель работ выступает без ЭЦП — "
+                        f"необходимо закрыть наряд от его имени (кнопка «Закрыть наряд как Производитель работ»)."
+                    ),
+                )
 
 
 class WorkPermitTemplateViewSet(viewsets.ReadOnlyModelViewSet):
@@ -1763,62 +1776,118 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             'safety_document_url': permit.safety_document.url if permit.safety_document else None
         })
 
-    @action(detail=True, methods=['post'], url_path='close')
-    def close_permit(self, request, pk=None):
+    @action(detail=True, methods=['post'], url_path='producer_close')
+    def producer_close(self, request, pk=None):
         """
-        Закрытие наряда Допускающим.
-        Требует загрузки скана (scan_file) и подписи (по желанию, пока сделаем просто закрытие).
+        Шаг 1 закрытия: Производитель работ подтверждает завершение.
+        Если исполнитель внешний (без ЭЦП), подтвердить могут Выдающий или Допускающий.
         """
         permit = self.get_object()
         user = request.user
 
-        # 1. Проверка статуса (Закрыть можно только СОГЛАСОВАННЫЙ наряд)
         if permit.status != 'APPROVED':
             return Response({'error': 'Закрыть можно только согласованный наряд.'}, status=400)
 
-        # 2. Проверка прав (Только ДОПУСКАЮЩИЙ)
-        # Ищем шаг, где user был ADMITTING
-        is_admitting = permit.approval_steps.filter(role='ADMITTING', approver=user).exists()
+        if permit.producer_closed:
+            return Response({'error': 'Производитель работ уже подтвердил закрытие.'}, status=400)
 
-        # Если вдруг в базе нет шага, проверяем по JSON data (как запасной вариант)
+        producer_step = permit.approval_steps.filter(role='WORK_PRODUCER').first()
+
+        # Обычный производитель — есть учётная запись
+        is_producer = (
+            producer_step and producer_step.approver_id and
+            str(producer_step.approver_id) == str(user.id)
+        )
+
+        # Внешний производитель (без ЭЦП) — действует Выдающий или Допускающий
+        external_producer = (
+            producer_step and not producer_step.approver_id and
+            isinstance((permit.data or {}).get('producer'), dict) and
+            permit.data['producer'].get('external')
+        )
+        is_issuer_or_admitting = permit.approval_steps.filter(
+            role__in=['ISSUER', 'ADMITTING'], approver=user, status='APPROVED'
+        ).exists()
+
+        can_close = is_producer or (external_producer and is_issuer_or_admitting) or user.is_superuser
+
+        if not can_close:
+            return Response(
+                {'error': 'Только Производитель работ может подтвердить завершение работ.'},
+                status=403
+            )
+
+        # Сохраняем графическую подпись производителя при закрытии (если внешний)
+        signature_file = request.FILES.get('signature')
+        if external_producer and signature_file:
+            rel_dir = os.path.join('brigade_signatures', str(permit.pk))
+            dest_dir = os.path.join(settings.MEDIA_ROOT, rel_dir)
+            os.makedirs(dest_dir, exist_ok=True)
+            fname = 'producer_close.png'
+            rel_path = os.path.join(rel_dir, fname).replace('\\', '/')
+            full_path = os.path.join(settings.MEDIA_ROOT, rel_dir, fname)
+            with open(full_path, 'wb') as f:
+                for chunk in signature_file.chunks():
+                    f.write(chunk)
+            data = dict(permit.data) if permit.data else {}
+            data['producer_close_signature'] = rel_path
+            permit.data = data
+            permit.save(update_fields=['data'])
+
+        permit.producer_closed = True
+        permit.save(update_fields=['producer_closed'])
+
+        # Уведомляем Допускающего
+        admitting_step = permit.approval_steps.filter(role='ADMITTING', status='APPROVED').first()
+        if admitting_step and admitting_step.approver:
+            Notification.objects.create(
+                user=admitting_step.approver,
+                permit_id=permit.id,
+                title="Закройте наряд",
+                message=(
+                    f"Производитель работ подписал и подтвердил завершение работ по наряду №{permit.permit_id}. "
+                    f"Теперь вам необходимо закрыть наряд (кнопка «Закрыть наряд как Допускающий»)."
+                )
+            )
+
+        return Response({'ok': True, 'message': 'Производитель работ подтвердил завершение работ.'})
+
+    @action(detail=True, methods=['post'], url_path='close')
+    def close_permit(self, request, pk=None):
+        """
+        Шаг 2 закрытия: Допускающий окончательно закрывает наряд.
+        Требует, чтобы Производитель работ уже подтвердил закрытие (producer_closed=True).
+        """
+        permit = self.get_object()
+        user = request.user
+
+        # 1. Проверка статуса
+        if permit.status != 'APPROVED':
+            return Response({'error': 'Закрыть можно только согласованный наряд.'}, status=400)
+
+        # 2. Производитель должен подтвердить первым
+        if not permit.producer_closed:
+            return Response(
+                {'error': 'Сначала Производитель работ должен подтвердить завершение работ.'},
+                status=400
+            )
+
+        # 3. Проверка прав (только Допускающий)
+        is_admitting = permit.approval_steps.filter(role='ADMITTING', approver=user).exists()
         if not is_admitting:
-            admitting_data = permit.data.get('admitting') or {}
+            admitting_data = (permit.data or {}).get('admitting') or {}
             if str(admitting_data.get('id')) == str(user.id):
                 is_admitting = True
 
         if not is_admitting and not user.is_superuser:
             return Response({'error': 'Только Допускающий имеет право закрыть наряд.'}, status=403)
 
-        # 3. Валидация файла
-        scan_file = request.FILES.get('scan_file')
-        if not scan_file:
-            return Response({'error': 'Необходимо прикрепить скан закрытого наряда (PDF/Фото).'}, status=400)
-
-        # 3а. Проверка типа файла
-        allowed_extensions = ('.pdf', '.jpg', '.jpeg', '.png')
-        file_ext = os.path.splitext(scan_file.name)[1].lower()
-        if file_ext not in allowed_extensions:
-            return Response({
-                'error': f'Недопустимый формат файла ({file_ext}). Разрешены только: PDF, JPG, PNG.'
-            }, status=400)
-
-        # 3б. Проверка размера файла (макс. 10 МБ)
-        max_size_mb = 10
-        if scan_file.size > max_size_mb * 1024 * 1024:
-            file_size_mb = round(scan_file.size / (1024 * 1024), 1)
-            return Response({
-                'error': f'Файл слишком большой: {file_size_mb} МБ. Максимальный размер: {max_size_mb} МБ.'
-            }, status=400)
-
-        permit.scan_file = scan_file
-        # Фиксируем дату/время окончания работ в Первичный допуск (при закрытии наряда)
+        # 4. Закрываем наряд
         permit.valid_to = timezone.now()
         permit.close_work()
         permit.save()
 
-        # Логируем действие (опционально можно в approval_steps добавить шаг закрытия, но это не обязательно)
-
-        return Response({'status': 'Наряд успешно закрыт', 'scan_url': permit.scan_file.url})
+        return Response({'ok': True, 'status': 'Наряд успешно закрыт'})
 
 
 

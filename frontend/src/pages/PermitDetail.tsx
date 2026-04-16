@@ -51,9 +51,31 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const canEditAsManager = permit.status === 'PENDING_APPROVAL' && myPendingSteps.length > 0 && 
                           myPendingSteps.some((s: any) => editableRoles.includes(s.role));
 
-  // Проверяем, является ли текущий пользователь "Допускающим" (чтобы дать ему право закрыть наряд)
+  // Проверяем роли для закрытия наряда
   const admittingStep = steps.find((s: any) => s.role === 'ADMITTING');
   const isAdmittingUser = admittingStep && String(admittingStep.approver_id) === currentUserId;
+
+  const producerStep = steps.find((s: any) => s.role === 'WORK_PRODUCER');
+  const isProducerUser = producerStep && producerStep.approver_id && String(producerStep.approver_id) === currentUserId;
+
+  // Внешний производитель (без ЭЦП): нет approver_id + флаг external в data
+  const externalProducer = producerStep && !producerStep.approver_id &&
+    typeof data.producer === 'object' && data.producer?.external;
+
+  // Выдающий или Допускающий с подписанным шагом — могут действовать за внешнего производителя
+  const issuerApprovedStep = steps.find((s: any) => s.role === 'ISSUER' && s.status === 'APPROVED');
+  const admitApprovedStep = steps.find((s: any) => s.role === 'ADMITTING' && s.status === 'APPROVED');
+  const canActForExternalProducer = !!externalProducer && (
+    (issuerApprovedStep && String(issuerApprovedStep.approver_id) === currentUserId) ||
+    (admitApprovedStep && String(admitApprovedStep.approver_id) === currentUserId)
+  );
+
+  // Кнопка "Закрыть наряд" — Производитель работ (шаг 1)
+  const showProducerClose = permit.status === 'APPROVED' && !permit.producer_closed &&
+    (isProducerUser || canActForExternalProducer);
+
+  // Кнопка "Закрыть наряд" — Допускающий (шаг 2, только после производителя)
+  const showAdmittingClose = permit.status === 'APPROVED' && !!permit.producer_closed && !!isAdmittingUser;
 
   // 3. ЛОГИКА ВИДИМОСТИ КНОПОК
   // Кнопка "Отправить на согласование" — создатель черновика или отклонённого наряда (без подписи ЭЦП)
@@ -104,11 +126,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // --- ОБЫЧНЫЕ НАРЯДЫ ---
   const [activeTab, setActiveTab] = useState<'info' | 'safety' | 'team' | 'checklist'>('info');
   const { signXml, loading, error: ncaError } = useNCALayer();
-
-    // 👇 ВСТАВИТЬ СЮДА:
-  const [isClosing, setIsClosing] = useState(false); // Открыто ли меню закрытия
-  const [scanFile, setScanFile] = useState<File | null>(null); // Файл скана
-
+  const [producerClosePadOpen, setProducerClosePadOpen] = useState(false);
 
   // --- HANDLERS ---
 
@@ -300,51 +318,55 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
       }
   };
 
-  const handleClosePermit = async () => {
-      if (!scanFile) {
-          alert("Пожалуйста, выберите файл (скан наряда) перед закрытием.");
-          return;
-      }
-
-      // Валидация типа файла
-      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-      const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
-      const fileExt = scanFile.name.toLowerCase().slice(scanFile.name.lastIndexOf('.'));
-
-      if (!allowedTypes.includes(scanFile.type) && !allowedExtensions.includes(fileExt)) {
-          alert("Недопустимый формат файла.\nРазрешены только: PDF, JPG, PNG.");
-          setScanFile(null);
-          return;
-      }
-
-      // Валидация размера файла (макс. 10 МБ)
-      const maxSizeMB = 10;
-      if (scanFile.size > maxSizeMB * 1024 * 1024) {
-          const fileSizeMB = (scanFile.size / (1024 * 1024)).toFixed(1);
-          alert(`Файл слишком большой: ${fileSizeMB} МБ.\nМаксимальный размер: ${maxSizeMB} МБ.`);
-          setScanFile(null);
-          return;
-      }
-
-      if (!confirm("Вы уверены, что хотите ЗАКРЫТЬ наряд? Это действие необратимо.")) return;
-
-      const formData = new FormData();
-      formData.append('scan_file', scanFile);
-
+  // Для обычного производителя (с учётной записью) — простое подтверждение
+  const handleProducerClose = async () => {
+      if (!confirm("Вы подтверждаете завершение работ?\nПосле этого Допускающий должен будет закрыть наряд.")) return;
       try {
-          // Отправляем на специальный endpoint 'close'
+          const response = await fetch(`/api/v1/permits/${permit.id}/producer_close/`, {
+              method: 'POST',
+              headers: { 'Authorization': `Token ${localStorage.getItem('auth_token')}` }
+          });
+          if (response.ok) {
+              alert("Завершение работ подтверждено. Ожидайте закрытия Допускающим.");
+              if (onRefresh) onRefresh();
+          } else {
+              const err = await response.json();
+              alert("Ошибка: " + (err.error || JSON.stringify(err)));
+          }
+      } catch (e) {
+          console.error(e);
+          alert("Ошибка сети");
+      }
+  };
+
+  // Для внешнего производителя — отправляем подпись с изображением
+  const handleProducerCloseWithSignature = async (blob: Blob) => {
+      const formData = new FormData();
+      formData.append('signature', blob, 'producer_close.png');
+      const response = await fetch(`/api/v1/permits/${permit.id}/producer_close/`, {
+          method: 'POST',
+          headers: { 'Authorization': `Token ${localStorage.getItem('auth_token')}` },
+          body: formData,
+      });
+      if (response.ok) {
+          alert("Подпись сохранена. Ожидайте закрытия Допускающим.");
+          if (onRefresh) onRefresh();
+      } else {
+          const err = await response.json();
+          throw new Error(err.error || JSON.stringify(err));
+      }
+  };
+
+  const handleAdmittingClose = async () => {
+      if (!confirm("Вы уверены, что хотите закрыть наряд?\nЭто действие необратимо.")) return;
+      try {
           const response = await fetch(`/api/v1/permits/${permit.id}/close/`, {
               method: 'POST',
-              headers: {
-                  'Authorization': `Token ${localStorage.getItem('auth_token')}`
-              },
-              body: formData
+              headers: { 'Authorization': `Token ${localStorage.getItem('auth_token')}` }
           });
-
           if (response.ok) {
-              alert("✅ Наряд успешно ЗАКРЫТ!");
-              setIsClosing(false);
-              onBack(); // Возвращаемся назад
+              alert("Наряд успешно закрыт.");
+              onBack();
           } else {
               const err = await response.json();
               alert("Ошибка: " + (err.error || JSON.stringify(err)));
@@ -372,15 +394,11 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // В блоке «Ответственные лица» Выдающий наряд = подписант шага 1 (Ход согласования)
   const issuerDisplayName = issuerStep?.approver_name || renderUserName(data.issuer, '—');
 
-  const producerStep = steps.find((s: any) => s.role === 'WORK_PRODUCER');
-  const externalProducer = !!(data.producer && typeof data.producer === 'object' && data.producer.external);
   const pendingExternalProducerSig =
     permit.status === 'PENDING_APPROVAL' &&
     producerStep?.status === 'PENDING' &&
     externalProducer &&
     !producerStep?.approver_id;
-  const issuerApprovedStep = steps.find((s: any) => s.role === 'ISSUER' && s.status === 'APPROVED');
-  const admitApprovedStep = steps.find((s: any) => s.role === 'ADMITTING' && s.status === 'APPROVED');
   const canRecordProducerGraphicSig =
     !!pendingExternalProducerSig &&
     (
@@ -402,6 +420,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   ];
 
   return (
+    <>
     <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
 
       <button onClick={onBack} className="flex items-center text-slate-500 hover:text-blue-600 transition-colors group mb-4">
@@ -826,42 +845,48 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 </div>
             )}
 
-            {/* 👇 ВСТАВИТЬ СЮДА: КНОПКА ЗАКРЫТИЯ (Только для Допускающего и если статус APPROVED) */}
-            {permit.status === 'APPROVED' && isAdmittingUser && (
-                <>
-                   {!isClosing ? (
-                       <button
-                           onClick={() => setIsClosing(true)}
-                           className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center gap-2 shadow-sm"
-                       >
-                           <CheckCircle2 size={18} /> Закрыть наряд
-                       </button>
-                   ) : (
-                       // Меню загрузки файла (появляется при нажатии)
-                       <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-gray-300 shadow-lg absolute bottom-20 right-4 md:static md:shadow-none md:border-0 md:bg-transparent animate-in slide-in-from-bottom-2">
-                           <input
-                               type="file"
-                               accept=".pdf,.jpg,.jpeg,.png"
-                               onChange={(e) => setScanFile(e.target.files ? e.target.files[0] : null)}
-                               className="text-sm text-gray-500 w-48 file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                           />
-                           <button
-                               onClick={handleClosePermit}
-                               disabled={!scanFile}
-                               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium disabled:opacity-50 transition-colors"
-                           >
-                               Подтвердить
-                           </button>
-                           <button onClick={() => setIsClosing(false)} className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100">
-                               <XCircle size={20}/>
-                           </button>
-                       </div>
-                   )}
-                </>
+            {/* Шаг 1: Закрыть наряд как Производитель работ */}
+            {showProducerClose && (
+                <button
+                    onClick={canActForExternalProducer ? () => setProducerClosePadOpen(true) : handleProducerClose}
+                    className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center gap-2 shadow-sm"
+                >
+                    <CheckCircle2 size={18} />
+                    Закрыть наряд как Производитель работ
+                </button>
+            )}
+
+            {/* Ожидание: Производитель подтвердил, ждём Допускающего */}
+            {permit.status === 'APPROVED' && !!permit.producer_closed && !isAdmittingUser && (
+                <div className="flex items-center text-sm text-amber-600 italic px-4 bg-amber-50 rounded-lg border border-amber-200 py-2 gap-2">
+                    <Clock size={16} /> Ожидается закрытие Допускающим
+                </div>
+            )}
+
+            {/* Шаг 2: Допускающий окончательно закрывает наряд */}
+            {showAdmittingClose && (
+                <button
+                    onClick={handleAdmittingClose}
+                    className="px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium flex items-center gap-2 shadow-sm"
+                >
+                    <CheckCircle2 size={18} />
+                    Закрыть наряд как Допускающий
+                </button>
             )}
 
          </div>
       </div>
     </div>
+
+    {/* Модал графической подписи производителя при закрытии */}
+    <SignaturePadModal
+      open={producerClosePadOpen}
+      memberLabel={
+        (data.producer?.name || data.producer?.freeText || 'Производитель работ') + ' (закрытие наряда)'
+      }
+      onClose={() => setProducerClosePadOpen(false)}
+      onConfirm={handleProducerCloseWithSignature}
+    />
+    </>
   );
 };
