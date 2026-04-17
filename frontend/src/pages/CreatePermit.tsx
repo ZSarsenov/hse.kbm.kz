@@ -744,12 +744,13 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                        <textarea
                          rows={2}
                          value={roles.producer.name}
-                         onChange={(e) =>
+                         onChange={(e) => {
                            setRoles((prev) => ({
                              ...prev,
                              producer: { id: null, name: e.target.value, external: true },
-                           }))
-                         }
+                           }));
+                           updateForm('completionHandOverName', e.target.value);
+                         }}
                          placeholder="ФИО и должность одной строкой (как на бумажном наряде)"
                          className={commonInputClasses}
                        />
@@ -947,6 +948,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
 
             {/* Dates */}
+            {/* Сроки выполнения — временно скрыт
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                <h3 className="font-bold text-gray-900 mb-4 uppercase text-base tracking-wider border-b pb-2">Сроки выполнения</h3>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -961,6 +963,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                   </div>
                </div>
             </div>
+            */}
 
             {/* Team Table */}
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
