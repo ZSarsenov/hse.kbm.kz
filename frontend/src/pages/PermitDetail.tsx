@@ -699,6 +699,43 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
            {activeTab === 'checklist' && (
                <div className="animate-in fade-in duration-300">
+                   {/* Таблица анализа рисков */}
+                   <div className="flex items-center gap-2 mb-4">
+                       <AlertTriangle size={20} className="text-orange-500"/>
+                       <h3 className="text-lg font-bold text-slate-800">Таблица анализа рисков</h3>
+                   </div>
+                   {data.riskTable && data.riskTable.length > 0 ? (
+                       <div className="overflow-x-auto mb-8">
+                           <table className="w-full text-sm border border-gray-200 rounded-lg">
+                               <thead className="bg-gray-50 text-gray-600 font-semibold">
+                                   <tr>
+                                       <th className="px-3 py-2 text-left border-b">№</th>
+                                       <th className="px-3 py-2 text-left border-b">Этап работы</th>
+                                       <th className="px-3 py-2 text-left border-b">Опасности / Риски</th>
+                                       <th className="px-3 py-2 text-left border-b">Меры управления</th>
+                                       <th className="px-3 py-2 text-left border-b">Контроль</th>
+                                   </tr>
+                               </thead>
+                               <tbody className="divide-y divide-gray-100">
+                                   {data.riskTable.map((row: any, idx: number) => (
+                                       <tr key={row.id || idx} className="hover:bg-gray-50/50">
+                                           <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
+                                           <td className="px-3 py-2">{row.step || '—'}</td>
+                                           <td className="px-3 py-2">{row.hazards || '—'}</td>
+                                           <td className="px-3 py-2">{row.measures || '—'}</td>
+                                           <td className="px-3 py-2">{row.isControlled || '—'}</td>
+                                       </tr>
+                                   ))}
+                               </tbody>
+                           </table>
+                       </div>
+                   ) : (
+                       <div className="text-center py-6 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200 mb-8">
+                           Таблица анализа рисков не заполнена
+                       </div>
+                   )}
+
+                   {/* Чек-лист оценки риска */}
                    <div className="flex items-center gap-2 mb-4">
                        <ClipboardList size={20} className="text-orange-500"/>
                        <h3 className="text-lg font-bold text-slate-800">Чек-лист оценки риска</h3>
