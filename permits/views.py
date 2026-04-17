@@ -932,10 +932,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 if os.path.isfile(full_path):
                     try:
                         with open(full_path, 'rb') as f:
-                            # Увеличиваем подпись под ячейку блока 11, чтобы выглядела как "живая" подпись на бумаге.
-                            # Фиксируем обе стороны для одинакового рендера на ПК и телефоне.
-                            # ~25×9 мм: читаемо, плотнее заполняет ячейку подписи на A4 без «прилипания» к верху
-                            row['signature_img'] = InlineImage(doc, BytesIO(f.read()), width=Mm(25), height=Mm(9))
+                            row['signature_img'] = InlineImage(doc, BytesIO(f.read()), width=Mm(20))
                     except Exception:
                         row['signature_img'] = None
                 else:
@@ -989,6 +986,9 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         }
 
         doc.render(context)
+
+        # Исправляем высоту строк таблицы бригады: разрешаем строкам расти под размер подписи
+        self._fix_brigade_row_heights(doc)
 
         # Оптимизация: основной наряд (13 пунктов) — на одну страницу
         self._compact_permit_to_one_page(doc)
@@ -1211,6 +1211,29 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         },
     }
 
+    @staticmethod
+    def _fix_brigade_row_heights(doc):
+        """Разрешает строкам таблицы бригады расширяться под размер подписи (atLeast вместо exact)."""
+        from lxml import etree
+        ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+        for table in doc.docx.tables:
+            for row in table.rows:
+                # Ищем строки с изображением подписи (после рендеринга содержат <a:blip> внутри)
+                tr_xml = etree.tostring(row._tr)
+                has_image = b'<a:blip' in tr_xml or b'graphicData' in tr_xml
+                if has_image:
+                    trPr = row._tr.find(f'{{{ns}}}trPr')
+                    if trPr is None:
+                        trPr = etree.SubElement(row._tr, f'{{{ns}}}trPr')
+                        row._tr.insert(0, trPr)
+                    trHeight = trPr.find(f'{{{ns}}}trHeight')
+                    if trHeight is not None:
+                        trHeight.set(f'{{{ns}}}hRule', 'atLeast')
+                    else:
+                        trHeight = etree.SubElement(trPr, f'{{{ns}}}trHeight')
+                        trHeight.set(f'{{{ns}}}val', '500')
+                        trHeight.set(f'{{{ns}}}hRule', 'atLeast')
+
     def _compact_permit_to_one_page(self, doc):
         """
         Оптимизация: уменьшает поля, отступы и межстрочные интервалы основного наряда,
@@ -1245,12 +1268,24 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         for paragraph in document.paragraphs:
             compact_paragraph(paragraph)
 
-        # Параграфы внутри таблиц
+        # Параграфы внутри таблиц (пропускаем ячейки с изображениями подписей)
+        ns = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+        drawing_ns = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}drawing'
         for table in document.tables:
             for row in table.rows:
                 for cell in row.cells:
-                    for paragraph in cell.paragraphs:
-                        compact_paragraph(paragraph)
+                    from lxml import etree
+                    cell_xml = etree.tostring(cell._tc)
+                    has_image = b'<a:blip' in cell_xml or b'graphicData' in cell_xml
+                    if has_image:
+                        for paragraph in cell.paragraphs:
+                            pf = paragraph.paragraph_format
+                            pf.space_before = Pt(0)
+                            pf.space_after = Pt(0)
+                            pf.line_spacing = None
+                    else:
+                        for paragraph in cell.paragraphs:
+                            compact_paragraph(paragraph)
 
     def _append_risk_table_to_docx(self, doc, permit):
         """
