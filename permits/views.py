@@ -862,7 +862,8 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 if isinstance(p_data, dict) and p_data.get('external'):
                     line = (p_data.get('name') or p_data.get('freeText') or '').strip()
                     data['name'] = line or '_________________'
-                    data['job'] = '_________________'
+                    has_graphic_sig = bool(permit.data.get('producer_signature'))
+                    data['job'] = '' if has_graphic_sig else '_________________'
                     if step.status == 'APPROVED' and step.signed_at:
                         data['date'] = format_date(step.signed_at)
                     return data
@@ -954,11 +955,32 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             for ext in raw_ext
         ]
 
+        # Графическая подпись производителя (исполнитель без ЭЦП)
+        producer_sig_img = ''
+        producer_close_sig_img = ''
+        if permit.data:
+            for sig_key, var_name in [('producer_signature', 'producer_sig_img'), ('producer_close_signature', 'producer_close_sig_img')]:
+                sig_rel = permit.data.get(sig_key)
+                if sig_rel:
+                    sig_full = os.path.join(settings.MEDIA_ROOT, sig_rel)
+                    if os.path.isfile(sig_full):
+                        try:
+                            with open(sig_full, 'rb') as f:
+                                img = InlineImage(doc, BytesIO(f.read()), height=Mm(7))
+                            if var_name == 'producer_sig_img':
+                                producer_sig_img = img
+                            else:
+                                producer_close_sig_img = img
+                        except Exception:
+                            pass
+
         context = {
             'qr_code': qr_image,
             'permit_id': permit.permit_id,
             'department': permit.data.get('department', '') or (permit.location.department.name if (permit.location and permit.location.department) else "Не указано"),
             'producer_name': prod_info['name'], 'producer_job': prod_info['job'], 'producer_date': prod_info['date'],
+            'producer_signature_img': producer_sig_img,
+            'producer_close_signature_img': producer_close_sig_img,
             'admitting_name': admit_info['name'], 'admitting_job': admit_info['job'], 'admitting_date': admit_info['date'],
             'responsible_name': resp_info['name'], 'responsible_job': resp_info['job'], 'responsible_date': resp_info['date'],
             'issuer_name': issuer_info['name'], 'issuer_job': issuer_info['job'], 'issuer_date': issuer_info['date'],
@@ -1264,25 +1286,40 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 except (AttributeError, TypeError):
                     pass
 
+        from lxml import etree
+        wml_ns = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+
+        def _has_image(element):
+            raw = etree.tostring(element)
+            return b'<a:blip' in raw or b'graphicData' in raw
+
+        def _fix_image_paragraph(paragraph):
+            """Убирает lineRule=exact, ставит atLeast — чтобы строка расширилась под картинку."""
+            pf = paragraph.paragraph_format
+            pf.space_before = Pt(0)
+            pf.space_after = Pt(0)
+            pPr = paragraph._p.find(f'{wml_ns}pPr')
+            if pPr is not None:
+                spacing = pPr.find(f'{wml_ns}spacing')
+                if spacing is not None:
+                    lr = spacing.get(f'{wml_ns}lineRule')
+                    if lr == 'exact':
+                        spacing.set(f'{wml_ns}lineRule', 'atLeast')
+
         # Компактные стили для всех параграфов в теле документа
         for paragraph in document.paragraphs:
-            compact_paragraph(paragraph)
+            if _has_image(paragraph._p):
+                _fix_image_paragraph(paragraph)
+            else:
+                compact_paragraph(paragraph)
 
         # Параграфы внутри таблиц (пропускаем ячейки с изображениями подписей)
-        ns = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
-        drawing_ns = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}drawing'
         for table in document.tables:
             for row in table.rows:
                 for cell in row.cells:
-                    from lxml import etree
-                    cell_xml = etree.tostring(cell._tc)
-                    has_image = b'<a:blip' in cell_xml or b'graphicData' in cell_xml
-                    if has_image:
+                    if _has_image(cell._tc):
                         for paragraph in cell.paragraphs:
-                            pf = paragraph.paragraph_format
-                            pf.space_before = Pt(0)
-                            pf.space_after = Pt(0)
-                            pf.line_spacing = None
+                            _fix_image_paragraph(paragraph)
                     else:
                         for paragraph in cell.paragraphs:
                             compact_paragraph(paragraph)
