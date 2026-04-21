@@ -339,6 +339,7 @@ function App() {
         onNavigateModules={() => setCurrentView('MODULE_SELECT')}
         onCreate={handleCreateNew}
         onLogout={handleLogout}
+        onSelectPermit={handleSelectPermit}
         user={{
           name: userData?.name ||
                 [userData?.last_name, userData?.first_name, userData?.surname].filter(Boolean).join(' ') ||

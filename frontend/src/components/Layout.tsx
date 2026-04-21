@@ -16,6 +16,7 @@ interface LayoutProps {
   onNavigateModules?: () => void;
   onCreate?: () => void;
   onLogout: () => void;
+  onSelectPermit?: (id: string) => void;
   user?: {
     name: string;
     avatar?: string;
@@ -29,7 +30,7 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({
-  children, onNavigate, onNavigateLoto, onNavigateMyTasks, onNavigateArchive, onNavigateModules, onCreate, onLogout, user, currentView
+  children, onNavigate, onNavigateLoto, onNavigateMyTasks, onNavigateArchive, onNavigateModules, onCreate, onLogout, onSelectPermit, user, currentView
 }) => {
   const { t } = useTranslation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -127,7 +128,7 @@ export const Layout: React.FC<LayoutProps> = ({
                         <div className="max-h-[350px] overflow-y-auto">
                             {notifications.length === 0 ? <div className="p-8 text-center text-gray-400 text-sm">{t('layout.noNotifications')}</div> :
                                 notifications.map(n => (
-                                    <div key={n.id} onClick={() => handleMarkAsRead(n.id)} className="p-4 border-b border-gray-50 hover:bg-blue-50 cursor-pointer transition-colors group relative">
+                                    <div key={n.id} onClick={() => { handleMarkAsRead(n.id); if (n.permit_id && onSelectPermit) { onSelectPermit(String(n.permit_id)); setIsNotifOpen(false); } }} className="p-4 border-b border-gray-50 hover:bg-blue-50 cursor-pointer transition-colors group relative">
                                         <div className="absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full group-hover:bg-blue-600 transition-colors"></div>
                                         <p className="font-bold text-sm text-gray-800 pr-4">{n.title}</p>
                                         <p className="text-xs text-gray-600 mt-1 leading-relaxed">{n.message}</p>

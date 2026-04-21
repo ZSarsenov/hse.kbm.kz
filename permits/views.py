@@ -150,8 +150,10 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.is_superuser:
             return WorkPermit.objects.all()
-        return WorkPermit.objects.filter(Q(initiator=user) | Q(approval_steps__approver=user)
-        ).distinct()
+        q = Q(initiator=user) | Q(approval_steps__approver=user)
+        if user.username == 'dispatcher_semser':
+            q = q | Q(data__notifyFireService=True)
+        return WorkPermit.objects.filter(q).distinct()
 
     # API ДЛЯ "МОИ ЗАДАЧИ" (Колокольчик/Меню)
     @action(detail=False, methods=['get'])
