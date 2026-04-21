@@ -195,6 +195,27 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                         title="Наряд повторно отправлен на согласование",
                         message=f"Наряд №{permit.permit_id} исправлен. Требуется ваша подпись повторно ({pending_step.get_role_display()})."
                     )
+            # Уведомление противопожарной службе (если включено при создании)
+            if permit.data and permit.data.get('notifyFireService'):
+                try:
+                    from django.contrib.auth import get_user_model
+                    User = get_user_model()
+                    dispatcher = User.objects.filter(username='dispatcher_semser').first()
+                    if dispatcher:
+                        work_name = permit.data.get('workName', 'Не указано')
+                        Notification.objects.create(
+                            user=dispatcher,
+                            permit_id=permit.id,
+                            title="Уведомление: огневые работы",
+                            message=(
+                                f"Создан наряд-допуск №{permit.permit_id}.\n"
+                                f"Наименование работ: {work_name}.\n"
+                                f"Инициатор: {permit.initiator.get_full_name()}."
+                            ),
+                        )
+                except Exception:
+                    pass
+
             return Response({
                 'ok': True,
                 'status': 'Наряд отправлен на согласование.',

@@ -69,6 +69,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
   // --- STANDARD / DANGEROUS PERMIT MODE ---
   const [activeStep, setActiveStep] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notifyFireService, setNotifyFireService] = useState(false);
 
   // Form State strictly following Item 1-10 of Order 344 + Risk + LOTO
   const [formData, setFormData] = useState<RegulationFormData>({
@@ -186,7 +187,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       isolationMatrix: formData.isolationMatrix,
       extensions: formData.extensions,
       templateType: 'Наряд повышенной опасности',
-      category: category
+      category: category,
+      notifyFireService: notifyFireService
     };
 
     return {
@@ -641,6 +643,22 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                      placeholder="Опишите, что именно будет делаться..."
                      className={commonInputClasses}
                    />
+                 </div>
+                 <div className="md:col-span-2">
+                   <label className="flex items-center gap-3 cursor-pointer select-none">
+                     <div
+                       onClick={() => setNotifyFireService(!notifyFireService)}
+                       className={`relative w-12 h-7 rounded-full transition-colors ${notifyFireService ? 'bg-red-500' : 'bg-gray-300'}`}
+                     >
+                       <div className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${notifyFireService ? 'translate-x-5' : ''}`} />
+                     </div>
+                     <span className="text-lg font-medium text-gray-700">
+                       Уведомить противопожарную службу
+                     </span>
+                     {notifyFireService && (
+                       <span className="text-sm text-red-600 font-medium">(уведомление будет отправлено диспетчеру)</span>
+                     )}
+                   </label>
                  </div>
               </div>
            </div>
