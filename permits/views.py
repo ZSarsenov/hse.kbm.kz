@@ -1588,7 +1588,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
         permit = self.get_object()
         base = getattr(settings, 'HSE_BASE_URL', 'https://hse.kbm.kz')
-        qr_url = f"{base}/api/v1/permits/{permit.id}/verify_docx/"
+        qr_url = f"{base}/api/v1/verify/{permit.verify_token}/"
         try:
             doc = self._get_rendered_doc(permit, qr_url)
             if doc is None:
@@ -1616,162 +1616,10 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='verify_docx', permission_classes=[AllowAny])
     def verify_docx(self, request, pk=None):
-        """Публичная верификация наряда по QR-коду. Показывает HTML-страницу с данными наряда без авторизации."""
-        from django.http import HttpResponse
-        from zoneinfo import ZoneInfo
-
+        """Редирект старых QR-кодов на новый URL с токеном."""
+        from django.http import HttpResponseRedirect
         permit = get_object_or_404(WorkPermit, pk=pk)
-        kz_tz = ZoneInfo('Asia/Almaty')
-
-        def fmt(dt):
-            if not dt:
-                return '—'
-            return dt.astimezone(kz_tz).strftime('%d.%m.%Y %H:%M')
-
-        status_map = {
-            'DRAFT': ('Черновик', '#6b7280'),
-            'PENDING_APPROVAL': ('На согласовании', '#f59e0b'),
-            'APPROVED': ('Согласован', '#10b981'),
-            'REJECTED': ('Отклонён', '#ef4444'),
-            'CLOSED': ('Закрыт', '#6366f1'),
-        }
-        status_label, status_color = status_map.get(permit.status, (permit.status, '#6b7280'))
-
-        # Собираем шаги согласования
-        steps_html = ''
-        for step in permit.approval_steps.select_related('approver').order_by('step_order'):
-            approver_name = step.approver.get_full_name() if step.approver else '—'
-            role_label = step.get_role_display() if hasattr(step, 'get_role_display') else step.role
-            step_status_map = {
-                'PENDING': ('Ожидает', '#f59e0b', '&#9203;'),
-                'APPROVED': ('Подписан', '#10b981', '&#9989;'),
-                'REJECTED': ('Отклонён', '#ef4444', '&#10060;'),
-            }
-            s_label, s_color, s_icon = step_status_map.get(step.status, (step.status, '#6b7280', ''))
-            signed_str = fmt(step.signed_at) if step.signed_at else ''
-            steps_html += f'''
-            <tr>
-                <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;">{role_label}</td>
-                <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;">{approver_name}</td>
-                <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;">
-                    <span style="background:{s_color};color:#fff;padding:3px 10px;border-radius:12px;font-size:13px;">
-                        {s_icon} {s_label}
-                    </span>
-                </td>
-                <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:13px;">{signed_str}</td>
-            </tr>'''
-
-        location_name = permit.location.name if permit.location else '—'
-        work_name = permit.data.get('workName', '—')
-        work_place = permit.data.get('workPlace', location_name)
-        initiator_name = permit.initiator.get_full_name() if permit.initiator else '—'
-
-        html = f'''<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Верификация наряда {permit.permit_id}</title>
-    <style>
-        * {{ margin:0; padding:0; box-sizing:border-box; }}
-        body {{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f1f5f9; color:#1e293b; }}
-        .container {{ max-width:700px; margin:30px auto; padding:0 16px; }}
-        .card {{ background:#fff; border-radius:16px; box-shadow:0 1px 3px rgba(0,0,0,.1); overflow:hidden; }}
-        .header {{ background:linear-gradient(135deg,#1e3a5f,#2563eb); color:#fff; padding:28px 24px; text-align:center; }}
-        .header h1 {{ font-size:20px; font-weight:700; margin-bottom:4px; }}
-        .header p {{ font-size:14px; opacity:.85; }}
-        .badge {{ display:inline-block; padding:6px 18px; border-radius:20px; font-weight:600; font-size:15px; margin-top:12px; color:#fff; background:{status_color}; }}
-        .body {{ padding:24px; }}
-        .section {{ margin-bottom:20px; }}
-        .section-title {{ font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#64748b; margin-bottom:10px; }}
-        .grid {{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }}
-        @media(max-width:500px) {{ .grid {{ grid-template-columns:1fr; }} }}
-        .field {{ background:#f8fafc; border-radius:10px; padding:12px 14px; }}
-        .field .label {{ font-size:12px; color:#94a3b8; margin-bottom:3px; }}
-        .field .value {{ font-size:15px; font-weight:500; }}
-        table {{ width:100%; border-collapse:collapse; font-size:14px; }}
-        th {{ background:#f8fafc; padding:10px 12px; text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:#64748b; border-bottom:2px solid #e2e8f0; }}
-        .footer {{ text-align:center; padding:16px; color:#94a3b8; font-size:12px; border-top:1px solid #f1f5f9; }}
-        .verified {{ display:flex; align-items:center; justify-content:center; gap:8px; padding:14px; background:#f0fdf4; border-radius:10px; margin-bottom:20px; color:#16a34a; font-weight:600; font-size:15px; }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="card">
-            <div class="header">
-                <h1>Наряд-допуск {permit.permit_id}</h1>
-                <p>Система HSE — КБМ</p>
-                <div class="badge">{status_label}</div>
-            </div>
-            <div class="body">
-                <div class="verified">&#9989; Документ зарегистрирован в системе HSE KBM</div>
-
-                <div class="section">
-                    <div class="section-title">Основная информация</div>
-                    <div class="grid">
-                        <div class="field">
-                            <div class="label">Номер наряда</div>
-                            <div class="value">{permit.permit_id}</div>
-                        </div>
-                        <div class="field">
-                            <div class="label">Статус</div>
-                            <div class="value" style="color:{status_color}">{status_label}</div>
-                        </div>
-                        <div class="field">
-                            <div class="label">Инициатор</div>
-                            <div class="value">{initiator_name}</div>
-                        </div>
-                        <div class="field">
-                            <div class="label">Подразделение</div>
-                            <div class="value">{location_name}</div>
-                        </div>
-                        <div class="field">
-                            <div class="label">Место работ</div>
-                            <div class="value">{work_place}</div>
-                        </div>
-                        <div class="field">
-                            <div class="label">Наименование работ</div>
-                            <div class="value">{work_name}</div>
-                        </div>
-                        <div class="field">
-                            <div class="label">Начало работ</div>
-                            <div class="value">{fmt(permit.valid_from)}</div>
-                        </div>
-                        <div class="field">
-                            <div class="label">Окончание работ</div>
-                            <div class="value">{fmt(permit.valid_to)}</div>
-                        </div>
-                        <div class="field">
-                            <div class="label">Дата создания</div>
-                            <div class="value">{fmt(permit.created_at)}</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="section">
-                    <div class="section-title">Согласование</div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Роль</th>
-                                <th>ФИО</th>
-                                <th>Статус</th>
-                                <th>Дата</th>
-                            </tr>
-                        </thead>
-                        <tbody>{steps_html if steps_html else '<tr><td colspan="4" style="padding:14px;text-align:center;color:#94a3b8;">Нет данных о согласовании</td></tr>'}</tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="footer">
-                Сгенерировано системой HSE KBM &bull; hse.kbm.kz
-            </div>
-        </div>
-    </div>
-</body>
-</html>'''
-
-        return HttpResponse(html, content_type='text/html; charset=utf-8')
+        return HttpResponseRedirect(f'/api/v1/verify/{permit.verify_token}/')
 
     def perform_update(self, serializer):
         """
@@ -2030,6 +1878,131 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
         notif.is_read = True
         notif.save()
         return Response({'status': 'ok'})
+
+
+def verify_permit_public(request, token):
+    """Публичная верификация наряда по QR-токену. Без авторизации, только чтение."""
+    from django.http import HttpResponse
+    from django.shortcuts import get_object_or_404
+    from zoneinfo import ZoneInfo
+
+    permit = get_object_or_404(WorkPermit, verify_token=token)
+    kz_tz = ZoneInfo('Asia/Almaty')
+
+    def fmt(dt):
+        if not dt:
+            return '—'
+        return dt.astimezone(kz_tz).strftime('%d.%m.%Y %H:%M')
+
+    status_map = {
+        'DRAFT': ('Черновик', '#6b7280'),
+        'PENDING_APPROVAL': ('На согласовании', '#f59e0b'),
+        'APPROVED': ('Согласован', '#10b981'),
+        'REJECTED': ('Отклонён', '#ef4444'),
+        'CLOSED': ('Закрыт', '#6366f1'),
+    }
+    status_label, status_color = status_map.get(permit.status, (permit.status, '#6b7280'))
+
+    steps_html = ''
+    for step in permit.approval_steps.select_related('approver').order_by('step_order'):
+        approver_name = step.approver.get_full_name() if step.approver else '—'
+        role_label = step.get_role_display() if hasattr(step, 'get_role_display') else step.role
+        step_status_map = {
+            'PENDING': ('Ожидает', '#f59e0b', '&#9203;'),
+            'APPROVED': ('Подписан', '#10b981', '&#9989;'),
+            'REJECTED': ('Отклонён', '#ef4444', '&#10060;'),
+        }
+        s_label, s_color, s_icon = step_status_map.get(step.status, (step.status, '#6b7280', ''))
+        signed_str = fmt(step.signed_at) if step.signed_at else ''
+        steps_html += f'''
+        <tr>
+            <td>{role_label}</td>
+            <td>{approver_name}</td>
+            <td><span class="status-badge" style="background:{s_color}">{s_icon} {s_label}</span></td>
+            <td class="date-col">{signed_str}</td>
+        </tr>'''
+
+    location_name = permit.location.name if permit.location else '—'
+    work_name = (permit.data or {}).get('workName', '—')
+    work_place = (permit.data or {}).get('workPlace', location_name)
+    initiator_name = permit.initiator.get_full_name() if permit.initiator else '—'
+
+    html = f'''<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Верификация наряда {permit.permit_id}</title>
+    <style>
+        * {{ margin:0; padding:0; box-sizing:border-box; }}
+        body {{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f1f5f9; color:#1e293b; }}
+        .container {{ max-width:700px; margin:30px auto; padding:0 16px; }}
+        .card {{ background:#fff; border-radius:16px; box-shadow:0 1px 3px rgba(0,0,0,.1); overflow:hidden; }}
+        .header {{ background:linear-gradient(135deg,#1e3a5f,#2563eb); color:#fff; padding:28px 24px; text-align:center; }}
+        .header h1 {{ font-size:20px; font-weight:700; margin-bottom:4px; }}
+        .header p {{ font-size:14px; opacity:.85; }}
+        .badge {{ display:inline-block; padding:6px 18px; border-radius:20px; font-weight:600; font-size:15px; margin-top:12px; color:#fff; background:{status_color}; }}
+        .body {{ padding:24px; }}
+        .section {{ margin-bottom:20px; }}
+        .section-title {{ font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#64748b; margin-bottom:10px; }}
+        .grid {{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }}
+        @media(max-width:500px) {{ .grid {{ grid-template-columns:1fr; }} }}
+        .field {{ background:#f8fafc; border-radius:10px; padding:12px 14px; }}
+        .field .label {{ font-size:12px; color:#94a3b8; margin-bottom:3px; }}
+        .field .value {{ font-size:15px; font-weight:500; }}
+        .table-wrapper {{ overflow-x:auto; -webkit-overflow-scrolling:touch; }}
+        table {{ width:100%; border-collapse:collapse; font-size:14px; min-width:500px; }}
+        th {{ background:#f8fafc; padding:10px 12px; text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:#64748b; border-bottom:2px solid #e2e8f0; white-space:nowrap; }}
+        td {{ padding:10px 12px; border-bottom:1px solid #e2e8f0; }}
+        .date-col {{ color:#64748b; font-size:13px; white-space:nowrap; }}
+        .status-badge {{ color:#fff; padding:3px 10px; border-radius:12px; font-size:13px; white-space:nowrap; }}
+        .footer {{ text-align:center; padding:16px; color:#94a3b8; font-size:12px; border-top:1px solid #f1f5f9; }}
+        .verified {{ display:flex; align-items:center; justify-content:center; gap:8px; padding:14px; background:#f0fdf4; border-radius:10px; margin-bottom:20px; color:#16a34a; font-weight:600; font-size:15px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <h1>Наряд-допуск {permit.permit_id}</h1>
+                <p>Система HSE — КБМ</p>
+                <div class="badge">{status_label}</div>
+            </div>
+            <div class="body">
+                <div class="verified">&#9989; Документ зарегистрирован в системе HSE KBM</div>
+
+                <div class="section">
+                    <div class="section-title">Основная информация</div>
+                    <div class="grid">
+                        <div class="field"><div class="label">Номер наряда</div><div class="value">{permit.permit_id}</div></div>
+                        <div class="field"><div class="label">Статус</div><div class="value" style="color:{status_color}">{status_label}</div></div>
+                        <div class="field"><div class="label">Инициатор</div><div class="value">{initiator_name}</div></div>
+                        <div class="field"><div class="label">Подразделение</div><div class="value">{location_name}</div></div>
+                        <div class="field"><div class="label">Место работ</div><div class="value">{work_place}</div></div>
+                        <div class="field"><div class="label">Наименование работ</div><div class="value">{work_name}</div></div>
+                        <div class="field"><div class="label">Начало работ</div><div class="value">{fmt(permit.valid_from)}</div></div>
+                        <div class="field"><div class="label">Окончание работ</div><div class="value">{fmt(permit.valid_to)}</div></div>
+                        <div class="field"><div class="label">Дата создания</div><div class="value">{fmt(permit.created_at)}</div></div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Согласование</div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead><tr><th>Роль</th><th>ФИО</th><th>Статус</th><th>Дата</th></tr></thead>
+                            <tbody>{steps_html if steps_html else '<tr><td colspan="4" style="padding:14px;text-align:center;color:#94a3b8;">Нет данных</td></tr>'}</tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="footer">Система HSE KBM &bull; hse.kbm.kz</div>
+        </div>
+    </div>
+</body>
+</html>'''
+
+    return HttpResponse(html, content_type='text/html; charset=utf-8')
 
 
 class AIAssistantView(APIView):

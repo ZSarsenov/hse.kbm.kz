@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError # Для ошибок валидации
@@ -75,6 +76,8 @@ class WorkPermit(models.Model):
                                  null=True, blank=True)
 
     producer_closed = models.BooleanField(default=False, verbose_name='Производитель подтвердил закрытие')
+
+    verify_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, verbose_name='Токен верификации QR')
 
     safety_document = models.FileField(
         upload_to='safety_docs/%Y/%m/',
