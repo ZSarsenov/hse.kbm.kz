@@ -215,13 +215,28 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                                 f"Инициатор: {permit.initiator.get_full_name()}."
                             ),
                         )
+                        if permit.data.get('callFirePost'):
+                            location = permit.data.get('workPlace', 'Не указано')
+                            Notification.objects.create(
+                                user=dispatcher,
+                                permit_id=permit.id,
+                                title="🚨 ВЫЗОВ ПОЖАРНОГО ПОСТА",
+                                message=(
+                                    f"Требуется вызов пожарной бригады!\n"
+                                    f"Наряд-допуск №{permit.permit_id}.\n"
+                                    f"Наименование работ: {work_name}.\n"
+                                    f"Место проведения: {location}.\n"
+                                    f"Инициатор: {permit.initiator.get_full_name()}."
+                                ),
+                            )
                 except Exception:
                     pass
 
             return Response({
                 'ok': True,
-                'status': 'Наряд отправлен на согласование.',
-                'current_status': permit.status
+                'status': f'Наряд №{permit.permit_id} отправлен на согласование.',
+                'current_status': permit.status,
+                'permit_id': permit.permit_id,
             })
         except IntegrityError as e:
             err = str(e)
@@ -597,6 +612,33 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @action(detail=True, methods=['post'], url_path='add_brigade_member')
+    def add_brigade_member(self, request, pk=None):
+        """Добавление члена бригады к согласованному наряду."""
+        permit = self.get_object()
+        if permit.status != 'APPROVED':
+            return Response({'error': 'Добавить члена бригады можно только к согласованному наряду.'}, status=400)
+
+        name = (request.data.get('name') or '').strip()
+        role = (request.data.get('role') or '').strip()
+        instructed_by = (request.data.get('instructedBy') or '').strip()
+        if not name:
+            return Response({'error': 'Укажите ФИО члена бригады.'}, status=400)
+
+        data = dict(permit.data) if permit.data else {}
+        team = data.get('teamMembers') or []
+        team.append({
+            'name': name,
+            'role': role,
+            'instructedBy': instructed_by,
+            'instructedAt': timezone.now().isoformat(),
+        })
+        data['teamMembers'] = team
+        permit.data = data
+        permit.save(update_fields=['data'])
+
+        return Response({'ok': True, 'member_index': len(team) - 1, 'total': len(team)})
+
     @action(detail=True, methods=['post'], url_path='producer_signature')
     def producer_signature(self, request, pk=None):
         """
@@ -865,7 +907,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             if not date_str: return ""
             try:
                 dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-                return dt.strftime('%d.%m.%Y %H:%M')
+                return dt.astimezone(kz_tz).strftime('%d.%m.%Y %H:%M')
             except Exception:
                 return date_str
 

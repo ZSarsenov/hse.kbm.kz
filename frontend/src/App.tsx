@@ -76,7 +76,7 @@ function App() {
         const items = Array.isArray(data) ? data : (data.results || []);
         const formattedPermits = items.map((p: any) => ({
           id: p.id,
-          permitId: p.permit_id,
+          permitId: p.permit_id || 'Черновик',
           templateType: p.templateType || 'Наряд повышенной опасности',
           status: p.status,
           scan_file: p.scan_file,
@@ -126,7 +126,7 @@ function App() {
                 // Форматируем данные
                 const formattedPermit: WorkPermit = {
                     id: p.id,
-                    permitId: p.permit_id,
+                    permitId: p.permit_id || 'Черновик',
                     templateType: p.templateType || 'Наряд повышенной опасности',
                     status: p.status,
                     scan_file: p.scan_file,
@@ -286,7 +286,7 @@ function App() {
       .then(p => {
         const formattedPermit: WorkPermit = {
           id: p.id,
-          permitId: p.permit_id,
+          permitId: p.permit_id || 'Черновик',
           templateType: p.templateType || 'Наряд повышенной опасности',
           status: p.status,
           scan_file: p.scan_file,

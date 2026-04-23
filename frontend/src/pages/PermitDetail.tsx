@@ -88,8 +88,9 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const showReject = permit.status === 'PENDING_APPROVAL' && myPendingSteps.length > 0;
 
   // 👇 ЛОГИКА ДЛЯ КНОПКИ КОПИРОВАНИЯ
-  // Показывать только инициатору, если наряд ОТКЛОНЕН, ЗАКРЫТ или АРХИВИРОВАН.
-  const showDuplicate = isInitiator && (permit.status === 'REJECTED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED');
+  // Показывать инициатору и всем согласантам, если наряд ОТКЛОНЕН, ЗАКРЫТ или АРХИВИРОВАН.
+  const isApprover = steps.some((s: any) => String(s.approver_id) === currentUserId);
+  const showDuplicate = (isInitiator || isApprover) && (permit.status === 'REJECTED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED');
 
   // 👇 НОВОЕ: Показывать кнопку скачивания ТОЛЬКО если наряд согласован или закрыт
   const showDownload = permit.status === 'APPROVED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED';
@@ -97,6 +98,9 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
   const [signingMemberIndex, setSigningMemberIndex] = useState<number | null>(null);
   const [producerPadOpen, setProducerPadOpen] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [newMember, setNewMember] = useState({ name: '', role: '', instructedBy: '' });
+  const [addingMember, setAddingMember] = useState(false);
 
   // --- ЭЛЕКТРОУСТАНОВКИ ---
   const [lifecycle, setLifecycle] = useState<ElectricalLifecycle>({
@@ -501,6 +505,26 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
           </div>
         </div>
 
+        {/* БАННЕР: Вызов пожарного поста (только для dispatcher_semser) */}
+        {data.callFirePost && currentUser.username === 'dispatcher_semser' && (
+          <div className="mx-6 md:mx-8 mt-4 p-4 bg-red-50 border-2 border-red-400 rounded-xl animate-pulse">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 p-3 bg-red-600 rounded-full text-white">
+                <AlertTriangle size={28} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-red-800 uppercase">Требуется вызов пожарной бригады!</h3>
+                <p className="text-red-700 mt-1">
+                  По данному наряду-допуску №{permit.permitId} необходимо обеспечить присутствие пожарного поста на месте проведения работ.
+                </p>
+                <p className="text-red-600 text-sm mt-1 font-medium">
+                  Место: {data.workPlace || 'Не указано'} &bull; Инициатор: {initiator?.name || '—'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* TABS */}
         <div className="border-b border-gray-200 px-6 md:px-8">
            <div className="flex gap-6 overflow-x-auto">
@@ -622,7 +646,52 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
            {activeTab === 'team' && (
                <div className="animate-in fade-in duration-300">
-                   <div className="flex justify-between items-center mb-4"><h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Users size={20} className="text-blue-500"/> Состав бригады</h3><span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">Всего: {data.teamMembers?.length || 0} чел.</span></div>
+                   <div className="flex justify-between items-center mb-4">
+                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Users size={20} className="text-blue-500"/> Состав бригады</h3>
+                     <div className="flex items-center gap-2">
+                       <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">Всего: {data.teamMembers?.length || 0} чел.</span>
+                       {permit.status === 'APPROVED' && (
+                         <button onClick={() => setShowAddMember(!showAddMember)} className="text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-full transition-colors">
+                           + Добавить
+                         </button>
+                       )}
+                     </div>
+                   </div>
+                   {showAddMember && permit.status === 'APPROVED' && (
+                     <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                         <input type="text" placeholder="ФИО" value={newMember.name} onChange={e => setNewMember({...newMember, name: e.target.value})} className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
+                         <input type="text" placeholder="Должность" value={newMember.role} onChange={e => setNewMember({...newMember, role: e.target.value})} className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
+                         <input type="text" placeholder="Инструктаж провел" value={newMember.instructedBy} onChange={e => setNewMember({...newMember, instructedBy: e.target.value})} className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
+                       </div>
+                       <div className="flex gap-2">
+                         <button disabled={addingMember || !newMember.name.trim()} onClick={async () => {
+                           setAddingMember(true);
+                           try {
+                             const token = localStorage.getItem('auth_token');
+                             const res = await fetch(`/api/v1/permits/${permit.id}/add_brigade_member/`, {
+                               method: 'POST',
+                               headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Token ${token}` } : {}) },
+                               body: JSON.stringify(newMember),
+                             });
+                             if (res.ok) {
+                               setNewMember({ name: '', role: '', instructedBy: '' });
+                               setShowAddMember(false);
+                               onRefresh?.();
+                             } else {
+                               const err = await res.json().catch(() => ({}));
+                               alert(err.error || 'Ошибка');
+                             }
+                           } finally { setAddingMember(false); }
+                         }} className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                           {addingMember ? 'Сохранение...' : 'Сохранить'}
+                         </button>
+                         <button onClick={() => { setShowAddMember(false); setNewMember({ name: '', role: '', instructedBy: '' }); }} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-300">
+                           Отмена
+                         </button>
+                       </div>
+                     </div>
+                   )}
                    {data.teamMembers && data.teamMembers.length > 0 ? (
                        <div className="overflow-x-auto border border-gray-200 rounded-lg">
                            <table className="w-full text-left text-sm">

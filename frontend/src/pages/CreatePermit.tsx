@@ -70,6 +70,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
   const [activeStep, setActiveStep] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notifyFireService, setNotifyFireService] = useState(false);
+  const [callFirePost, setCallFirePost] = useState(false);
 
   // Form State strictly following Item 1-10 of Order 344 + Risk + LOTO
   const [formData, setFormData] = useState<RegulationFormData>({
@@ -188,7 +189,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       extensions: formData.extensions,
       templateType: 'Наряд повышенной опасности',
       category: category,
-      notifyFireService: notifyFireService
+      notifyFireService: notifyFireService,
+      callFirePost: callFirePost
     };
 
     return {
@@ -258,7 +260,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      handleBeforeUnload();
+    };
   }, [canAutoSaveDraft, draftPermitId, isEditing, initialData?.id, formData, roles, additionalCoordinators, teamMembers, checklistData, activeStep]);
 
   // Загружаем справочники
@@ -337,7 +342,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
           // 3. Восстанавливаем сложные массивы (Бригада, Риски, Расширения)
           if (savedData.teamMembers) setTeamMembers(savedData.teamMembers);
           if (savedData.checklist) setChecklistData(savedData.checklist);
-          // Остальные массивы (riskTable, extensions) уже попали через setFormData
+          if (savedData.notifyFireService) setNotifyFireService(true);
+          if (savedData.callFirePost) setCallFirePost(true);
 
       } else if (!isEditing) {
           // --- РЕЖИМ СОЗДАНИЯ: поле "Наряд выдал" оставляем пустым — выбирает сам создатель
@@ -495,7 +501,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
         }
 
         if (result?.id) setDraftPermitId(Number(result.id));
-        alert(isEditing ? '✅ Наряд успешно обновлен!' : `✅ Наряд №${result.permit_id} успешно создан!`);
+        alert(isEditing ? '✅ Наряд успешно обновлен!' : '✅ Черновик наряда сохранён. Номер будет присвоен при отправке на согласование.');
         onSubmit();
       } else {
         // Пробуем прочитать JSON-ошибку, если не получится — читаем текст
@@ -521,6 +527,13 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
     }
   };
 
+  const handleCancel = async () => {
+    if (canAutoSaveDraft && hasMeaningfulData()) {
+      await persistDraft();
+    }
+    onCancel();
+  };
+
   const commonInputClasses = "w-full bg-[#f7f7f7] border-gray-300 rounded-md px-4 py-3 text-lg text-gray-900 focus:ring-blue-500 focus:border-blue-500 border transition-colors placeholder-gray-400 max-w-full";
 
   return (
@@ -528,7 +541,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
       {/* Header */}
       <div className="flex items-center gap-4 mb-2">
-         <button onClick={onCancel} className="p-2 -ml-2 hover:bg-gray-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+         <button onClick={handleCancel} className="p-2 -ml-2 hover:bg-gray-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
             <ArrowLeft size={28} />
          </button>
          <div className="flex-1">
@@ -647,7 +660,11 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                  <div className="md:col-span-2">
                    <label className="flex items-center gap-3 cursor-pointer select-none">
                      <div
-                       onClick={() => setNotifyFireService(!notifyFireService)}
+                       onClick={() => {
+                         const next = !notifyFireService;
+                         setNotifyFireService(next);
+                         if (!next) setCallFirePost(false);
+                       }}
                        className={`relative w-12 h-7 rounded-full transition-colors ${notifyFireService ? 'bg-red-500' : 'bg-gray-300'}`}
                      >
                        <div className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${notifyFireService ? 'translate-x-5' : ''}`} />
@@ -660,6 +677,24 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                      )}
                    </label>
                  </div>
+                 {notifyFireService && (
+                   <div className="md:col-span-2">
+                     <label className="flex items-center gap-3 cursor-pointer select-none">
+                       <div
+                         onClick={() => setCallFirePost(!callFirePost)}
+                         className={`relative w-12 h-7 rounded-full transition-colors ${callFirePost ? 'bg-orange-500' : 'bg-gray-300'}`}
+                       >
+                         <div className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${callFirePost ? 'translate-x-5' : ''}`} />
+                       </div>
+                       <span className="text-lg font-medium text-gray-700">
+                         Вызвать пожарный пост
+                       </span>
+                       {callFirePost && (
+                         <span className="text-sm text-orange-600 font-medium">(диспетчер получит срочное уведомление о вызове пожарной бригады)</span>
+                       )}
+                     </label>
+                   </div>
+                 )}
               </div>
            </div>
 

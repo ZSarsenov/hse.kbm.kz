@@ -50,7 +50,7 @@ class WorkPermit(models.Model):
 
     status = FSMField(max_length=20, choices=STATUS_CHOICES, default='DRAFT', verbose_name='Статус наряда', protected=True)
 
-    permit_id = models.CharField(max_length=50, unique=True, verbose_name='Номер наряда')
+    permit_id = models.CharField(max_length=50, unique=True, null=True, blank=True, verbose_name='Номер наряда')
 
     # Ссылка на инициатора (работник, который создал наряд)
     initiator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
@@ -98,6 +98,21 @@ class WorkPermit(models.Model):
         """
         if not self.data:
             raise ValidationError("Нельзя отправить пустой наряд. Заполните данные.")
+
+        # Генерация номера наряда при первой отправке
+        if not self.permit_id:
+            import time
+            current_year = time.strftime('%Y')
+            prefix = f"OR-{current_year}-"
+            last_permit = WorkPermit.objects.filter(
+                permit_id__startswith=prefix
+            ).order_by('-permit_id').first()
+            if last_permit:
+                last_number = int(last_permit.permit_id.split('-')[-1])
+                next_number = last_number + 1
+            else:
+                next_number = 1
+            self.permit_id = f"{prefix}{next_number:05d}"
 
         # Повторная отправка после отклонения: тот же наряд, тот же номер, подписи сохраняются
         if self.status == self.STATUS_REJECTED:
@@ -237,7 +252,7 @@ class WorkPermit(models.Model):
         ordering = ('-created_at',)
 
     def __str__(self):
-        return f'{self.permit_id} ({self.status})'
+        return f'{self.permit_id or "Черновик"} ({self.status})'
 
 
 class ApprovalStep(models.Model):
