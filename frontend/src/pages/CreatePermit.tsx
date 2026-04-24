@@ -364,7 +364,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
   const addTeamMember = () => {
     const newId = (teamMembers.length + 1).toString();
-    setTeamMembers([...teamMembers, { id: newId, name: '', role: '', instructedAt: '', instructedBy: '' }]);
+    const admittingName = roles.admitting?.name || '';
+    setTeamMembers([...teamMembers, { id: newId, name: '', role: '', instructedAt: '', instructedBy: admittingName }]);
   };
 
   const removeTeamMember = (id: string) => {
@@ -1070,10 +1071,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                              <td className="px-3 py-2">
                                <input
                                  type="text"
-                                 value={member.instructedBy || ''}
-                                 onChange={(e) => updateTeamMember(member.id, 'instructedBy', e.target.value)}
-                                 className="w-full bg-[#f7f7f7] border-gray-300 rounded px-2 py-2 text-lg text-gray-900 border focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
-                                 placeholder="Ф.И.О."
+                                 value={roles.admitting?.name || member.instructedBy || ''}
+                                 readOnly
+                                 className="w-full bg-gray-100 border-gray-200 rounded px-2 py-2 text-lg text-gray-600 border cursor-not-allowed"
+                                 placeholder="Допускающий к работе"
                                />
                              </td>
                              <td className="px-3 py-2">

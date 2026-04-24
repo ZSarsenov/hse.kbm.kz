@@ -603,6 +603,10 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 sigs.append(None)
             sigs[member_index] = rel_path
             data['brigade_signatures'] = sigs
+            team = data.get('teamMembers') or []
+            if member_index < len(team) and not team[member_index].get('instructedAt'):
+                team[member_index]['instructedAt'] = timezone.now().isoformat()
+                data['teamMembers'] = team
             permit.data = data
             permit.save(update_fields=['data'])
             return Response({'ok': True, 'member_index': member_index, 'signature_path': rel_path})
@@ -621,16 +625,24 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
         name = (request.data.get('name') or '').strip()
         role = (request.data.get('role') or '').strip()
-        instructed_by = (request.data.get('instructedBy') or '').strip()
         if not name:
             return Response({'error': 'Укажите ФИО члена бригады.'}, status=400)
+
+        admitting_step = permit.approval_steps.filter(role='ADMITTING').first()
+        admitting_name = ''
+        if admitting_step and admitting_step.approver:
+            admitting_name = admitting_step.approver.get_full_name()
+        elif permit.data:
+            adm = permit.data.get('admitting') or {}
+            if isinstance(adm, dict):
+                admitting_name = adm.get('name', '')
 
         data = dict(permit.data) if permit.data else {}
         team = data.get('teamMembers') or []
         team.append({
             'name': name,
             'role': role,
-            'instructedBy': instructed_by,
+            'instructedBy': admitting_name,
             'instructedAt': timezone.now().isoformat(),
         })
         data['teamMembers'] = team
@@ -990,7 +1002,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 'date': format_str_date(m.get('instructedAt')),
                 'name': m.get('name', ''),
                 'job': m.get('role', ''),
-                'instr_by': m.get('instructedBy', ''),
+                'instr_by': admit_info['name'],
             }
             sig_path = sig_paths[idx - 1] if idx - 1 < len(sig_paths) else None
             if sig_path:

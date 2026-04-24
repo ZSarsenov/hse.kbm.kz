@@ -659,11 +659,11 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                    </div>
                    {showAddMember && permit.status === 'APPROVED' && (
                      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                          <input type="text" placeholder="ФИО" value={newMember.name} onChange={e => setNewMember({...newMember, name: e.target.value})} className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
                          <input type="text" placeholder="Должность" value={newMember.role} onChange={e => setNewMember({...newMember, role: e.target.value})} className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
-                         <input type="text" placeholder="Инструктаж провел" value={newMember.instructedBy} onChange={e => setNewMember({...newMember, instructedBy: e.target.value})} className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
                        </div>
+                       <p className="text-xs text-gray-500 mb-3">Инструктаж провел: <span className="font-medium text-gray-700">{data.admitting?.name || 'Допускающий к работе'}</span> (заполняется автоматически)</p>
                        <div className="flex gap-2">
                          <button disabled={addingMember || !newMember.name.trim()} onClick={async () => {
                            setAddingMember(true);
