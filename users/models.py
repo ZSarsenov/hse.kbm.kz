@@ -25,6 +25,10 @@ class User(AbstractUser):
                                    null=True, blank=True, verbose_name='Департамент')
     surname = models.CharField(max_length=150, blank=True, verbose_name='Отчество')
 
+    @property
+    def is_admin(self):
+        return self.role == 'ADMIN' or self.is_superuser
+
     def get_full_name(self):
         # Используем "или пустая строка", чтобы избежать ошибок
         parts = [

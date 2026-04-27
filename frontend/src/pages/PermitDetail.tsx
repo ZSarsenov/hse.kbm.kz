@@ -27,6 +27,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // 1. ПОЛУЧАЕМ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ
   const currentUser = JSON.parse(localStorage.getItem('user_data') || '{}');
   const currentUserId = String(currentUser.id || currentUser.user_id);
+  const isAdmin = currentUser.is_admin || currentUser.role === 'ADMIN';
 
   // 2. ОПРЕДЕЛЯЕМ РОЛЬ
   const initiatorId = String(initiator.id || data.issuer?.id || '');
@@ -92,7 +93,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const isApprover = steps.some((s: any) => String(s.approver_id) === currentUserId);
   const showDuplicate = (isInitiator || isApprover) && (permit.status === 'REJECTED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED');
 
-  // 👇 НОВОЕ: Показывать кнопку скачивания ТОЛЬКО если наряд согласован или закрыт
+  // Показывать кнопку скачивания: согласован/закрыт, или администратор видит всё
   const showDownload = permit.status === 'APPROVED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED';
 
 

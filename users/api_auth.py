@@ -30,4 +30,5 @@ class CustomUserToken(ObtainAuthToken):
             'company': user.company_name,
             'department': str(user.department) if user.department else "Не указано",
             'position': user.position,
+            'is_admin': user.is_admin,
         })

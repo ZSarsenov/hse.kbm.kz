@@ -148,7 +148,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_superuser:
+        if user.is_admin:
             return WorkPermit.objects.all()
         q = Q(initiator=user) | Q(approval_steps__approver=user)
         if user.username == 'dispatcher_semser':
@@ -1721,7 +1721,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         user = self.request.user
 
         # 👇 ПРОВЕРКА РОЛИ: создавать наряд могут только Выдающий наряд (ISSUER), Допускающий (ADMITTING) или Админ
-        if user.role not in ('ISSUER', 'ADMITTING') and not user.is_superuser:
+        if user.role not in ('ISSUER', 'ADMITTING') and not user.is_admin:
             raise PermissionDenied("Создавать наряды могут только пользователи с ролями «Выдающий наряд» или «Допускающий».")
 
         # Если проверка пройдена, сохраняем (ваш старый код инициатора)
@@ -1742,7 +1742,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             (permit.status == 'PENDING_APPROVAL' and permit.approval_steps.filter(
                 approver=user, status='PENDING', role__in=['RESPONSIBLE', 'ADMITTING', 'WORK_PRODUCER']
             ).exists()) or
-            user.is_superuser
+            user.is_admin
         )
         if not can_edit:
             return Response({'error': 'Нет прав на прикрепление документа.'}, status=403)
@@ -1806,7 +1806,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             role__in=['ISSUER', 'ADMITTING'], approver=user, status='APPROVED'
         ).exists()
 
-        can_close = is_producer or (external_producer and is_issuer_or_admitting) or user.is_superuser
+        can_close = is_producer or (external_producer and is_issuer_or_admitting) or user.is_admin
 
         if not can_close:
             return Response(
@@ -1876,7 +1876,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             if str(admitting_data.get('id')) == str(user.id):
                 is_admitting = True
 
-        if not is_admitting and not user.is_superuser:
+        if not is_admitting and not user.is_admin:
             return Response({'error': 'Только Допускающий имеет право закрыть наряд.'}, status=403)
 
         # 4. Закрываем наряд
