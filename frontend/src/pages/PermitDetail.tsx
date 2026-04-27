@@ -28,6 +28,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const currentUser = JSON.parse(localStorage.getItem('user_data') || '{}');
   const currentUserId = String(currentUser.id || currentUser.user_id);
   const isAdmin = currentUser.is_admin || currentUser.role === 'ADMIN';
+  const isAuditor = currentUser.is_auditor || currentUser.role === 'AUDITOR';
 
   // 2. ОПРЕДЕЛЯЕМ РОЛЬ
   const initiatorId = String(initiator.id || data.issuer?.id || '');
@@ -72,26 +73,19 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   );
 
   // Кнопка "Закрыть наряд" — Производитель работ (шаг 1)
-  const showProducerClose = permit.status === 'APPROVED' && !permit.producer_closed &&
+  const showProducerClose = !isAuditor && permit.status === 'APPROVED' && !permit.producer_closed &&
     (isProducerUser || canActForExternalProducer);
 
   // Кнопка "Закрыть наряд" — Допускающий (шаг 2, только после производителя)
-  const showAdmittingClose = permit.status === 'APPROVED' && !!permit.producer_closed && !!isAdmittingUser;
+  const showAdmittingClose = !isAuditor && permit.status === 'APPROVED' && !!permit.producer_closed && !!isAdmittingUser;
 
-  // 3. ЛОГИКА ВИДИМОСТИ КНОПОК
-  // Кнопка "Отправить на согласование" — создатель черновика или отклонённого наряда (без подписи ЭЦП)
-  const showSubmitForApproval = (permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator;
+  // 3. ЛОГИКА ВИДИМОСТИ КНОПОК (аудитор — только просмотр и скачивание)
+  const showSubmitForApproval = !isAuditor && (permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator;
+  const showApprove = !isAuditor && permit.status === 'PENDING_APPROVAL' && myPendingSteps.length > 0;
+  const showReject = !isAuditor && permit.status === 'PENDING_APPROVAL' && myPendingSteps.length > 0;
 
-  // Кнопка "Согласовать (ЭЦП)" — только те, кого указали в наряде и кому пришла очередь
-  const showApprove = permit.status === 'PENDING_APPROVAL' && myPendingSteps.length > 0;
-
-  // Кнопка "Отклонить" (если есть хотя бы один активный шаг)
-  const showReject = permit.status === 'PENDING_APPROVAL' && myPendingSteps.length > 0;
-
-  // 👇 ЛОГИКА ДЛЯ КНОПКИ КОПИРОВАНИЯ
-  // Показывать инициатору и всем согласантам, если наряд ОТКЛОНЕН, ЗАКРЫТ или АРХИВИРОВАН.
   const isApprover = steps.some((s: any) => String(s.approver_id) === currentUserId);
-  const showDuplicate = (isInitiator || isApprover) && (permit.status === 'REJECTED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED');
+  const showDuplicate = !isAuditor && (isInitiator || isApprover) && (permit.status === 'REJECTED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED');
 
   // Показывать кнопку скачивания: согласован/закрыт, или администратор видит всё
   const showDownload = permit.status === 'APPROVED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED';
@@ -651,7 +645,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                      <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Users size={20} className="text-blue-500"/> Состав бригады</h3>
                      <div className="flex items-center gap-2">
                        <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">Всего: {data.teamMembers?.length || 0} чел.</span>
-                       {permit.status === 'APPROVED' && (
+                       {permit.status === 'APPROVED' && !isAuditor && (
                          <button onClick={() => setShowAddMember(!showAddMember)} className="text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-full transition-colors">
                            + Добавить
                          </button>
@@ -722,7 +716,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                        <td className="px-4 py-3">
                                          {hasSig ? (
                                            <img src={getSignatureUrl(sigPath)} alt="Подпись" className="h-10 object-contain bg-gray-50 border border-gray-200 rounded" />
-                                         ) : (
+                                         ) : !isAuditor ? (
                                            <button
                                              type="button"
                                              onClick={() => setSigningMemberIndex(idx)}
@@ -730,6 +724,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                            >
                                              Подписать
                                            </button>
+                                         ) : (
+                                           <span className="text-gray-400 text-sm">—</span>
                                          )}
                                        </td>
                                      )}
@@ -880,9 +876,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 </button>
             )}
 
-            {/* 2. РЕДАКТИРОВАТЬ / УДАЛИТЬ */}
-            {/* Показываем: автор черновика/отклонённого ИЛИ согласующий с правом редактирования */}
-            {(((permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator) || canEditAsManager) && (
+            {/* 2. РЕДАКТИРОВАТЬ / УДАЛИТЬ (аудитор не видит) */}
+            {!isAuditor && (((permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator) || canEditAsManager) && (
                 <>
                     {/* Кнопка Удалить - только для черновика и только для автора */}
                     {permit.status === 'DRAFT' && isInitiator && (

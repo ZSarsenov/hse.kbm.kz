@@ -29,6 +29,15 @@ class User(AbstractUser):
     def is_admin(self):
         return self.role == 'ADMIN' or self.is_superuser
 
+    @property
+    def is_auditor(self):
+        return self.role == 'AUDITOR'
+
+    def save(self, *args, **kwargs):
+        if self.role == 'ADMIN' and not self.is_staff:
+            self.is_staff = True
+        super().save(*args, **kwargs)
+
     def get_full_name(self):
         # Используем "или пустая строка", чтобы избежать ошибок
         parts = [

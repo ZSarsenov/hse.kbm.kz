@@ -148,7 +148,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_admin:
+        if user.is_admin or user.is_auditor:
             return WorkPermit.objects.all()
         q = Q(initiator=user) | Q(approval_steps__approver=user)
         if user.username == 'dispatcher_semser':
@@ -1675,6 +1675,16 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         permit = get_object_or_404(WorkPermit, pk=pk)
         return HttpResponseRedirect(f'/api/v1/verify/{permit.verify_token}/')
 
+    def destroy(self, request, *args, **kwargs):
+        user = request.user
+        if user.is_auditor:
+            return Response({'error': 'Аудитор не может удалять наряды.'}, status=403)
+        permit = self.get_object()
+        if permit.status != 'DRAFT' or permit.initiator != user:
+            if not user.is_admin:
+                return Response({'error': 'Удалять можно только свои черновики.'}, status=403)
+        return super().destroy(request, *args, **kwargs)
+
     def perform_update(self, serializer):
         """
         Логика сохранения:
@@ -1685,6 +1695,9 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         """
         permit = self.get_object()
         user = self.request.user
+
+        if user.is_auditor:
+            raise PermissionDenied("Аудитор не может редактировать наряды.")
 
         # 1. Инициатор (Выдающий наряд) редактирует черновик или отклонённый наряд — без ограничений
         if permit.initiator == user and permit.status in ('DRAFT', 'REJECTED'):
