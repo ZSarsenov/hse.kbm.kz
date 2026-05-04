@@ -80,7 +80,15 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const showAdmittingClose = !isAuditor && permit.status === 'APPROVED' && !!permit.producer_closed && !!isAdmittingUser;
 
   // 3. ЛОГИКА ВИДИМОСТИ КНОПОК (аудитор — только просмотр и скачивание)
-  const showSubmitForApproval = !isAuditor && (permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator;
+  const hasRequiredFields = !!(
+    data.workName &&
+    data.workPlace &&
+    data.issuer?.id &&
+    data.admitting?.id &&
+    (data.producer?.id || data.producer?.name) &&
+    data.teamMembers?.length > 0
+  );
+  const showSubmitForApproval = !isAuditor && (permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator && hasRequiredFields;
   const showApprove = !isAuditor && permit.status === 'PENDING_APPROVAL' && myPendingSteps.length > 0;
   const showReject = !isAuditor && permit.status === 'PENDING_APPROVAL' && myPendingSteps.length > 0;
 
@@ -902,6 +910,12 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                    <FileSignature size={18} />
                    Отправить на согласование
                 </button>
+            )}
+            {!isAuditor && (permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator && !hasRequiredFields && (
+                <div className="flex items-center text-amber-700 text-sm px-4 bg-amber-50 rounded-lg border border-amber-200 py-2.5 gap-2">
+                   <AlertTriangle size={16} />
+                   Наряд не заполнен полностью. Откройте редактирование и заполните обязательные поля.
+                </div>
             )}
 
             {/* Если несколько ролей - показываем кнопки для каждой роли */}
