@@ -418,7 +418,7 @@ function App() {
         {/* ОТЧЕТЫ LOTO */}
         {currentView === 'LOTO_REPORTS' && (
           <LotoReports
-             onNavigateToPermit={() => alert('Функция в разработке')}
+             onNavigateToPermit={handleSelectPermit}
           />
         )}
       </Layout>

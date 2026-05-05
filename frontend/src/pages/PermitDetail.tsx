@@ -10,6 +10,7 @@ import { ApprovalTracker } from '../components/ApprovalTracker';
 import { FileCheck, ClipboardList } from 'lucide-react';
 import ChecklistSection, { ChecklistData } from '../components/ChecklistSection';
 import { SignaturePadModal, getSignatureUrl } from '../components/SignaturePadModal';
+import { IsolationMatrixForm } from '../components/IsolationMatrixForm';
 
 interface PermitDetailProps {
   permit: WorkPermit;
@@ -131,7 +132,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   }
 
   // --- ОБЫЧНЫЕ НАРЯДЫ ---
-  const [activeTab, setActiveTab] = useState<'info' | 'safety' | 'team' | 'checklist'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'safety' | 'team' | 'checklist' | 'loto'>('info');
   const { signXml, loading, error: ncaError } = useNCALayer();
   const [producerClosePadOpen, setProducerClosePadOpen] = useState(false);
 
@@ -391,6 +392,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
     { id: 'safety', label: 'Меры безопасности' },
     { id: 'team', label: 'Бригада' },
     { id: 'checklist', label: 'Чек лист' },
+    ...(data.lotoEnabled ? [{ id: 'loto', label: 'LOTO' }] : []),
   ];
 
   const renderUserName = (userObj: any, fallback: string = '—') => {
@@ -825,6 +827,16 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                            Чек-лист не заполнен
                        </div>
                    )}
+               </div>
+           )}
+
+           {activeTab === 'loto' && data.lotoEnabled && (
+               <div className="animate-in fade-in duration-300">
+                   <IsolationMatrixForm
+                     data={data.isolationMatrix || {}}
+                     onChange={() => {}}
+                     readOnly={true}
+                   />
                </div>
            )}
 

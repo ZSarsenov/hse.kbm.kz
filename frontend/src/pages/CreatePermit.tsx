@@ -90,7 +90,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
     // LOTO
     lotoEnabled: false,
     isolationMatrix: {
-       department: 'Ремонтно-механический цех (РМЦ)',
+       department: '',
        site: '',
        dateDeveloped: new Date().toISOString().split('T')[0],
        dateRevised: new Date().toISOString().split('T')[0],
@@ -262,7 +262,6 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      handleBeforeUnload();
     };
   }, [canAutoSaveDraft, draftPermitId, isEditing, initialData?.id, formData, roles, additionalCoordinators, teamMembers, checklistData, activeStep]);
 
@@ -359,7 +358,20 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
 
   const updateForm = (field: keyof RegulationFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [field]: value };
+      if (field === 'department' || field === 'workPlace' || field === 'contractor') {
+        const dept = field === 'department' ? value : next.department;
+        const isContractor = dept === 'Подрядная организация';
+        const contractorName = field === 'contractor' ? value : next.contractor;
+        next.isolationMatrix = {
+          ...next.isolationMatrix,
+          department: isContractor ? (contractorName || '') : (dept || next.isolationMatrix.department),
+          site: field === 'workPlace' ? value : next.workPlace || next.isolationMatrix.site,
+        };
+      }
+      return next;
+    });
   };
 
   const addTeamMember = () => {
