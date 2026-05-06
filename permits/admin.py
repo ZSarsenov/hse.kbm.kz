@@ -14,8 +14,8 @@ class WorkPermitTemplateAdmin(admin.ModelAdmin):
 
 @admin.register(Department)
 class DepartmentAdmin(admin.ModelAdmin):
-    list_display = ('name',)
-    search_fields = ('name',)
+    list_display = ('name', 'name_kk')
+    search_fields = ('name', 'name_kk')
 
 @admin.register(Location)
 class LocationAdmin(admin.ModelAdmin):
@@ -25,8 +25,8 @@ class LocationAdmin(admin.ModelAdmin):
 
 @admin.register(DangerousWorkType)
 class DangerousWorkTypeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'color_code')
-    search_fields = ('name',)
+    list_display = ('name', 'name_kk', 'color_code')
+    search_fields = ('name', 'name_kk')
 
 
 @admin.register(WorkPermit)

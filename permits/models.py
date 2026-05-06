@@ -321,6 +321,7 @@ class Department(models.Model):
     """
 
     name = models.CharField(max_length=255, unique=True, verbose_name='Название департамента')
+    name_kk = models.CharField(max_length=255, blank=True, default='', verbose_name='Атауы (қазақша)')
 
     class Meta:
         verbose_name = 'Департамент'
@@ -358,7 +359,8 @@ class DangerousWorkType(models.Model):
     """
     Модуль 'Виды опасных работ' [cite: 509]
     """
-    name = models.CharField(max_length=255, unique=True, verbose_name='Вид опасных работ')
+    name = models.CharField(max_length=512, unique=True, verbose_name='Вид опасных работ')
+    name_kk = models.CharField(max_length=512, blank=True, default='', verbose_name='Атауы (қазақша)')
     # Требуется функция 'редактирования цветов рамок, изображений для идентификации' [cite: 511]
     color_code = models.CharField(max_length=7, default="#FF0000", verbose_name='Цвет рамки (HEX)')
 

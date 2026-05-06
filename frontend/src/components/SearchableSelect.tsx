@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search, ChevronDown, Loader2 } from 'lucide-react';
 
 interface Option {
@@ -20,6 +21,8 @@ interface SearchableSelectProps {
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   label, value, onChange, apiEndpoint, placeholder, disabled, additionalOptions = []
 }) => {
+  const { i18n } = useTranslation();
+  const isKk = i18n.language === 'kk';
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(value || '');
   const [options, setOptions] = useState<Option[]>([]);
@@ -58,11 +61,9 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           const data = await response.json();
           const results = Array.isArray(data) ? data : (data.results || []);
 
-          // Маппинг данных с сервера
           const serverOptions: Option[] = results.map((item: any) => ({
             id: item.id,
-            label: item.name || item.full_name || item.title || 'Без названия',
-            // 👇 ИСПРАВЛЕНИЕ 2: Убрали item.color_code, чтобы не показывать #FF0000
+            label: (isKk && item.name_kk) ? item.name_kk : (item.name || item.full_name || item.title || 'Без названия'),
             subLabel: item.position || ''
           }));
 
@@ -81,7 +82,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchTerm, isOpen, apiEndpoint, additionalOptions]); // Добавили additionalOptions в зависимости
+  }, [searchTerm, isOpen, apiEndpoint, additionalOptions, isKk]);
 
   const handleSelect = (opt: Option) => {
     setSearchTerm(opt.label);
@@ -130,7 +131,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
             ))
           ) : (
             <div className="p-3 text-center text-gray-500 text-sm">
-               {loading ? 'Загрузка...' : 'Ничего не найдено'}
+               {loading ? (isKk ? 'Жүктелуде...' : 'Загрузка...') : (isKk ? 'Ештеңе табылмады' : 'Ничего не найдено')}
             </div>
           )}
         </div>

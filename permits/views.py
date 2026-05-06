@@ -1912,9 +1912,8 @@ class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = DepartamentSerializer
     permission_classes = [IsAuthenticated]
 
-    # 👇 Добавляем возможность поиска
     filter_backends = [filters.SearchFilter]
-    search_fields = ['name']
+    search_fields = ['name', 'name_kk']
 
 
 class DangerousWorkTypeViewSet(viewsets.ReadOnlyModelViewSet):
@@ -1925,9 +1924,8 @@ class DangerousWorkTypeViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = DangerousWorkTypeSerializer
     permission_classes = [IsAuthenticated]
 
-    # 👇 Добавляем возможность поиска
     filter_backends = [filters.SearchFilter]
-    search_fields = ['name']
+    search_fields = ['name', 'name_kk']
 
 
 # 👇 НОВЫЙ VIEWSET ДЛЯ УВЕДОМЛЕНИЙ (Колокольчик)

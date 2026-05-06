@@ -115,14 +115,14 @@ class PermitSerializer(serializers.ModelSerializer):
 class DepartamentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
-        fields = ('id', 'name')
+        fields = ('id', 'name', 'name_kk')
 
 
 # 6. Сериализатор для Видов работ
 class DangerousWorkTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = DangerousWorkType
-        fields = ('id', 'name', 'color_code')
+        fields = ('id', 'name', 'name_kk', 'color_code')
 
 
 # 7. Сериализатор для уведомления

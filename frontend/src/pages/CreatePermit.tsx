@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Plus, Trash2, Save, FileText, AlertTriangle, Users, CheckCircle2, Lock, Zap, ShieldAlert, Building, Edit3, ClipboardCheck, Paperclip, X } from 'lucide-react';
 import { TeamMember, RegulationFormData, UserRole, WORK_TYPES_LIST, RiskTableRow, RiskGroupMember, PermitExtension, PermitCategory, WorkPermit } from '../types';
 import { IsolationMatrixForm } from '../components/IsolationMatrixForm';
@@ -24,17 +25,20 @@ interface CreatePermitProps {
   initialData?: WorkPermit | null; // 👈 Для редактирования
 }
 
-// 1. General Info, 2. Team, 3. Risk, 4. LOTO
-const STEPS = [
-  { id: 1, label: 'Общие сведения', icon: FileText },
-  { id: 2, label: 'Состав бригады', icon: Users },
-  { id: 3, label: 'Оценка риска', icon: AlertTriangle },
-  { id: 4, label: 'LOTO', icon: Lock },
-];
+// Step icons (labels are translated inside component)
+const STEP_ICONS = [FileText, Users, AlertTriangle, Lock];
 
 export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, onSubmit, initialData }) => {
 
   const isEditing = !!initialData;
+  const { t } = useTranslation();
+
+  const STEPS = [
+    { id: 1, label: t('create.steps.general'), icon: STEP_ICONS[0] },
+    { id: 2, label: t('create.steps.brigade'), icon: STEP_ICONS[1] },
+    { id: 3, label: t('create.steps.risk'), icon: STEP_ICONS[2] },
+    { id: 4, label: t('create.steps.loto'), icon: STEP_ICONS[3] },
+  ];
 
   // --- ELECTRICAL PERMIT MODE ---
   if (category === PermitCategory.ELECTRICAL) {
@@ -560,14 +564,14 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
          <div className="flex-1">
              <div className="flex items-center gap-3">
                 <h1 className="text-3xl font-bold text-slate-900 leading-tight">
-                    {isEditing ? `Редактирование: ${initialData?.permitId}` : 'Создание Наряда-Допуска'}
+                    {isEditing ? t('create.editTitle', { id: initialData?.permitId }) : t('create.title')}
                 </h1>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-orange-100 text-orange-700 border-orange-200">
                   <AlertTriangle size={12}/>
-                  Повышенная опасность
+                  {t('create.dangerBadge')}
                 </span>
              </div>
-             <p className="text-lg text-slate-500 font-mono mt-0.5">Форма согласно Приложения 1 к Приказу № 344</p>
+             <p className="text-lg text-slate-500 font-mono mt-0.5">{t('create.formRef')}</p>
          </div>
       </div>
 
@@ -596,20 +600,20 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
            {/* Section 1: Place and Character */}
            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-              <h3 className="font-bold text-gray-900 mb-4 uppercase text-base tracking-wider border-b pb-2">Место и Характер работ</h3>
+              <h3 className="font-bold text-gray-900 mb-4 uppercase text-base tracking-wider border-b pb-2">{t('create.general.sectionTitle')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div>
-                   <label className="block text-lg font-semibold text-gray-700 mb-2">Организация</label>
+                   <label className="block text-lg font-semibold text-gray-700 mb-2">{t('create.general.organization')}</label>
                    <input type="text" value={formData.organization} readOnly className="w-full bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-lg text-gray-500 cursor-not-allowed" />
                  </div>
 
                  <div>
-                   <label className="block text-lg font-semibold text-gray-700 mb-2">Участок / Цех</label>
+                   <label className="block text-lg font-semibold text-gray-700 mb-2">{t('create.general.department')}</label>
                    {/* Компонент поиска */}
                    <SearchableSelect
                         value={formData.department}
                         apiEndpoint="/api/v1/departments/"
-                        placeholder="Начните вводить (например: Цех...)"
+                        placeholder={t('create.general.departmentPlaceholder')}
                         additionalOptions={[
                             { id: 'CONTRACTOR', label: 'Мердігер ұйым / Подрядная организация' }
                         ]}
@@ -627,13 +631,13 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                    {formData.department === 'Подрядная организация' && (
                      <div className="mt-4 animate-in slide-in-from-top-2 duration-200">
                        <label className="block text-sm font-bold text-blue-600 mb-1 flex items-center gap-1.5">
-                         <Building size={14} /> Введите название подрядчика
+                         <Building size={14} /> {t('create.general.contractorLabel')}
                        </label>
                        <input
                          type="text"
                          value={formData.contractor || ''}
                          onChange={(e) => updateForm('contractor', e.target.value)}
-                         placeholder="Напр. ТОО «Сервис-Плюс»"
+                         placeholder={t('create.general.contractorPlaceholder')}
                          className={`${commonInputClasses} border-blue-200 ring-2 ring-blue-50 focus:ring-blue-500 bg-white`}
                          autoFocus
                        />
@@ -643,30 +647,30 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
                  <div className="md:col-span-2">
                     <SearchableSelect
-                        label="Наименование работ"
+                        label={t('create.general.workName')}
                         value={formData.workName}
                         apiEndpoint="/api/v1/work-types/"
-                        placeholder="Введите вид работ (например: Огневые...)"
+                        placeholder={t('create.general.workNamePlaceholder')}
                         onChange={(val) => updateForm('workName', val)}
                     />
                  </div>
                  <div className="md:col-span-2">
-                   <label className="block text-lg font-semibold text-gray-700 mb-2">Допускается к выполнению (Место работы)</label>
+                   <label className="block text-lg font-semibold text-gray-700 mb-2">{t('create.general.workPlace')}</label>
                    <input
                      type="text"
                      value={formData.workPlace}
                      onChange={(e) => updateForm('workPlace', e.target.value)}
-                     placeholder="Укажите точное место..."
+                     placeholder={t('create.general.workPlacePlaceholder')}
                      className={commonInputClasses}
                    />
                  </div>
                  <div className="md:col-span-2">
-                   <label className="block text-lg font-semibold text-gray-700 mb-2">Краткое содержание объема работ</label>
+                   <label className="block text-lg font-semibold text-gray-700 mb-2">{t('create.general.workContent')}</label>
                    <textarea
                      rows={3}
                      value={formData.content}
                      onChange={(e) => updateForm('content', e.target.value)}
-                     placeholder="Опишите, что именно будет делаться..."
+                     placeholder={t('create.general.workContentPlaceholder')}
                      className={commonInputClasses}
                    />
                  </div>
@@ -683,10 +687,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                        <div className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${notifyFireService ? 'translate-x-5' : ''}`} />
                      </div>
                      <span className="text-lg font-medium text-gray-700">
-                       Уведомить противопожарную службу
+                       {t('create.general.notifyFire')}
                      </span>
                      {notifyFireService && (
-                       <span className="text-sm text-red-600 font-medium">(уведомление будет отправлено диспетчеру)</span>
+                       <span className="text-sm text-red-600 font-medium">{t('create.general.notifyFireHint')}</span>
                      )}
                    </label>
                  </div>
@@ -700,10 +704,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                          <div className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${callFirePost ? 'translate-x-5' : ''}`} />
                        </div>
                        <span className="text-lg font-medium text-gray-700">
-                         Вызвать пожарный пост
+                         {t('create.general.callFirePost')}
                        </span>
                        {callFirePost && (
-                         <span className="text-sm text-orange-600 font-medium">(диспетчер получит срочное уведомление о вызове пожарной бригады)</span>
+                         <span className="text-sm text-orange-600 font-medium">{t('create.general.callFirePostHint')}</span>
                        )}
                      </label>
                    </div>
@@ -714,32 +718,32 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
            {/* Section 2: Responsible Persons */}
            <div className={`bg-white p-6 rounded-xl border shadow-sm ${isApprovalEdit ? 'border-orange-200 bg-orange-50/30' : 'border-gray-200'}`}>
               <h3 className="font-bold text-gray-900 mb-4 uppercase text-base tracking-wider border-b pb-2 flex items-center gap-2">
-                Лица, ответственные за безопасность
-                {isApprovalEdit && <span className="text-sm normal-case text-orange-600 font-medium ml-2">🔒 Только для просмотра</span>}
+                {t('create.roles.sectionTitle')}
+                {isApprovalEdit && <span className="text-sm normal-case text-orange-600 font-medium ml-2">🔒 {t('create.roles.readOnlyHint')}</span>}
               </h3>
 
               {/* При редактировании во время согласования — только просмотр */}
               {isApprovalEdit ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <span className="text-xs text-gray-400 uppercase font-bold">Наряд выдал (Выдающий)</span>
+                    <span className="text-xs text-gray-400 uppercase font-bold">{t('create.roles.issuer')}</span>
                     <p className="font-medium text-gray-700 mt-1">{roles.issuer.name || '—'}</p>
                   </div>
                   <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <span className="text-xs text-gray-400 uppercase font-bold">Ответственный руководитель</span>
-                    <p className="font-medium text-gray-700 mt-1">{roles.responsible.name || 'Не назначен'}</p>
+                    <span className="text-xs text-gray-400 uppercase font-bold">{t('create.roles.responsible')}</span>
+                    <p className="font-medium text-gray-700 mt-1">{roles.responsible.name || t('create.roles.notAssigned')}</p>
                   </div>
                   <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <span className="text-xs text-gray-400 uppercase font-bold">Допускающий к работе</span>
+                    <span className="text-xs text-gray-400 uppercase font-bold">{t('create.roles.admitting')}</span>
                     <p className="font-medium text-gray-700 mt-1">{roles.admitting.name || '—'}</p>
                   </div>
                   <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <span className="text-xs text-gray-400 uppercase font-bold">Производитель работ (исполнитель работ)</span>
+                    <span className="text-xs text-gray-400 uppercase font-bold">{t('create.roles.producer')}</span>
                     <p className="font-medium text-gray-700 mt-1">{roles.producer.name || '—'}</p>
                   </div>
                   <div className="md:col-span-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <span className="text-xs text-gray-400 uppercase font-bold">Согласовано (Нач. смены / Участка / Инженер ТБ)</span>
-                    <p className="font-medium text-gray-700 mt-1">{roles.supervisor.name || 'Не назначен'}</p>
+                    <span className="text-xs text-gray-400 uppercase font-bold">{t('create.roles.supervisor')}</span>
+                    <p className="font-medium text-gray-700 mt-1">{roles.supervisor.name || t('create.roles.notAssigned')}</p>
                   </div>
                 </div>
               ) : (
@@ -749,29 +753,29 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                  {/* 1. Наряд выдал (Выдающий) — при создании выбирает сам создатель наряда */}
                  <div>
                    <UserSearchSelect
-                      label="Наряд выдал (Выдающий)"
+                      label={t('create.roles.issuer')}
                       value={roles.issuer.name}
                       requiredRole="ISSUER"
                       onChange={(user) => {
-                         const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
+                         const displayName = user ? `${user.name} (${user.position || t('create.roles.positionNotSet')})` : '';
                          setRoles(prev => ({
                              ...prev,
                              issuer: user ? { id: user.id, name: displayName, role: user.role } : { id: null, name: '' }
                          }));
                       }}
-                      placeholder="Начните вводить фамилию..."
+                      placeholder={t('create.roles.searchPlaceholder')}
                    />
                  </div>
 
                  {/* 2. Ответственный руководитель (необязательный — без звёздочки) */}
                  <div>
                    <UserSearchSelect
-                      label="Ответственный руководитель (если назначается)"
+                      label={t('create.roles.responsible')}
                       value={roles.responsible.name}
                       required={false}
                       requiredRole="RESPONSIBLE"
                       onChange={(user) => {
-                             const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
+                             const displayName = user ? `${user.name} (${user.position || t('create.roles.positionNotSet')})` : '';
                              setRoles(prev => ({
                                  ...prev,
                                  responsible: user
@@ -779,23 +783,23 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                                     : { id: null, name: '' }
                              }));
                          }}
-                      placeholder="Начните вводить фамилию..."
+                      placeholder={t('create.roles.searchPlaceholder')}
                    />
                  </div>
 
                  {/* 3. Допускающий */}
                  <div>
                    <UserSearchSelect
-                      label="Допускающий к работе"
+                      label={t('create.roles.admitting')}
                       value={roles.admitting.name}
                       requiredRole="ADMITTING"
                       onChange={(user) => {
-                         const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
+                         const displayName = user ? `${user.name} (${user.position || t('create.roles.positionNotSet')})` : '';
                          const userData = user ? { id: user.id, name: displayName, role: user.role } : { id: null, name: '' };
                          setRoles(prev => ({ ...prev, admitting: userData }));
                          if (user) updateForm('completionTakeOverName', displayName);
                      }}
-                      placeholder="Начните вводить фамилию..."
+                      placeholder={t('create.roles.searchPlaceholder')}
                    />
                  </div>
 
@@ -804,7 +808,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                    {producerIsExternal ? (
                      <>
                        <label className="block text-sm font-bold text-gray-700 mb-1">
-                         Производитель работ (исполнитель работ)
+                         {t('create.roles.producer')}
                          <span className="text-red-500 ml-1">*</span>
                        </label>
                        <textarea
@@ -817,17 +821,17 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                            }));
                            updateForm('completionHandOverName', e.target.value);
                          }}
-                         placeholder="ФИО и должность одной строкой (как на бумажном наряде)"
+                         placeholder={t('create.roles.externalPlaceholder')}
                          className={commonInputClasses}
                        />
                      </>
                    ) : (
                      <UserSearchSelect
-                       label="Производитель работ (исполнитель работ)"
+                       label={t('create.roles.producer')}
                        value={roles.producer.name}
                        requiredRole="WORK_PRODUCER"
                        onChange={(user) => {
-                         const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
+                         const displayName = user ? `${user.name} (${user.position || t('create.roles.positionNotSet')})` : '';
                          const userData = user
                            ? { id: user.id, name: displayName, role: user.role }
                            : { id: null, name: '' };
@@ -835,7 +839,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                          setRoles((prev) => ({ ...prev, producer: userData }));
                          if (user) updateForm('completionHandOverName', displayName);
                        }}
-                       placeholder="Начните вводить фамилию..."
+                       placeholder={t('create.roles.searchPlaceholder')}
                      />
                    )}
                    <div className="flex justify-end mt-1.5">
@@ -853,7 +857,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                        className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
                      >
                        <Plus size={14} className="shrink-0" />
-                       {producerIsExternal ? 'Выбрать из базы' : 'исполнитель без ЭЦП'}
+                       {producerIsExternal ? t('create.roles.selectFromDb') : t('create.roles.externalProducer')}
                      </button>
                    </div>
                  </div>
@@ -861,18 +865,18 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                  {/* 5. Согласующий (необязательный — без звёздочки) */}
                   <div className="md:col-span-2 border-t pt-4 mt-2">
                    <UserSearchSelect
-                      label="Согласовано (Нач. смены / Участка / Инженер ТБ)"
+                      label={t('create.roles.supervisor')}
                       value={roles.supervisor.name}
                       required={false}
                       requiredRole="COORDINATOR"
                       onChange={(user) => {
-                         const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
+                         const displayName = user ? `${user.name} (${user.position || t('create.roles.positionNotSet')})` : '';
                          setRoles(prev => ({
                              ...prev,
                              supervisor: user ? { id: user.id, name: displayName, role: user.role } : { id: null, name: '' }
                          }));
                       }}
-                      placeholder="Начните вводить фамилию..."
+                      placeholder={t('create.roles.searchPlaceholder')}
                    />
 
                    {/* Дополнительные согласующие (до 5) */}
@@ -880,19 +884,19 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                      <div key={idx} className="mt-3 flex items-start gap-2">
                        <div className="flex-1">
                          <UserSearchSelect
-                           label={`Дополнительный согласующий ${idx + 1}`}
+                           label={t('create.roles.additionalCoord', { n: idx + 1 })}
                            value={coord.name}
                            required={false}
                            requiredRole="COORDINATOR"
                            onChange={(user) => {
-                             const displayName = user ? `${user.name} (${user.position || 'Должность не указана'})` : '';
+                             const displayName = user ? `${user.name} (${user.position || t('create.roles.positionNotSet')})` : '';
                              setAdditionalCoordinators(prev => {
                                const updated = [...prev];
                                updated[idx] = user ? { id: user.id, name: displayName, role: user.role } : { id: null, name: '' };
                                return updated;
                              });
                            }}
-                           placeholder="Начните вводить фамилию..."
+                           placeholder={t('create.roles.searchPlaceholder')}
                          />
                        </div>
                        <button
@@ -913,7 +917,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                        className="mt-3 flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
                      >
                        <Plus size={16} />
-                       Добавить согласующего
+                       {t('create.roles.addCoordinator')}
                      </button>
                    )}
                  </div>
@@ -926,20 +930,20 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
              <h3 className="font-bold text-gray-900 mb-6 uppercase text-base tracking-wider border-b pb-2 flex items-center gap-2">
                <ShieldAlert size={24} className="text-blue-600"/>
-               5. Мероприятия по обеспечению безопасности работ
+               {t('create.safety.sectionTitle')}
              </h3>
              <div className="space-y-5">
                {[
-                 { key: 'm5_1_stop', label: '5.1 Остановить', placeholder: 'Место остановки, положение...' },
-                 { key: 'm5_2_disconnect', label: '5.2 Отключить', placeholder: 'Рубильник, задвижку, магистраль...' },
-                 { key: 'm5_3_install', label: '5.3 Установить', placeholder: 'Тупики, заглушки, сигнальные лампы...' },
-                 { key: 'm5_4_analysis', label: '5.4 Взять пробу для анализа возд. среды', placeholder: 'Указать места и результат анализа, группу загазованности...' },
-                 { key: 'm5_5_fence', label: '5.5 Оградить', placeholder: 'Зону работ, вывесить плакаты...' },
-                 { key: 'm5_6_height', label: '5.6 Меры при работе на высоте/в колодцах', placeholder: 'Леса, пояса, веревки...' },
-                 { key: 'm5_7_warn', label: '5.7 Предупредить', placeholder: 'Машинистов кранов и т.д....' },
-                 { key: 'm5_8_railway', label: '5.8 Меры у Ж/Д путей', placeholder: 'Знаки, плакаты, ограждения...' },
-                 { key: 'm5_9_routes', label: '5.9 Маршруты к месту работы', placeholder: 'Описать безопасный маршрут...' },
-                 { key: 'm5_10_additional', label: '5.10 Дополнительные мероприятия', placeholder: 'Прочие меры...' },
+                 { key: 'm5_1_stop', label: t('create.safety.m5_1'), placeholder: t('create.safety.m5_1_ph') },
+                 { key: 'm5_2_disconnect', label: t('create.safety.m5_2'), placeholder: t('create.safety.m5_2_ph') },
+                 { key: 'm5_3_install', label: t('create.safety.m5_3'), placeholder: t('create.safety.m5_3_ph') },
+                 { key: 'm5_4_analysis', label: t('create.safety.m5_4'), placeholder: t('create.safety.m5_4_ph') },
+                 { key: 'm5_5_fence', label: t('create.safety.m5_5'), placeholder: t('create.safety.m5_5_ph') },
+                 { key: 'm5_6_height', label: t('create.safety.m5_6'), placeholder: t('create.safety.m5_6_ph') },
+                 { key: 'm5_7_warn', label: t('create.safety.m5_7'), placeholder: t('create.safety.m5_7_ph') },
+                 { key: 'm5_8_railway', label: t('create.safety.m5_8'), placeholder: t('create.safety.m5_8_ph') },
+                 { key: 'm5_9_routes', label: t('create.safety.m5_9'), placeholder: t('create.safety.m5_9_ph') },
+                 { key: 'm5_10_additional', label: t('create.safety.m5_10'), placeholder: t('create.safety.m5_10_ph') },
                ].map((field) => (
                  <div key={field.key} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start border-b border-gray-100 pb-4 last:border-0">
                     <label className="md:col-span-1 text-lg font-bold text-gray-700 pt-2">{field.label}</label>
@@ -966,11 +970,11 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                      if (!file) return;
                      const ext = file.name.split('.').pop()?.toLowerCase();
                      if (!['pdf','jpg','jpeg'].includes(ext || '')) {
-                       alert('Разрешены только PDF и JPG.');
+                       alert(t('create.safety.onlyPdfJpg'));
                        return;
                      }
                      if (file.size > maxSafetyDocSizeMb * 1024 * 1024) {
-                       alert(`Файл слишком большой. Максимум: ${maxSafetyDocSizeMb} МБ.`);
+                       alert(t('create.safety.fileTooBig', { size: maxSafetyDocSizeMb }));
                        return;
                      }
                      setSafetyDocumentFile(file);
@@ -982,7 +986,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                      className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 cursor-pointer transition-colors"
                    >
                      <Paperclip size={18} />
-                     Прикрепить документ
+                     {t('create.safety.attachDoc')}
                    </label>
                    {safetyDocumentFile && (
                      <span className="flex items-center gap-2 text-gray-700">
@@ -997,10 +1001,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                      </span>
                    )}
                    {(initialData as any)?.safety_document && !safetyDocumentFile && (
-                     <span className="text-sm text-green-600">Документ уже прикреплён</span>
+                     <span className="text-sm text-green-600">{t('create.safety.docAttached')}</span>
                    )}
                  </div>
-                 <p className="text-xs text-gray-500 mt-1">PDF или JPG, не более {maxSafetyDocSizeMb} МБ</p>
+                 <p className="text-xs text-gray-500 mt-1">{t('create.safety.docFormats', { size: maxSafetyDocSizeMb })}</p>
                </div>
              </div>
            </div>
@@ -1034,9 +1038,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
             {/* Team Table */}
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                <div className="flex justify-between items-center mb-4">
-                 <h3 className="font-bold text-gray-900 uppercase text-base tracking-wider">11. Состав бригады</h3>
+                 <h3 className="font-bold text-gray-900 uppercase text-base tracking-wider">{t('create.brigade.sectionTitle')}</h3>
                  <button onClick={addTeamMember} className="text-base text-blue-600 font-semibold hover:bg-blue-50 px-3 py-1 rounded transition-colors flex items-center gap-1">
-                   <Plus size={20} /> Добавить
+                   <Plus size={20} /> {t('create.brigade.add')}
                  </button>
                </div>
 
@@ -1044,12 +1048,12 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                   <table className="w-full text-lg text-left border border-gray-200 rounded-lg">
                      <thead className="bg-gray-50 text-gray-500 font-semibold text-base">
                         <tr>
-                           <th className="px-3 py-2 w-10">№</th>
-                           <th className="px-3 py-2">Ф.И.О. членов бригады</th>
-                           <th className="px-3 py-2">Профессия / Должность</th>
-                           <th className="px-3 py-2">С условиями работы ознакомлен, инструктаж получил (подпись)</th>
-                           <th className="px-3 py-2">Инструктаж провел (допускающий Ф.И.О., подпись)</th>
-                           <th className="px-3 py-2">Дата/Время инструктажа</th>
+                           <th className="px-3 py-2 w-10">{t('create.brigade.colNo')}</th>
+                           <th className="px-3 py-2">{t('create.brigade.colName')}</th>
+                           <th className="px-3 py-2">{t('create.brigade.colPosition')}</th>
+                           <th className="px-3 py-2">{t('create.brigade.colSignature')}</th>
+                           <th className="px-3 py-2">{t('create.brigade.colInstructor')}</th>
+                           <th className="px-3 py-2">{t('create.brigade.colDate')}</th>
                            <th className="px-3 py-2 w-10"></th>
                         </tr>
                      </thead>
@@ -1063,7 +1067,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                                  value={member.name}
                                  onChange={(e) => updateTeamMember(member.id, 'name', e.target.value)}
                                  className="w-full bg-[#f7f7f7] border-gray-300 rounded px-2 py-2 text-lg text-gray-900 border focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
-                                 placeholder="Фамилия И.О."
+                                 placeholder={t('create.brigade.namePlaceholder')}
                                />
                              </td>
                              <td className="px-3 py-2">
@@ -1072,12 +1076,12 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                                  value={member.role}
                                  onChange={(e) => updateTeamMember(member.id, 'role', e.target.value)}
                                  className="w-full bg-[#f7f7f7] border-gray-300 rounded px-2 py-2 text-lg text-gray-900 border focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
-                                 placeholder="Должность"
+                                 placeholder={t('create.brigade.positionPlaceholder')}
                                />
                              </td>
                              <td className="px-3 py-2 text-center">
                                <div className="bg-gray-100 border border-gray-200 rounded px-2 py-2 text-base text-gray-400 italic">
-                                 Подпись
+                                 {t('create.brigade.signaturePlaceholder')}
                                </div>
                              </td>
                              <td className="px-3 py-2">
@@ -1086,7 +1090,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                                  value={roles.admitting?.name || member.instructedBy || ''}
                                  readOnly
                                  className="w-full bg-gray-100 border-gray-200 rounded px-2 py-2 text-lg text-gray-600 border cursor-not-allowed"
-                                 placeholder="Допускающий к работе"
+                                 placeholder={t('create.brigade.admittingPlaceholder')}
                                />
                              </td>
                              <td className="px-3 py-2">
@@ -1112,9 +1116,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
             {/* 12. Продление наряда-допуска */}
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                <div className="flex justify-between items-center mb-4">
-                 <h3 className="font-bold text-gray-900 uppercase text-base tracking-wider">12. Продление наряда-допуска</h3>
+                 <h3 className="font-bold text-gray-900 uppercase text-base tracking-wider">{t('create.extension.sectionTitle')}</h3>
                  <button onClick={addExtension} className="text-base text-blue-600 font-semibold hover:bg-blue-50 px-3 py-1 rounded transition-colors flex items-center gap-1">
-                   <Plus size={20} /> Добавить запись
+                   <Plus size={20} /> {t('create.extension.addRecord')}
                  </button>
                </div>
 
@@ -1122,20 +1126,20 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                   <table className="w-full text-lg text-left border border-gray-200 rounded-lg">
                      <thead className="bg-gray-50 text-gray-500 font-semibold text-sm">
                         <tr>
-                           <th rowSpan={2} className="px-2 py-2 border-r border-gray-200 w-32">Дата, время</th>
-                           <th colSpan={2} className="px-2 py-2 border-r border-gray-200 text-center border-b">Условия не изменились, смену сдал - производитель работ</th>
-                           <th rowSpan={2} className="px-2 py-2 border-r border-gray-200 w-32">Численный состав заступающей бригады</th>
-                           <th colSpan={2} className="px-2 py-2 border-r border-gray-200 text-center border-b">С условиями работ ознакомлен, смену принял - производитель работ</th>
-                           <th colSpan={2} className="px-2 py-2 text-center border-b">Допуск разрешаю - допускающий к работе в смене</th>
+                           <th rowSpan={2} className="px-2 py-2 border-r border-gray-200 w-32">{t('create.extension.dateTime')}</th>
+                           <th colSpan={2} className="px-2 py-2 border-r border-gray-200 text-center border-b">{t('create.extension.handOver')}</th>
+                           <th rowSpan={2} className="px-2 py-2 border-r border-gray-200 w-32">{t('create.extension.teamCount')}</th>
+                           <th colSpan={2} className="px-2 py-2 border-r border-gray-200 text-center border-b">{t('create.extension.takeOver')}</th>
+                           <th colSpan={2} className="px-2 py-2 text-center border-b">{t('create.extension.admittingShift')}</th>
                            <th rowSpan={2} className="px-2 py-2 w-10"></th>
                         </tr>
                         <tr>
-                            <th className="px-2 py-1 border-r border-gray-200 text-xs text-center">Ф.И.О.</th>
-                            <th className="px-2 py-1 border-r border-gray-200 text-xs text-center w-24">Подпись</th>
-                            <th className="px-2 py-1 border-r border-gray-200 text-xs text-center">Ф.И.О.</th>
-                            <th className="px-2 py-1 border-r border-gray-200 text-xs text-center w-24">Подпись</th>
-                            <th className="px-2 py-1 border-r border-gray-200 text-xs text-center">Ф.И.О.</th>
-                            <th className="px-2 py-1 text-xs text-center w-24">Подпись</th>
+                            <th className="px-2 py-1 border-r border-gray-200 text-xs text-center">{t('create.extension.colName')}</th>
+                            <th className="px-2 py-1 border-r border-gray-200 text-xs text-center w-24">{t('create.extension.colSign')}</th>
+                            <th className="px-2 py-1 border-r border-gray-200 text-xs text-center">{t('create.extension.colName')}</th>
+                            <th className="px-2 py-1 border-r border-gray-200 text-xs text-center w-24">{t('create.extension.colSign')}</th>
+                            <th className="px-2 py-1 border-r border-gray-200 text-xs text-center">{t('create.extension.colName')}</th>
+                            <th className="px-2 py-1 text-xs text-center w-24">{t('create.extension.colSign')}</th>
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-gray-100">
@@ -1145,18 +1149,18 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                                    <input type="datetime-local" value={ext.dateTime} onChange={e => updateExtension(ext.id, 'dateTime', e.target.value)} className={commonInputClasses + " text-sm"} />
                                </td>
                                <td className="p-2 border-r border-gray-100">
-                                   <input type="text" placeholder="ФИО" value={ext.producerHandOverName} onChange={e => updateExtension(ext.id, 'producerHandOverName', e.target.value)} className={commonInputClasses + " text-sm"} />
+                                   <input type="text" placeholder={t('create.extension.namePlaceholder')} value={ext.producerHandOverName} onChange={e => updateExtension(ext.id, 'producerHandOverName', e.target.value)} className={commonInputClasses + " text-sm"} />
                                </td>
                                <td className="p-2 border-r border-gray-100 bg-gray-50/30"></td>
                                <td className="p-2 border-r border-gray-100">
                                    <input type="number" min={0} value={ext.incomingTeamCount} onChange={e => updateExtension(ext.id, 'incomingTeamCount', parseInt(e.target.value))} className={commonInputClasses + " text-sm"} />
                                </td>
                                <td className="p-2 border-r border-gray-100">
-                                   <input type="text" placeholder="ФИО" value={ext.producerTakeOverName} onChange={e => updateExtension(ext.id, 'producerTakeOverName', e.target.value)} className={commonInputClasses + " text-sm"} />
+                                   <input type="text" placeholder={t('create.extension.namePlaceholder')} value={ext.producerTakeOverName} onChange={e => updateExtension(ext.id, 'producerTakeOverName', e.target.value)} className={commonInputClasses + " text-sm"} />
                                </td>
                                <td className="p-2 border-r border-gray-100 bg-gray-50/30"></td>
                                <td className="p-2 border-r border-gray-100">
-                                   <input type="text" placeholder="ФИО" value={ext.admittingName} onChange={e => updateExtension(ext.id, 'admittingName', e.target.value)} className={commonInputClasses + " text-sm"} />
+                                   <input type="text" placeholder={t('create.extension.namePlaceholder')} value={ext.admittingName} onChange={e => updateExtension(ext.id, 'admittingName', e.target.value)} className={commonInputClasses + " text-sm"} />
                                </td>
                                <td className="p-2 bg-gray-50/30"></td>
                                <td className="p-2 text-center">
@@ -1173,40 +1177,40 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
             {/* 13. Работа окончена — дата заполняется при закрытии наряда Допускающим */}
              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-               <h3 className="font-bold text-gray-900 uppercase text-base tracking-wider border-b pb-2 mb-4">13. Работа окончена</h3>
-               <p className="text-sm text-gray-500 mb-4">Дата и время окончания работ указываются при закрытии наряда Допускающим (статус «Закрыт»).</p>
+               <h3 className="font-bold text-gray-900 uppercase text-base tracking-wider border-b pb-2 mb-4">{t('create.completion.sectionTitle')}</h3>
+               <p className="text-sm text-gray-500 mb-4">{t('create.completion.hint')}</p>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="md:col-span-2 flex items-end gap-2">
-                       <span className="text-lg text-gray-700 font-semibold whitespace-nowrap">Дата, время:</span>
+                       <span className="text-lg text-gray-700 font-semibold whitespace-nowrap">{t('create.completion.dateTime')}</span>
                        <input
                          type="datetime-local"
                          value={formData.completionDateTime}
                          onChange={e => updateForm('completionDateTime', e.target.value)}
                          className={`${commonInputClasses} bg-gray-100 cursor-not-allowed`}
                          disabled
-                         title="Заполняется при закрытии наряда Допускающим"
+                         title={t('create.completion.closedByAdmitting')}
                        />
-                       <span className="text-lg text-gray-700 ml-2">убрано, персонал с места производства работ выведен.</span>
+                       <span className="text-lg text-gray-700 ml-2">{t('create.completion.equipmentRemoved')}</span>
                    </div>
 
                    <div className="md:col-span-2 pt-4 border-t border-gray-100">
-                       <label className="block text-lg font-semibold text-gray-700 mb-2">Наряд-допуск сдал (Производитель работ)</label>
+                       <label className="block text-lg font-semibold text-gray-700 mb-2">{t('create.completion.handOver')}</label>
                        <input
                           type="text"
                           value={formData.completionHandOverName}
                           onChange={e => updateForm('completionHandOverName', e.target.value)}
-                          placeholder="Должность, Ф.И.О."
+                          placeholder={t('create.completion.positionName')}
                           className={commonInputClasses}
                        />
                    </div>
 
                    <div className="md:col-span-2">
-                       <label className="block text-lg font-semibold text-gray-700 mb-2">Рабочее место, наряд-допуск принял (Допускающий)</label>
+                       <label className="block text-lg font-semibold text-gray-700 mb-2">{t('create.completion.takeOver')}</label>
                        <input
                           type="text"
                           value={formData.completionTakeOverName}
                           onChange={e => updateForm('completionTakeOverName', e.target.value)}
-                          placeholder="Должность, Ф.И.О."
+                          placeholder={t('create.completion.positionName')}
                           className={commonInputClasses}
                        />
                    </div>
@@ -1222,29 +1226,29 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
             {/* General Info (Static) */}
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                <h3 className="font-bold text-gray-900 mb-4 uppercase text-base tracking-wider border-b pb-2">Общая информация</h3>
+                <h3 className="font-bold text-gray-900 mb-4 uppercase text-base tracking-wider border-b pb-2">{t('create.risk.generalInfo')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 text-lg">
                     <div className="flex flex-col">
-                        <span className="text-gray-500 font-semibold text-sm uppercase">Место работ</span>
-                        <span className="text-gray-900">{formData.workPlace || 'Не указано'}</span>
+                        <span className="text-gray-500 font-semibold text-sm uppercase">{t('create.risk.workPlace')}</span>
+                        <span className="text-gray-900">{formData.workPlace || t('create.risk.notSpecified')}</span>
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-gray-500 font-semibold text-sm uppercase">Компания</span>
+                        <span className="text-gray-500 font-semibold text-sm uppercase">{t('create.risk.company')}</span>
                         <span className="text-gray-900">{formData.organization}</span>
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-gray-500 font-semibold text-sm uppercase">№ Наряда-допуска</span>
+                        <span className="text-gray-500 font-semibold text-sm uppercase">{t('create.risk.permitNo')}</span>
                         <span className="text-gray-400 italic">
-                            {isEditing ? initialData?.permitId : 'Черновик (б/н)'}
+                            {isEditing ? initialData?.permitId : t('create.risk.draftNoNumber')}
                         </span>
                     </div>
                      <div className="flex flex-col">
-                        <span className="text-gray-500 font-semibold text-sm uppercase">Дата</span>
+                        <span className="text-gray-500 font-semibold text-sm uppercase">{t('create.risk.date')}</span>
                         <span className="text-gray-900">{new Date().toLocaleDateString('ru-RU')}</span>
                     </div>
                     <div className="flex flex-col md:col-span-2">
-                        <span className="text-gray-500 font-semibold text-sm uppercase">Работа / Задание</span>
-                        <span className="text-gray-900">{formData.content || 'Не заполнено'}</span>
+                        <span className="text-gray-500 font-semibold text-sm uppercase">{t('create.risk.workTask')}</span>
+                        <span className="text-gray-900">{formData.content || t('create.risk.notFilled')}</span>
                     </div>
                 </div>
             </div>
@@ -1253,10 +1257,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
             {/* Participants */}
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                <h3 className="font-bold text-gray-900 mb-6 uppercase text-base tracking-wider border-b pb-2">Участники оценки рисков</h3>
+                <h3 className="font-bold text-gray-900 mb-6 uppercase text-base tracking-wider border-b pb-2">{t('create.risk.participants')}</h3>
 
                 <div className="mb-6">
-                    <label className="block text-lg font-semibold text-gray-700 mb-2">Опасности и риски выявил (ФИО, Должность)</label>
+                    <label className="block text-lg font-semibold text-gray-700 mb-2">{t('create.risk.hazardsIdentified')}</label>
                     <input
                           type="text"
                           value={formData.completionTakeOverName}
@@ -1268,9 +1272,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
                 <div>
                     <div className="flex justify-between items-center mb-2">
-                        <label className="block text-lg font-semibold text-gray-700">Участники группы выявления опасностей и рисков</label>
+                        <label className="block text-lg font-semibold text-gray-700">{t('create.risk.riskGroupTitle')}</label>
                         <button onClick={addRiskGroupMember} className="text-blue-600 hover:bg-blue-50 px-3 py-1 rounded text-sm font-medium flex items-center gap-1 transition-colors">
-                            <Plus size={16}/> Добавить участника
+                            <Plus size={16}/> {t('create.risk.addParticipant')}
                         </button>
                     </div>
 
@@ -1281,14 +1285,14 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <input
                                         type="text"
-                                        placeholder="ФИО"
+                                        placeholder={t('create.risk.namePlaceholder')}
                                         className={commonInputClasses}
                                         value={member.name}
                                         onChange={(e) => updateRiskGroupMember(member.id, 'name', e.target.value)}
                                     />
                                     <input
                                         type="text"
-                                        placeholder="Должность"
+                                        placeholder={t('create.risk.positionPlaceholder')}
                                         className={commonInputClasses}
                                         value={member.position}
                                         onChange={(e) => updateRiskGroupMember(member.id, 'position', e.target.value)}
@@ -1308,10 +1312,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                 <div className="flex justify-between items-center mb-4">
                      <h3 className="font-bold text-gray-900 uppercase text-base tracking-wider flex items-center gap-2">
                         <AlertTriangle size={24} className="text-orange-500"/>
-                        Таблица анализа рисков
+                        {t('create.risk.riskTableTitle')}
                      </h3>
                      <button onClick={addRiskRow} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-blue-700 transition-colors shadow-sm">
-                        <Plus size={18}/> Добавить строку
+                        <Plus size={18}/> {t('create.risk.addRow')}
                      </button>
                 </div>
 
@@ -1319,10 +1323,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                     <table className="w-full text-left border-collapse min-w-[900px]">
                         <thead>
                             <tr className="bg-gray-50 border-b border-gray-200">
-                                <th className="p-3 font-bold text-gray-600 text-sm uppercase w-[25%]">Последовательность этапов работы</th>
-                                <th className="p-3 font-bold text-gray-600 text-sm uppercase w-[25%]">Опасности и риски / Возможные происшествия</th>
-                                <th className="p-3 font-bold text-gray-600 text-sm uppercase w-[30%]">Меры контроля</th>
-                                <th className="p-3 font-bold text-gray-600 text-sm uppercase w-[15%] text-center">Меры имеются?</th>
+                                <th className="p-3 font-bold text-gray-600 text-sm uppercase w-[25%]">{t('create.risk.colSteps')}</th>
+                                <th className="p-3 font-bold text-gray-600 text-sm uppercase w-[25%]">{t('create.risk.colHazards')}</th>
+                                <th className="p-3 font-bold text-gray-600 text-sm uppercase w-[30%]">{t('create.risk.colMeasures')}</th>
+                                <th className="p-3 font-bold text-gray-600 text-sm uppercase w-[15%] text-center">{t('create.risk.colControlled')}</th>
                                 <th className="p-3 w-[5%]"></th>
                             </tr>
                         </thead>
@@ -1333,7 +1337,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                                         <textarea
                                             rows={4}
                                             className={`${commonInputClasses} text-base min-h-[100px]`}
-                                            placeholder="Опишите этап..."
+                                            placeholder={t('create.risk.stepPlaceholder')}
                                             value={row.step}
                                             onChange={(e) => updateRiskRow(row.id, 'step', e.target.value)}
                                         />
@@ -1342,7 +1346,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                                         <textarea
                                             rows={4}
                                             className={`${commonInputClasses} text-base min-h-[100px]`}
-                                            placeholder="Опишите риски..."
+                                            placeholder={t('create.risk.hazardPlaceholder')}
                                             value={row.hazards}
                                             onChange={(e) => updateRiskRow(row.id, 'hazards', e.target.value)}
                                         />
@@ -1351,7 +1355,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                                         <textarea
                                             rows={4}
                                             className={`${commonInputClasses} text-base min-h-[100px]`}
-                                            placeholder="Опишите меры..."
+                                            placeholder={t('create.risk.measurePlaceholder')}
                                             value={row.measures}
                                             onChange={(e) => updateRiskRow(row.id, 'measures', e.target.value)}
                                         />
@@ -1363,8 +1367,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                                             onChange={(e) => updateRiskRow(row.id, 'isControlled', e.target.value)}
                                         >
                                             <option value="">-</option>
-                                            <option value="Да">Да</option>
-                                            <option value="Нет">Нет</option>
+                                            <option value="Да">{t('create.risk.yes')}</option>
+                                            <option value="Нет">{t('create.risk.no')}</option>
                                         </select>
                                     </td>
                                     <td className="p-2 align-middle text-center">
@@ -1383,10 +1387,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="font-bold text-gray-900 mb-2 uppercase text-base tracking-wider flex items-center gap-2 border-b pb-3">
                     <ClipboardCheck size={22} className="text-orange-500"/>
-                    Чек-лист оценки риска
+                    {t('create.risk.checklistTitle')}
                 </h3>
                 <p className="text-sm text-gray-500 mb-4">
-                    Раскройте каждый раздел и ответьте на вопросы. Разделы с пометкой <span className="font-bold text-orange-600">"Обязательно"</span> должны быть заполнены.
+                    {t('create.risk.checklistHint')} <span className="font-bold text-orange-600">"{t('create.risk.mandatory')}"</span> {t('create.risk.checklistHintEnd')}
                 </p>
                 <ChecklistSection
                     checklist={checklistData}
@@ -1403,7 +1407,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
             <div className="flex items-center justify-between border-b pb-2 mb-6">
                 <h3 className="font-bold text-gray-900 uppercase text-base tracking-wider flex items-center gap-2">
                     <Lock size={24} className={formData.lotoEnabled ? "text-red-600" : "text-gray-400"}/>
-                    Процедуры блокировки и маркировки (LOTO)
+                    {t('create.loto.sectionTitle')}
                 </h3>
 
                 <label className="inline-flex items-center cursor-pointer">
@@ -1415,7 +1419,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                     />
                     <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                     <span className="ms-3 text-sm font-medium text-gray-700">
-                        {formData.lotoEnabled ? 'Включено' : 'Выключено'}
+                        {formData.lotoEnabled ? t('create.loto.enabled') : t('create.loto.disabled')}
                     </span>
                 </label>
             </div>
@@ -1429,7 +1433,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                         </div>
                         <div className="ml-3">
                           <p className="text-sm text-yellow-700">
-                            <b>Внимание:</b> Заполнение Матрицы ИИ является обязательным при выполнении работ с отключением энергии.
+                            <b>⚠</b> {t('create.loto.warning')}
                           </p>
                         </div>
                       </div>
@@ -1446,9 +1450,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                     <div className="flex justify-center mb-3">
                         <Lock size={48} className="text-gray-300" />
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900">Процедура LOTO не применяется</h3>
+                    <h3 className="text-lg font-medium text-gray-900">{t('create.loto.notApplied')}</h3>
                     <p className="text-gray-500 mt-1 max-w-md mx-auto">
-                        Если для выполнения работ требуется блокировка источников энергии, включите опцию выше.
+                        {t('create.loto.notAppliedHint')}
                     </p>
                 </div>
             )}
@@ -1459,18 +1463,18 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 -mx-2 md:-mx-4 mt-8 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10 w-[calc(100%+16px)] md:w-[calc(100%+32px)]">
         <div className="w-full flex justify-between items-center">
            <div className="hidden sm:block text-lg text-gray-400">
-             Шаг {activeStep} из 4
+             {t('create.step', { current: activeStep, total: 4 })}
            </div>
            <div className="flex gap-3 w-full sm:w-auto">
              {activeStep > 1 && (
                <button onClick={() => setActiveStep(activeStep - 1)} className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-lg font-medium">
-                 Назад
+                 {t('create.back')}
                </button>
              )}
 
              {activeStep < 4 ? (
                <button onClick={() => setActiveStep(activeStep + 1)} className="flex-1 sm:flex-none px-8 py-3 bg-slate-800 text-white rounded-lg hover:bg-slate-700 text-lg font-medium ml-auto">
-                 Далее
+                 {t('create.next')}
                </button>
              ) : (
                <>
@@ -1480,11 +1484,11 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                   className={`flex-1 sm:flex-none px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-lg font-medium shadow-lg shadow-blue-200 flex items-center justify-center gap-2 transition-all transform active:scale-95 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {isSubmitting ? (
-                     <>⏳ Сохранение...</>
+                     <>⏳ {t('create.saving')}</>
                   ) : (
                      <>
                        {isEditing ? <Edit3 size={20}/> : <CheckCircle2 size={20} />}
-                       <span className="ml-2">{isEditing ? 'Сохранить изменения' : 'Отправить на согласование'}</span>
+                       <span className="ml-2">{isEditing ? t('create.saveChanges') : t('create.submitForApproval')}</span>
                      </>
                   )}
                 </button>
