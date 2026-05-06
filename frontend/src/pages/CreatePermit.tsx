@@ -140,6 +140,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
   // Документ к мерам безопасности (PDF/JPG, макс. 10 МБ)
   const maxSafetyDocSizeMb = 10;
   const [safetyDocumentFile, setSafetyDocumentFile] = useState<File | null>(null);
+  const [lotoPhotoUrl, setLotoPhotoUrl] = useState<string | null>((initialData as any)?.loto_photo || null);
+  const [pendingLotoFile, setPendingLotoFile] = useState<File | null>(null);
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [checklistData, setChecklistData] = useState<ChecklistData>({});
@@ -514,6 +516,21 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
           if (!uploadRes.ok) {
             const errData = await uploadRes.json().catch(() => ({}));
             alert(`Наряд сохранён, но документ не прикреплён: ${errData.error || uploadRes.status}`);
+          }
+        }
+
+        if (pendingLotoFile && permitId) {
+          const lotoFormData = new FormData();
+          lotoFormData.append('loto_photo', pendingLotoFile);
+          const lotoRes = await fetch(`/api/v1/permits/${permitId}/upload_loto_photo/`, {
+            method: 'POST',
+            headers: { 'Authorization': `Token ${localStorage.getItem('auth_token')}` },
+            body: lotoFormData
+          });
+          if (lotoRes.ok) {
+            const lotoResult = await lotoRes.json();
+            setLotoPhotoUrl(lotoResult.loto_photo_url);
+            setPendingLotoFile(null);
           }
         }
 
@@ -1439,10 +1456,13 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                       </div>
                    </div>
 
-                   {/* Render Isolation Matrix Form Component */}
                    <IsolationMatrixForm
                       data={formData.isolationMatrix}
                       onChange={(newData) => updateForm('isolationMatrix', newData)}
+                      permitId={draftPermitId || (isEditing ? Number(initialData?.id) : null)}
+                      lotoPhotoUrl={lotoPhotoUrl}
+                      onPhotoUploaded={(url) => { setLotoPhotoUrl(url); setPendingLotoFile(null); }}
+                      onFileSelected={(file) => setPendingLotoFile(file)}
                    />
                 </div>
             ) : (

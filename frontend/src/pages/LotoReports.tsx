@@ -46,6 +46,7 @@ export const LotoReports: React.FC<LotoReportsProps> = ({ onNavigateToPermit }) 
             lockedBy: admitting.name || '—',
             lockedAt: matrix.dateDeveloped || p.created_at || '',
             signatureStatus: p.status === 'APPROVED' || p.status === 'CLOSED' ? 'VALID' as const : 'PENDING' as const,
+            lotoPhotoUrl: p.loto_photo || null,
             matrixData: {
               department: matrix.department || '',
               site: matrix.site || '',
@@ -231,6 +232,7 @@ export const LotoReports: React.FC<LotoReportsProps> = ({ onNavigateToPermit }) 
                       data={selectedReport.matrixData}
                       onChange={() => {}}
                       readOnly={true}
+                      lotoPhotoUrl={selectedReport.lotoPhotoUrl}
                    />
 
                    {/* Audit Trail Footer */}

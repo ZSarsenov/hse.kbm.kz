@@ -86,6 +86,13 @@ class WorkPermit(models.Model):
         blank=True,
     )
 
+    loto_photo = models.FileField(
+        upload_to='loto_photos/%Y/%m/',
+        verbose_name='Фото/схема LOTO',
+        null=True,
+        blank=True,
+    )
+
     # ------------------ FSM LOGIC ------------------
     # 1. Отправка на согласование
     @transition(field=status, source=[STATUS_DRAFT, STATUS_REJECTED], target=STATUS_PENDING)

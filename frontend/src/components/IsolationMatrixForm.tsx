@@ -1,40 +1,95 @@
 
 import React, { useRef, useState } from 'react';
-import { 
-  Calendar, 
-  Settings, 
-  Hash, 
-  Zap, 
-  Lock, 
-  MapPin, 
-  Upload, 
-  CheckSquare, 
+import {
+  Calendar,
+  Settings,
+  Hash,
+  Zap,
+  Lock,
+  MapPin,
+  Upload,
+  CheckSquare,
   Image as ImageIcon,
-  AlertCircle
+  AlertCircle,
+  FileText,
+  Loader2,
+  X,
+  ExternalLink
 } from 'lucide-react';
 import { IsolationMatrix } from '../types';
 
 interface IsolationMatrixFormProps {
   data: IsolationMatrix;
   onChange: (newData: IsolationMatrix) => void;
-  readOnly?: boolean; // New prop for report view mode
+  readOnly?: boolean;
+  permitId?: string | number | null;
+  lotoPhotoUrl?: string | null;
+  onPhotoUploaded?: (url: string) => void;
+  onFileSelected?: (file: File | null) => void;
 }
 
-export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({ data, onChange, readOnly = false }) => {
+export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
+  data, onChange, readOnly = false, permitId, lotoPhotoUrl, onPhotoUploaded, onFileSelected
+}) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const handleChange = (field: keyof IsolationMatrix, value: any) => {
     if (readOnly) return;
     onChange({ ...data, [field]: value });
   };
 
-  // Mock File Upload Handlers
+  const uploadFile = async (file: File) => {
+    if (!permitId) {
+      setSelectedFile(file);
+      handleChange('photo', file.name);
+      onFileSelected?.(file);
+      return;
+    }
+    setUploading(true);
+    setUploadError('');
+    try {
+      const token = localStorage.getItem('auth_token');
+      const formData = new FormData();
+      formData.append('loto_photo', file);
+      const res = await fetch(`/api/v1/permits/${permitId}/upload_loto_photo/`, {
+        method: 'POST',
+        headers: { 'Authorization': `Token ${token}` },
+        body: formData,
+      });
+      if (res.ok) {
+        const result = await res.json();
+        handleChange('photo', file.name);
+        setSelectedFile(null);
+        onPhotoUploaded?.(result.loto_photo_url);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setUploadError(err.error || `Ошибка загрузки: ${res.status}`);
+      }
+    } catch {
+      setUploadError('Ошибка соединения с сервером.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (readOnly) return;
-    if (e.target.files && e.target.files[0]) {
-      handleChange('photo', e.target.files[0].name);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!['pdf', 'jpg', 'jpeg', 'png'].includes(ext || '')) {
+      setUploadError('Разрешены только PDF, JPG, PNG.');
+      return;
     }
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError('Файл слишком большой. Максимум 10 МБ.');
+      return;
+    }
+    uploadFile(file);
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -53,10 +108,12 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({ data, 
     e.stopPropagation();
     if (readOnly) return;
     setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleChange('photo', e.dataTransfer.files[0].name);
-    }
+    const file = e.dataTransfer.files?.[0];
+    if (file) uploadFile(file);
   };
+
+  const hasPhoto = lotoPhotoUrl || data.photo;
+  const isImage = lotoPhotoUrl?.match(/\.(jpg|jpeg|png)$/i);
 
   // Input styling
   const labelClass = "block text-sm font-semibold text-gray-700 mb-1";
@@ -228,59 +285,95 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({ data, 
             <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-3 flex items-center gap-2">
                <ImageIcon size={16}/> 8. Фотография / Схема установки
             </h4>
-            
+
             {readOnly ? (
-               <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center p-6 text-gray-400">
-                  {data.photo ? (
-                      <div className="text-center">
-                          <CheckSquare size={48} className="text-blue-500 mx-auto mb-2"/>
-                          <p className="text-sm font-medium text-gray-900">Фотография приложена</p>
-                          <p className="text-xs text-gray-500 mt-1">{typeof data.photo === 'string' ? data.photo : data.photo.name}</p>
+               <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+                  {lotoPhotoUrl ? (
+                      <div className="p-4">
+                          {isImage ? (
+                              <a href={lotoPhotoUrl} target="_blank" rel="noopener noreferrer">
+                                <img src={lotoPhotoUrl} alt="LOTO фото" className="max-w-full max-h-80 rounded-lg border border-gray-200 mx-auto" />
+                              </a>
+                          ) : (
+                              <a
+                                href={lotoPhotoUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium p-4"
+                              >
+                                <FileText size={24} />
+                                Открыть документ (PDF)
+                                <ExternalLink size={14} />
+                              </a>
+                          )}
                       </div>
                   ) : (
-                      <div className="text-center">
-                          <ImageIcon size={48} className="text-gray-300 mx-auto mb-2"/>
-                          <p className="text-sm font-medium text-gray-500">Изображение отсутствует</p>
+                      <div className="flex items-center justify-center p-6 text-gray-400">
+                          <div className="text-center">
+                              <ImageIcon size={48} className="text-gray-300 mx-auto mb-2"/>
+                              <p className="text-sm font-medium text-gray-500">Изображение отсутствует</p>
+                          </div>
                       </div>
                   )}
                </div>
             ) : (
-                <div 
-                   className={`flex-1 border-2 border-dashed rounded-lg flex flex-col items-center justify-center p-6 transition-colors cursor-pointer
-                      ${dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:bg-gray-50'}`}
-                   onDragEnter={handleDrag}
-                   onDragLeave={handleDrag}
-                   onDragOver={handleDrag}
-                   onDrop={handleDrop}
-                   onClick={() => fileInputRef.current?.click()}
-                >
-                   <input 
-                      ref={fileInputRef}
-                      type="file" 
-                      className="hidden" 
-                      accept="image/*,.pdf"
-                      onChange={handleFileChange} 
-                   />
-                   
-                   {data.photo ? (
-                      <div className="text-center">
-                         <CheckSquare size={48} className="text-green-500 mx-auto mb-2"/>
-                         <p className="text-sm font-medium text-gray-900">Файл загружен</p>
-                         <p className="text-xs text-gray-500 mt-1">{typeof data.photo === 'string' ? data.photo : data.photo.name}</p>
-                         <button 
-                            onClick={(e) => { e.stopPropagation(); handleChange('photo', undefined); }}
-                            className="mt-3 text-xs text-red-500 hover:text-red-700 font-medium"
-                         >
-                            Удалить
-                         </button>
-                      </div>
-                   ) : (
-                      <div className="text-center">
-                         <Upload size={32} className="text-gray-400 mx-auto mb-3"/>
-                         <p className="text-sm font-medium text-gray-700">Нажмите или перетащите фото</p>
-                         <p className="text-xs text-gray-400 mt-1">JPG, PNG, PDF до 5MB</p>
-                      </div>
-                   )}
+                <div className="flex-1 flex flex-col">
+                    {uploading ? (
+                        <div className="flex-1 border-2 border-dashed border-blue-300 bg-blue-50 rounded-lg flex flex-col items-center justify-center p-6">
+                            <Loader2 size={32} className="text-blue-500 animate-spin mb-2" />
+                            <p className="text-sm font-medium text-blue-700">Загрузка...</p>
+                        </div>
+                    ) : hasPhoto && !selectedFile ? (
+                        <div className="flex-1 border border-gray-200 rounded-lg p-4">
+                            {lotoPhotoUrl && isImage ? (
+                                <img src={lotoPhotoUrl} alt="LOTO фото" className="max-w-full max-h-64 rounded-lg border border-gray-200 mx-auto mb-3" />
+                            ) : lotoPhotoUrl ? (
+                                <a href={lotoPhotoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium mb-3">
+                                    <FileText size={18} /> Открыть документ <ExternalLink size={14} />
+                                </a>
+                            ) : (
+                                <div className="flex items-center gap-2 mb-3">
+                                    <CheckSquare size={20} className="text-green-500"/>
+                                    <span className="text-sm text-gray-700">{typeof data.photo === 'string' ? data.photo : 'Файл загружен'}</span>
+                                </div>
+                            )}
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                            >
+                                Заменить файл
+                            </button>
+                        </div>
+                    ) : (
+                        <div
+                           className={`flex-1 border-2 border-dashed rounded-lg flex flex-col items-center justify-center p-6 transition-colors cursor-pointer
+                              ${dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:bg-gray-50'}`}
+                           onDragEnter={handleDrag}
+                           onDragLeave={handleDrag}
+                           onDragOver={handleDrag}
+                           onDrop={handleDrop}
+                           onClick={() => fileInputRef.current?.click()}
+                        >
+                           <Upload size={32} className="text-gray-400 mx-auto mb-3"/>
+                           <p className="text-sm font-medium text-gray-700">Нажмите или перетащите фото/схему</p>
+                           <p className="text-xs text-gray-400 mt-1">JPG, PNG, PDF до 10 МБ</p>
+                        </div>
+                    )}
+                    <input
+                       ref={fileInputRef}
+                       type="file"
+                       className="hidden"
+                       accept=".jpg,.jpeg,.png,.pdf"
+                       onChange={handleFileChange}
+                    />
+                    {uploadError && (
+                        <p className="text-xs text-red-600 mt-2 flex items-center gap-1">
+                            <AlertCircle size={12}/> {uploadError}
+                        </p>
+                    )}
+                    {!permitId && selectedFile && (
+                        <p className="text-xs text-amber-600 mt-2">Файл будет загружен после сохранения наряда.</p>
+                    )}
                 </div>
             )}
          </div>

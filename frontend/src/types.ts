@@ -199,6 +199,7 @@ export interface LOTOReport {
   unlockedAt?: string;
   signatureStatus: 'VALID' | 'PENDING';
   matrixData: IsolationMatrix;
+  lotoPhotoUrl?: string | null;
 }
 
 export interface WorkPermit {

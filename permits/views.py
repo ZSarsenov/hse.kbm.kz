@@ -1786,6 +1786,46 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             'safety_document_url': permit.safety_document.url if permit.safety_document else None
         })
 
+    @action(detail=True, methods=['post'], url_path='upload_loto_photo')
+    def upload_loto_photo(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+
+        can_edit = (
+            (permit.status in ('DRAFT', 'REJECTED') and permit.initiator == user) or
+            (permit.status == 'PENDING_APPROVAL' and permit.approval_steps.filter(
+                approver=user, status='PENDING', role__in=['RESPONSIBLE', 'ADMITTING', 'WORK_PRODUCER']
+            ).exists()) or
+            user.is_admin
+        )
+        if not can_edit:
+            return Response({'error': 'Нет прав на загрузку файла.'}, status=403)
+
+        photo_file = request.FILES.get('loto_photo')
+        if not photo_file:
+            return Response({'error': 'Файл не выбран.'}, status=400)
+
+        allowed_extensions = ('.pdf', '.jpg', '.jpeg', '.png')
+        file_ext = os.path.splitext(photo_file.name)[1].lower()
+        if file_ext not in allowed_extensions:
+            return Response({
+                'error': f'Недопустимый формат ({file_ext}). Разрешены: PDF, JPG, PNG.'
+            }, status=400)
+
+        max_size_mb = 10
+        if photo_file.size > max_size_mb * 1024 * 1024:
+            return Response({
+                'error': f'Файл слишком большой. Максимум: {max_size_mb} МБ.'
+            }, status=400)
+
+        permit.loto_photo = photo_file
+        permit.save(update_fields=['loto_photo'])
+
+        return Response({
+            'status': 'Фото загружено.',
+            'loto_photo_url': permit.loto_photo.url
+        })
+
     @action(detail=True, methods=['post'], url_path='producer_close')
     def producer_close(self, request, pk=None):
         """
