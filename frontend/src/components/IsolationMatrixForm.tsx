@@ -56,11 +56,26 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
       const token = localStorage.getItem('auth_token');
       const formData = new FormData();
       formData.append('loto_photo', file);
-      const res = await fetch(`/api/v1/permits/${permitId}/upload_loto_photo/`, {
-        method: 'POST',
-        headers: { 'Authorization': `Token ${token}` },
-        body: formData,
-      });
+      const uploadUrls = [
+        `/api/v1/permits/${permitId}/upload_loto_photo/`,
+        `/api/v1/permits/${permitId}/upload-loto-photo/`,
+        `/api/v1/permits/${permitId}/upload_loto_photo`,
+        `/api/v1/permits/${permitId}/upload-loto-photo`,
+      ];
+      let res: Response | null = null;
+      for (const url of uploadUrls) {
+        const attempt = await fetch(url, {
+          method: 'POST',
+          headers: { 'Authorization': `Token ${token}` },
+          body: formData,
+        });
+        res = attempt;
+        if (attempt.status !== 404) break;
+      }
+      if (!res) {
+        setUploadError('Ошибка загрузки: не удалось выполнить запрос.');
+        return;
+      }
       if (res.ok) {
         const result = await res.json();
         handleChange('photo', file.name);
@@ -126,10 +141,25 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
     setUploading(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const res = await fetch(`/api/v1/permits/${permitId}/delete_loto_photo/`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Token ${token}` },
-      });
+      const deleteUrls = [
+        `/api/v1/permits/${permitId}/delete_loto_photo/`,
+        `/api/v1/permits/${permitId}/delete-loto-photo/`,
+        `/api/v1/permits/${permitId}/delete_loto_photo`,
+        `/api/v1/permits/${permitId}/delete-loto-photo`,
+      ];
+      let res: Response | null = null;
+      for (const url of deleteUrls) {
+        const attempt = await fetch(url, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Token ${token}` },
+        });
+        res = attempt;
+        if (attempt.status !== 404) break;
+      }
+      if (!res) {
+        setUploadError('Ошибка удаления: не удалось выполнить запрос.');
+        return;
+      }
       if (res.ok) {
         handleChange('photo', undefined);
         onPhotoDeleted?.();

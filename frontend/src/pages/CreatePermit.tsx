@@ -231,11 +231,25 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
         if (pendingLotoFile && savedId) {
           const lotoFd = new FormData();
           lotoFd.append('loto_photo', pendingLotoFile);
-          const lotoRes = await fetch(`/api/v1/permits/${savedId}/upload_loto_photo/`, {
-            method: 'POST',
-            headers: { 'Authorization': `Token ${token}` },
-            body: lotoFd
-          });
+          const lotoUploadUrls = [
+            `/api/v1/permits/${savedId}/upload_loto_photo/`,
+            `/api/v1/permits/${savedId}/upload-loto-photo/`,
+            `/api/v1/permits/${savedId}/upload_loto_photo`,
+            `/api/v1/permits/${savedId}/upload-loto-photo`,
+          ];
+          let lotoRes: Response | null = null;
+          for (const urlCandidate of lotoUploadUrls) {
+            const attempt = await fetch(urlCandidate, {
+              method: 'POST',
+              headers: { 'Authorization': `Token ${token}` },
+              body: lotoFd
+            });
+            lotoRes = attempt;
+            if (attempt.status !== 404) break;
+          }
+          if (!lotoRes) {
+            return;
+          }
           if (lotoRes.ok) {
             const lr = await lotoRes.json();
             setLotoPhotoUrl(lr.loto_photo_url);
@@ -538,11 +552,26 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
         if (pendingLotoFile && permitId) {
           const lotoFormData = new FormData();
           lotoFormData.append('loto_photo', pendingLotoFile);
-          const lotoRes = await fetch(`/api/v1/permits/${permitId}/upload_loto_photo/`, {
-            method: 'POST',
-            headers: { 'Authorization': `Token ${localStorage.getItem('auth_token')}` },
-            body: lotoFormData
-          });
+          const lotoUploadUrls = [
+            `/api/v1/permits/${permitId}/upload_loto_photo/`,
+            `/api/v1/permits/${permitId}/upload-loto-photo/`,
+            `/api/v1/permits/${permitId}/upload_loto_photo`,
+            `/api/v1/permits/${permitId}/upload-loto-photo`,
+          ];
+          let lotoRes: Response | null = null;
+          for (const urlCandidate of lotoUploadUrls) {
+            const attempt = await fetch(urlCandidate, {
+              method: 'POST',
+              headers: { 'Authorization': `Token ${localStorage.getItem('auth_token')}` },
+              body: lotoFormData
+            });
+            lotoRes = attempt;
+            if (attempt.status !== 404) break;
+          }
+          if (!lotoRes) {
+            alert('Наряд сохранён, но фото LOTO не прикреплено: endpoint не найден.');
+            return;
+          }
           if (lotoRes.ok) {
             const lotoResult = await lotoRes.json();
             setLotoPhotoUrl(lotoResult.loto_photo_url);
