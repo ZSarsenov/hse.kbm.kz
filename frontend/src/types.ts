@@ -212,6 +212,7 @@ export interface WorkPermit {
   templateType: string;
   scan_file?: string | null;
   safety_document?: string | null;
+  loto_photo?: string | null;
   producer_closed?: boolean;
   initiator: {
     id?: string | number;

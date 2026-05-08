@@ -1826,6 +1826,28 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             'loto_photo_url': permit.loto_photo.url
         })
 
+    @action(detail=True, methods=['delete'], url_path='delete_loto_photo')
+    def delete_loto_photo(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+
+        can_edit = (
+            (permit.status in ('DRAFT', 'REJECTED') and permit.initiator == user) or
+            (permit.status == 'PENDING_APPROVAL' and permit.approval_steps.filter(
+                approver=user, status='PENDING', role__in=['RESPONSIBLE', 'ADMITTING', 'WORK_PRODUCER']
+            ).exists()) or
+            user.is_admin
+        )
+        if not can_edit:
+            return Response({'error': 'Нет прав на удаление файла.'}, status=403)
+
+        if permit.loto_photo:
+            permit.loto_photo.delete(save=False)
+            permit.loto_photo = None
+            permit.save(update_fields=['loto_photo'])
+
+        return Response({'status': 'Фото удалено.'})
+
     @action(detail=True, methods=['post'], url_path='producer_close')
     def producer_close(self, request, pk=None):
         """

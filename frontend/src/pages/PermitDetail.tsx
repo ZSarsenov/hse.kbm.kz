@@ -836,7 +836,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                      data={data.isolationMatrix || {}}
                      onChange={() => {}}
                      readOnly={true}
-                     lotoPhotoUrl={(permit as any).loto_photo || null}
+                     lotoPhotoUrl={permit.loto_photo || null}
                    />
                </div>
            )}

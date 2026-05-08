@@ -140,7 +140,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
   // Документ к мерам безопасности (PDF/JPG, макс. 10 МБ)
   const maxSafetyDocSizeMb = 10;
   const [safetyDocumentFile, setSafetyDocumentFile] = useState<File | null>(null);
-  const [lotoPhotoUrl, setLotoPhotoUrl] = useState<string | null>((initialData as any)?.loto_photo || null);
+  const [lotoPhotoUrl, setLotoPhotoUrl] = useState<string | null>(initialData?.loto_photo || null);
   const [pendingLotoFile, setPendingLotoFile] = useState<File | null>(null);
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -225,7 +225,23 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       });
       if (response.ok) {
         const result = await response.json();
-        if (result?.id) setDraftPermitId(Number(result.id));
+        const savedId = result?.id ? Number(result.id) : null;
+        if (savedId) setDraftPermitId(savedId);
+
+        if (pendingLotoFile && savedId) {
+          const lotoFd = new FormData();
+          lotoFd.append('loto_photo', pendingLotoFile);
+          const lotoRes = await fetch(`/api/v1/permits/${savedId}/upload_loto_photo/`, {
+            method: 'POST',
+            headers: { 'Authorization': `Token ${token}` },
+            body: lotoFd
+          });
+          if (lotoRes.ok) {
+            const lr = await lotoRes.json();
+            setLotoPhotoUrl(lr.loto_photo_url);
+            setPendingLotoFile(null);
+          }
+        }
       }
     } catch (e) {
       console.error('Ошибка автосохранения черновика:', e);
@@ -244,7 +260,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [formData, roles, additionalCoordinators, teamMembers, checklistData, activeStep, canAutoSaveDraft]);
+  }, [formData, roles, additionalCoordinators, teamMembers, checklistData, activeStep, canAutoSaveDraft, pendingLotoFile]);
 
   // Попытка финального сохранения при закрытии/перезагрузке вкладки
   useEffect(() => {
@@ -1463,6 +1479,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                       lotoPhotoUrl={lotoPhotoUrl}
                       onPhotoUploaded={(url) => { setLotoPhotoUrl(url); setPendingLotoFile(null); }}
                       onFileSelected={(file) => setPendingLotoFile(file)}
+                      onPhotoDeleted={() => { setLotoPhotoUrl(null); setPendingLotoFile(null); }}
                    />
                 </div>
             ) : (

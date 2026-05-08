@@ -26,10 +26,11 @@ interface IsolationMatrixFormProps {
   lotoPhotoUrl?: string | null;
   onPhotoUploaded?: (url: string) => void;
   onFileSelected?: (file: File | null) => void;
+  onPhotoDeleted?: () => void;
 }
 
 export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
-  data, onChange, readOnly = false, permitId, lotoPhotoUrl, onPhotoUploaded, onFileSelected
+  data, onChange, readOnly = false, permitId, lotoPhotoUrl, onPhotoUploaded, onFileSelected, onPhotoDeleted
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -114,6 +115,34 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
 
   const hasPhoto = lotoPhotoUrl || data.photo;
   const isImage = lotoPhotoUrl?.match(/\.(jpg|jpeg|png)$/i);
+
+  const deletePhoto = async () => {
+    if (!permitId) {
+      setSelectedFile(null);
+      handleChange('photo', undefined);
+      onFileSelected?.(null);
+      return;
+    }
+    setUploading(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const res = await fetch(`/api/v1/permits/${permitId}/delete_loto_photo/`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Token ${token}` },
+      });
+      if (res.ok) {
+        handleChange('photo', undefined);
+        onPhotoDeleted?.();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setUploadError(err.error || 'Ошибка удаления');
+      }
+    } catch {
+      setUploadError('Ошибка соединения.');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   // Input styling
   const labelClass = "block text-sm font-semibold text-gray-700 mb-1";
@@ -307,6 +336,14 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                               </a>
                           )}
                       </div>
+                  ) : data.photo ? (
+                      <div className="flex items-center justify-center p-6">
+                          <div className="text-center">
+                              <FileText size={48} className="text-amber-500 mx-auto mb-2"/>
+                              <p className="text-sm font-medium text-gray-700">{typeof data.photo === 'string' ? data.photo : 'Файл указан'}</p>
+                              <p className="text-xs text-amber-600 mt-1">Файл загружен до обновления системы</p>
+                          </div>
+                      </div>
                   ) : (
                       <div className="flex items-center justify-center p-6 text-gray-400">
                           <div className="text-center">
@@ -337,12 +374,20 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                                     <span className="text-sm text-gray-700">{typeof data.photo === 'string' ? data.photo : 'Файл загружен'}</span>
                                 </div>
                             )}
-                            <button
-                                onClick={() => fileInputRef.current?.click()}
-                                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                            >
-                                Заменить файл
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                >
+                                    Заменить файл
+                                </button>
+                                <button
+                                    onClick={deletePhoto}
+                                    className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1"
+                                >
+                                    <X size={12}/> Удалить
+                                </button>
+                            </div>
                         </div>
                     ) : (
                         <div
