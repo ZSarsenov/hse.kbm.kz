@@ -6,6 +6,7 @@ import { PermitDetail } from './pages/PermitDetail';
 import { CreatePermit } from './pages/CreatePermit';
 import { Login } from './pages/Login';
 import { LotoReports } from './pages/LotoReports';
+import { AuditStatistics } from './pages/AuditStatistics';
 import { MyTasks } from './pages/MyTasks';
 import { PermitTypeSelector } from './components/PermitTypeSelector';
 import { ModuleSelector } from './components/ModuleSelector';
@@ -214,6 +215,11 @@ function App() {
       setSelectedPermitId(null);
   };
 
+  const handleNavigateAuditStats = () => {
+    setCurrentView('AUDIT_STATS');
+    setSelectedPermitId(null);
+  };
+
   const handleNavigateMyTasks = () => {
     setCurrentView('MY_TASKS' as any);
     setSelectedPermitId(null);
@@ -339,6 +345,7 @@ function App() {
         onNavigateLoto={handleNavigateLoto}
         onNavigateMyTasks={handleNavigateMyTasks}
         onNavigateArchive={handleNavigateArchive}
+        onNavigateAuditStats={handleNavigateAuditStats}
         onNavigateModules={() => setCurrentView('MODULE_SELECT')}
         onCreate={handleCreateNew}
         onLogout={handleLogout}
@@ -350,9 +357,12 @@ function App() {
           position: userData?.position || 'Сотрудник',
           department: userData?.department || 'Не указано',
           organization: userData?.company || 'АО "Каражанбасмунай"',
+          role: userData?.role,
           permissions: userData?.role === 'ADMIN'
-            ? ['CREATE_PERMIT', 'VIEW_LOTO_LOGS', 'APPROVE_PERMIT', 'ADMIN_ACCESS']
-            : ['CREATE_PERMIT', 'VIEW_LOTO_LOGS']
+            ? ['CREATE_PERMIT', 'VIEW_LOTO_LOGS', 'APPROVE_PERMIT', 'ADMIN_ACCESS', 'VIEW_AUDIT_STATS']
+            : userData?.role === 'AUDITOR'
+              ? ['VIEW_AUDIT_STATS']
+              : ['CREATE_PERMIT', 'VIEW_LOTO_LOGS']
         }}
         currentView={currentView}
       >
@@ -423,6 +433,10 @@ function App() {
           <LotoReports
              onNavigateToPermit={handleSelectPermit}
           />
+        )}
+
+        {currentView === 'AUDIT_STATS' && (
+          <AuditStatistics />
         )}
       </Layout>
 

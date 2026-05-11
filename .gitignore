@@ -34,7 +34,7 @@ var/
 local_settings.py  # Or other sensitive settings files
 
 /media/  # Or wherever you store user-uploaded media files
-/permits_scans/  # Сканы нарядов (MEDIA_ROOT)
+/permits_scans/
 /static_collected/  # If you use collectstatic
 
 # IDE-specific files

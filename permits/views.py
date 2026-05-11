@@ -6,6 +6,8 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import os
+from collections import Counter, defaultdict
+from datetime import datetime
 from openai import OpenAI
 import logging
 import time
@@ -154,6 +156,118 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         if user.username == 'dispatcher_semser':
             q = q | Q(data__notifyFireService=True)
         return WorkPermit.objects.filter(q).distinct()
+
+    @action(detail=False, methods=['get'], url_path='audit_stats')
+    def audit_stats(self, request):
+        """
+        Агрегированная статистика для дашборда аудитора.
+        Параметры:
+        - date_from=YYYY-MM-DD
+        - date_to=YYYY-MM-DD
+        - group_by=day|week|month (по умолчанию day)
+        """
+        user = request.user
+        if not (user.is_admin or user.is_auditor):
+            raise PermissionDenied("Доступно только для роли AUDITOR/ADMIN.")
+
+        date_from_raw = request.query_params.get('date_from')
+        date_to_raw = request.query_params.get('date_to')
+        group_by = request.query_params.get('group_by', 'day')
+        if group_by not in ('day', 'week', 'month'):
+            group_by = 'day'
+
+        date_from = None
+        date_to = None
+        try:
+            if date_from_raw:
+                date_from = datetime.strptime(date_from_raw, '%Y-%m-%d').date()
+            if date_to_raw:
+                date_to = datetime.strptime(date_to_raw, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {'error': 'Неверный формат даты. Используйте YYYY-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        qs = WorkPermit.objects.select_related('location', 'initiator', 'initiator__department').all()
+        if date_from:
+            qs = qs.filter(created_at__date__gte=date_from)
+        if date_to:
+            qs = qs.filter(created_at__date__lte=date_to)
+
+        period_qs = list(
+            qs.values(
+                'id', 'status', 'created_at', 'location__name', 'data',
+                'initiator__department__name'
+            )
+        )
+        total_qs = WorkPermit.objects.all()
+
+        status_order = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'CLOSED']
+        status_counts = Counter(item['status'] for item in period_qs)
+        status_distribution = [
+            {'status': code, 'count': status_counts.get(code, 0)}
+            for code in status_order
+        ]
+
+        trend_counter = defaultdict(int)
+        for item in period_qs:
+            dt = timezone.localtime(item['created_at'])
+            if group_by == 'month':
+                key = dt.strftime('%Y-%m')
+            elif group_by == 'week':
+                iso_year, iso_week, _ = dt.isocalendar()
+                key = f'{iso_year}-W{iso_week:02d}'
+            else:
+                key = dt.strftime('%Y-%m-%d')
+            trend_counter[key] += 1
+        permits_trend = [{'period': key, 'count': trend_counter[key]} for key in sorted(trend_counter.keys())]
+
+        work_type_counter = Counter()
+        location_counter = Counter()
+        department_counter = Counter()
+        for item in period_qs:
+            payload = item.get('data') or {}
+            work_type = (payload.get('workName') or payload.get('content') or 'Не указано').strip()
+            location_name = (item.get('location__name') or payload.get('workPlace') or 'Не указано').strip()
+            department_name = (
+                item.get('initiator__department__name') or payload.get('department') or 'Не указано'
+            ).strip()
+            work_type_counter[work_type] += 1
+            location_counter[location_name] += 1
+            department_counter[department_name] += 1
+
+        top_work_types = [{'name': name, 'count': count} for name, count in work_type_counter.most_common(7)]
+        top_locations = [{'name': name, 'count': count} for name, count in location_counter.most_common(7)]
+        top_departments = [{'name': name, 'count': count} for name, count in department_counter.most_common(7)]
+
+        total_count = total_qs.count()
+        created_in_period = len(period_qs)
+        closed_in_period = status_counts.get('CLOSED', 0)
+        rejected_in_period = status_counts.get('REJECTED', 0)
+        close_rate = round((closed_in_period / created_in_period) * 100, 1) if created_in_period else 0
+        reject_rate = round((rejected_in_period / created_in_period) * 100, 1) if created_in_period else 0
+
+        return Response({
+            'filters': {
+                'date_from': date_from_raw,
+                'date_to': date_to_raw,
+                'group_by': group_by,
+            },
+            'kpi': {
+                'total_all_time': total_count,
+                'created_in_period': created_in_period,
+                'closed_in_period': closed_in_period,
+                'rejected_in_period': rejected_in_period,
+                'close_rate_percent': close_rate,
+                'reject_rate_percent': reject_rate,
+            },
+            'status_distribution': status_distribution,
+            'permits_trend': permits_trend,
+            'top_work_types': top_work_types,
+            'top_locations': top_locations,
+            'top_departments': top_departments,
+        })
 
     # API ДЛЯ "МОИ ЗАДАЧИ" (Колокольчик/Меню)
     @action(detail=False, methods=['get'])

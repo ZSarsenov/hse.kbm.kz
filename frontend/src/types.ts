@@ -1,5 +1,5 @@
 
-export type Permission = 'CREATE_PERMIT' | 'VIEW_LOTO_LOGS' | 'APPROVE_PERMIT' | 'ADMIN_ACCESS';
+export type Permission = 'CREATE_PERMIT' | 'VIEW_LOTO_LOGS' | 'APPROVE_PERMIT' | 'ADMIN_ACCESS' | 'VIEW_AUDIT_STATS';
 
 export enum PermitStatus {
   DRAFT = 'DRAFT',
@@ -231,7 +231,7 @@ export interface WorkPermit {
   lifecycle?: Partial<ElectricalLifecycle>;
 }
 
-export type PageView = 'MODULE_SELECT' | 'DASHBOARD' | 'CREATE' | 'MY_TASKS' | 'LOTO_REPORTS' | 'LOGIN' | 'ARCHIVE' | 'DETAIL';
+export type PageView = 'MODULE_SELECT' | 'DASHBOARD' | 'CREATE' | 'MY_TASKS' | 'LOTO_REPORTS' | 'LOGIN' | 'ARCHIVE' | 'DETAIL' | 'AUDIT_STATS';
 
 export const ELECTRICAL_WORK_CATEGORIES = [
   "Со снятием напряжения",

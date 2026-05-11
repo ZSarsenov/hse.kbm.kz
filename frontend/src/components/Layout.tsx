@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   Menu, Bell, User, FilePlus, CheckSquare, 
-  FileText, LogOut, ChevronDown, LayoutDashboard, ClipboardList, Grid3X3
+  FileText, LogOut, ChevronDown, LayoutDashboard, ClipboardList, Grid3X3, ChartColumn
 } from 'lucide-react';
 import { Permission } from '../types';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -13,6 +13,7 @@ interface LayoutProps {
   onNavigateLoto?: () => void;
   onNavigateMyTasks?: () => void;
   onNavigateArchive?: () => void;
+  onNavigateAuditStats?: () => void;
   onNavigateModules?: () => void;
   onCreate?: () => void;
   onLogout: () => void;
@@ -30,7 +31,7 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({
-  children, onNavigate, onNavigateLoto, onNavigateMyTasks, onNavigateArchive, onNavigateModules, onCreate, onLogout, onSelectPermit, user, currentView
+  children, onNavigate, onNavigateLoto, onNavigateMyTasks, onNavigateArchive, onNavigateAuditStats, onNavigateModules, onCreate, onLogout, onSelectPermit, user, currentView
 }) => {
   const { t } = useTranslation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -63,6 +64,7 @@ export const Layout: React.FC<LayoutProps> = ({
   const localUser = JSON.parse(localStorage.getItem('user_data') || '{}');
   const userRole = user?.role || localUser.role || '';
   const canCreatePermit = userRole === 'ISSUER' || userRole === 'ADMITTING' || userRole === 'ADMIN';
+  const canViewStatistics = userRole === 'AUDITOR' || userRole === 'ADMIN';
 
   const fetchNotifs = () => {
       const token = localStorage.getItem('auth_token');
@@ -198,6 +200,14 @@ export const Layout: React.FC<LayoutProps> = ({
                 active={currentView === 'ARCHIVE'}
                 onClick={onNavigateArchive}
             />
+            {canViewStatistics && (
+              <SidebarLink
+                icon={<ChartColumn size={20}/>}
+                label={t('layout.statistics')}
+                active={currentView === 'AUDIT_STATS'}
+                onClick={onNavigateAuditStats}
+              />
+            )}
           </div>
           <div className="p-4 border-t border-gray-100 bg-white">
              {onNavigateModules && (
