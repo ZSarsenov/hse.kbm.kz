@@ -15,6 +15,7 @@ type StatsResponse = {
     rejected_in_period: number;
     close_rate_percent: number;
     reject_rate_percent: number;
+    avg_close_time_hours: number;
   };
   status_distribution: Array<{ status: string; count: number }>;
   permits_trend: Array<{ period: string; count: number }>;
@@ -37,6 +38,16 @@ const MAX_AXIS_LABEL_LEN = 42;
 const truncateLabel = (value: string, max = MAX_AXIS_LABEL_LEN) => {
   if (!value) return '';
   return value.length > max ? `${value.slice(0, max - 1)}...` : value;
+};
+
+const formatDurationHours = (hours: number, t: (key: string) => string) => {
+  if (!Number.isFinite(hours) || hours <= 0) return `0 ${t('auditStats.hoursShort')}`;
+  const totalHours = Math.round(hours);
+  const days = Math.floor(totalHours / 24);
+  const remainHours = totalHours % 24;
+  if (days <= 0) return `${remainHours} ${t('auditStats.hoursShort')}`;
+  if (remainHours === 0) return `${days} ${t('auditStats.daysShort')}`;
+  return `${days} ${t('auditStats.daysShort')} ${remainHours} ${t('auditStats.hoursShort')}`;
 };
 
 export const AuditStatistics: React.FC = () => {
@@ -184,6 +195,11 @@ export const AuditStatistics: React.FC = () => {
             <KpiCard icon={<TrendingUp size={18} />} title={t('auditStats.kpiRejectRate')} value={`${stats?.kpi.reject_rate_percent ?? 0}%`} />
             <KpiCard icon={<MapPin size={18} />} title={t('auditStats.kpiClosed')} value={stats?.kpi.closed_in_period ?? 0} />
             <KpiCard icon={<Building2 size={18} />} title={t('auditStats.kpiRejected')} value={stats?.kpi.rejected_in_period ?? 0} />
+            <KpiCard
+              icon={<Calendar size={18} />}
+              title={t('auditStats.kpiAvgCloseTime')}
+              value={formatDurationHours(stats?.kpi.avg_close_time_hours ?? 0, t)}
+            />
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

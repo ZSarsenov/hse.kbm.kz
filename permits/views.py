@@ -248,6 +248,21 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         close_rate = round((closed_in_period / created_in_period) * 100, 1) if created_in_period else 0
         reject_rate = round((rejected_in_period / created_in_period) * 100, 1) if created_in_period else 0
 
+        closed_permits = WorkPermit.objects.filter(
+            id__in=[item['id'] for item in period_qs],
+            status='CLOSED',
+            valid_to__isnull=False
+        ).only('created_at', 'valid_to')
+        close_durations_hours = []
+        for permit in closed_permits:
+            duration_hours = (permit.valid_to - permit.created_at).total_seconds() / 3600
+            if duration_hours >= 0:
+                close_durations_hours.append(duration_hours)
+        avg_close_time_hours = (
+            round(sum(close_durations_hours) / len(close_durations_hours), 1)
+            if close_durations_hours else 0
+        )
+
         return Response({
             'filters': {
                 'date_from': date_from_raw,
@@ -261,6 +276,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 'rejected_in_period': rejected_in_period,
                 'close_rate_percent': close_rate,
                 'reject_rate_percent': reject_rate,
+                'avg_close_time_hours': avg_close_time_hours,
             },
             'status_distribution': status_distribution,
             'permits_trend': permits_trend,
