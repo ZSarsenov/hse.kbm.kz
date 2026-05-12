@@ -20,10 +20,32 @@ interface PermitDetailProps {
   onRefresh?: () => void;
 }
 
+const formatPermitDateTime = (iso?: string | null) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return {
+    date: d.toLocaleDateString('ru-RU'),
+    time: d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+  };
+};
+
+const formatPermitCompact = (iso?: string | null) => {
+  const fmt = formatPermitDateTime(iso);
+  if (!fmt) return null;
+  return `${fmt.date}, ${fmt.time}`;
+};
+
 export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEdit, onDelete, onRefresh }) => {
   // Распаковка данных (безопасный доступ)
   const data: any = permit.data || (permit as any).formData || {};
   const initiator = (permit.initiator as any) || {};
+
+  /** Начало: плановая дата работ (valid_from) или дата создания наряда (открыт в системе). */
+  const openedAtIso = permit.validFrom || permit.createdAt || null;
+  const openedFmt = formatPermitDateTime(openedAtIso);
+  const isClosed = permit.status === 'CLOSED';
+  const closedFmt = isClosed ? formatPermitDateTime(permit.validTo || null) : null;
 
   // 1. ПОЛУЧАЕМ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ
   const currentUser = JSON.parse(localStorage.getItem('user_data') || '{}');
@@ -492,12 +514,25 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                    <p className="text-xs text-slate-500">{initiator?.position || 'Сотрудник'}</p>
                 </div>
              </div>
-             <div className="flex items-start gap-3">
-                <div className="p-2 bg-white rounded-lg shadow-sm text-amber-500"><Clock size={20} /></div>
-                <div>
+             <div className="flex items-start gap-3 min-w-0">
+                <div className="p-2 bg-white rounded-lg shadow-sm text-amber-500 shrink-0"><Clock size={20} /></div>
+                <div className="min-w-0">
                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Период работ</p>
-                   <p className="font-semibold text-slate-700">{permit.validFrom ? new Date(permit.validFrom).toLocaleDateString() : '—'}</p>
-                   <p className="text-xs text-slate-500">{permit.validFrom ? new Date(permit.validFrom).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</p>
+                   {openedFmt ? (
+                     isClosed && closedFmt ? (
+                       <div className="font-semibold text-slate-700 leading-snug space-y-0.5">
+                         <p className="break-words">{formatPermitCompact(openedAtIso)}</p>
+                         <p className="break-words">{formatPermitCompact(permit.validTo)}</p>
+                       </div>
+                     ) : (
+                       <p className="font-semibold text-slate-700 leading-snug">{formatPermitCompact(openedAtIso)}</p>
+                     )
+                   ) : (
+                     <p className="font-semibold text-slate-700">—</p>
+                   )}
+                   {isClosed && !closedFmt && openedFmt && (
+                     <p className="text-xs text-amber-700 mt-1">Дата закрытия не зафиксирована</p>
+                   )}
                 </div>
              </div>
              <div className="flex items-start gap-3">
