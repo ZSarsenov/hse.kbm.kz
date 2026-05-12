@@ -179,10 +179,16 @@ class WorkPermit(models.Model):
                 if isinstance(ac, dict) and ac.get('id'):
                     steps_config.append({'role': 'COORDINATOR', 'user_id': ac['id']})
 
-        # 6. Основной согласующий (Нач. цеха) — подписывает ПОСЛЕДНИМ
+        # 6. Основной согласующий (Нач. смены / участка / инженер ТБ) — подписывает ПОСЛЕДНИМ
         coord_id = get_user_id('supervisor')
+        sup_raw = self.data.get('supervisor')
+        external_super_line = ''
+        if isinstance(sup_raw, dict) and sup_raw.get('external'):
+            external_super_line = (sup_raw.get('name') or sup_raw.get('freeText') or '').strip()
         if coord_id:
             steps_config.append({'role': 'COORDINATOR', 'user_id': coord_id})
+        elif external_super_line:
+            steps_config.append({'role': 'COORDINATOR', 'external': True})
 
         # СОЗДАЕМ ЗАПИСИ В БД
         from django.contrib.auth import get_user_model
@@ -194,6 +200,16 @@ class WorkPermit(models.Model):
                     permit=self,
                     approver=None,
                     role='WORK_PRODUCER',
+                    step_order=index + 1,
+                    status='PENDING' if index == 0 else 'WAITING',
+                )
+                continue
+
+            if step_data.get('external') and step_data.get('role') == 'COORDINATOR':
+                ApprovalStep.objects.create(
+                    permit=self,
+                    approver=None,
+                    role='COORDINATOR',
                     step_order=index + 1,
                     status='PENDING' if index == 0 else 'WAITING',
                 )

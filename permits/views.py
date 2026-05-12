@@ -48,6 +48,25 @@ def _issuer_admitting_approved_users(permit):
     return users
 
 
+def _prior_approved_approvers(permit, before_step_order):
+    """Участники с шагами APPROVED до указанного порядка (кто может передать устройство для графической подписи следующего)."""
+    users = []
+    seen = set()
+    for st in (
+        permit.approval_steps.filter(
+            status='APPROVED',
+            step_order__lt=before_step_order,
+            approver_id__isnull=False,
+        )
+        .order_by('step_order')
+        .select_related('approver')
+    ):
+        if st.approver_id not in seen:
+            seen.add(st.approver_id)
+            users.append(st.approver)
+    return users
+
+
 def _advance_after_approval_step(permit, completed_step, acting_user):
     """Перевод следующего шага в PENDING или финализация наряда; уведомления."""
     next_step = ApprovalStep.objects.filter(
@@ -67,24 +86,51 @@ def _advance_after_approval_step(permit, completed_step, acting_user):
                 message=f"Наряд №{permit.permit_id} ожидает вашей подписи ({next_step.get_role_display()}).",
             )
         else:
-            for nu in _issuer_admitting_approved_users(permit):
-                Notification.objects.create(
-                    user=nu,
-                    permit_id=permit.id,
-                    title="Графическая подпись производителя",
-                    message=(
-                        f"Наряд №{permit.permit_id}: внесите графическую подпись производителя работ "
-                        f"(исполнитель без ЭЦП) в карточке наряда (вкладка «Описание»)."
-                    ),
-                )
+            if next_step.role == 'WORK_PRODUCER':
+                for nu in _issuer_admitting_approved_users(permit):
+                    Notification.objects.create(
+                        user=nu,
+                        permit_id=permit.id,
+                        title="Графическая подпись производителя",
+                        message=(
+                            f"Наряд №{permit.permit_id}: внесите графическую подпись производителя работ "
+                            f"(исполнитель без ЭЦП) в карточке наряда (вкладка «Описание»)."
+                        ),
+                    )
+            elif next_step.role == 'COORDINATOR':
+                sup = (permit.data or {}).get('supervisor') or {}
+                if isinstance(sup, dict) and sup.get('external'):
+                    for nu in _prior_approved_approvers(permit, next_step.step_order):
+                        Notification.objects.create(
+                            user=nu,
+                            permit_id=permit.id,
+                            title="Графическая подпись согласующего",
+                            message=(
+                                f"Наряд №{permit.permit_id}: внесите графическую подпись согласующего "
+                                f"(начальник смены / участка / инженер ТБ без ЭЦП) в карточке наряда (вкладка «Основное»)."
+                            ),
+                        )
 
         if permit.initiator_id != acting_user.id:
             ext_prod = completed_step.role == 'WORK_PRODUCER' and completed_step.approver_id is None
-            if ext_prod:
-                parts = [
-                    f"По наряду №{permit.permit_id} зафиксирована графическая подпись производителя работ "
-                    f"({acting_user.get_full_name()})."
-                ]
+            sup_d = (permit.data or {}).get('supervisor') or {}
+            ext_coord = (
+                completed_step.role == 'COORDINATOR'
+                and completed_step.approver_id is None
+                and isinstance(sup_d, dict)
+                and sup_d.get('external')
+            )
+            if ext_prod or ext_coord:
+                if ext_prod:
+                    parts = [
+                        f"По наряду №{permit.permit_id} зафиксирована графическая подпись производителя работ "
+                        f"({acting_user.get_full_name()})."
+                    ]
+                else:
+                    parts = [
+                        f"По наряду №{permit.permit_id} зафиксирована графическая подпись согласующего "
+                        f"({acting_user.get_full_name()})."
+                    ]
                 if next_step.approver_id:
                     parts.append(f"Передан следующему: {next_step.approver.get_full_name()}.")
                 Notification.objects.create(
@@ -94,11 +140,14 @@ def _advance_after_approval_step(permit, completed_step, acting_user):
                     message=" ".join(parts),
                 )
             else:
-                suffix = (
-                    f" Передан следующему: {next_step.approver.get_full_name()}."
-                    if next_step.approver_id
-                    else " Ожидается графическая подпись производителя работ (исполнитель без ЭЦП)."
-                )
+                if next_step.approver_id:
+                    suffix = f" Передан следующему: {next_step.approver.get_full_name()}."
+                elif next_step.role == 'WORK_PRODUCER':
+                    suffix = " Ожидается графическая подпись производителя работ (исполнитель без ЭЦП)."
+                elif next_step.role == 'COORDINATOR':
+                    suffix = " Ожидается графическая подпись согласующего (без ЭЦП)."
+                else:
+                    suffix = ""
                 Notification.objects.create(
                     user=permit.initiator,
                     permit_id=permit.id,
@@ -589,6 +638,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             new_data['extensions'] = []
             new_data['brigade_signatures'] = []
             new_data.pop('producer_signature', None)
+            new_data.pop('supervisor_signature', None)
 
             # 3. Генерируем номер по стандарту: OR-2026-00001
             current_year = time.strftime('%Y')
@@ -867,6 +917,98 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+    @action(detail=True, methods=['post'], url_path='supervisor_signature')
+    def supervisor_signature(self, request, pk=None):
+        """
+        Графическая подпись основного согласующего (Нач. смены / участка / инженер ТБ), если указан без ЭЦП.
+        Внести могут пользователи, уже подписавшие любой шаг до этого согласующего (передать планшет/телефон).
+        """
+        permit = self.get_object()
+        if permit.status != 'PENDING_APPROVAL':
+            return Response(
+                {'error': 'Подпись согласующего доступна только на этапе согласования.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        supervisor_step = permit.approval_steps.filter(
+            role='COORDINATOR', status='PENDING', approver__isnull=True,
+        ).order_by('-step_order').first()
+        if not supervisor_step:
+            return Response(
+                {'error': 'Нет активного шага основного согласующего без ЭЦП.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        sup = permit.data.get('supervisor') if permit.data else {}
+        if not (isinstance(sup, dict) and sup.get('external')):
+            return Response(
+                {'error': 'Согласующий указан из базы — используйте ЭЦП.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = request.user
+        prior_ids = set(
+            permit.approval_steps.filter(
+                status='APPROVED',
+                step_order__lt=supervisor_step.step_order,
+                approver_id__isnull=False,
+            ).values_list('approver_id', flat=True)
+        )
+        if not getattr(user, 'is_admin', False) and user.id not in prior_ids:
+            return Response(
+                {
+                    'error': (
+                        'Графическую подпись могут внести только участники, уже подписавшие шаги '
+                        'до этого согласующего (или администратор).'
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        image_file = request.FILES.get('signature')
+        if not image_file:
+            return Response({'error': 'Приложите файл подписи (signature).'}, status=status.HTTP_400_BAD_REQUEST)
+        ct = (image_file.content_type or '').lower()
+        if ct and not ct.startswith('image/'):
+            return Response({'error': f'Разрешены только изображения (получен {image_file.content_type}).'}, status=status.HTTP_400_BAD_REQUEST)
+        if image_file.size > 2 * 1024 * 1024:
+            return Response({'error': 'Размер файла не более 2 МБ.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            rel_dir = os.path.join('brigade_signatures', str(permit.pk))
+            dest_dir = os.path.join(settings.MEDIA_ROOT, rel_dir)
+            os.makedirs(dest_dir, exist_ok=True)
+            fname = 'supervisor.png'
+            rel_path = os.path.join(rel_dir, fname).replace('\\', '/')
+            full_path = os.path.join(settings.MEDIA_ROOT, rel_dir, fname)
+            with open(full_path, 'wb') as f:
+                for chunk in image_file.chunks():
+                    f.write(chunk)
+
+            data = dict(permit.data) if permit.data else {}
+            data['supervisor_signature'] = rel_path
+            permit.data = data
+
+            supervisor_step.status = 'APPROVED'
+            supervisor_step.signed_at = timezone.now()
+            supervisor_step.signer_details = {
+                'graphic': True,
+                'recorded_by': user.id,
+                'recorded_by_name': user.get_full_name(),
+            }
+            supervisor_step.save(update_fields=['status', 'signed_at', 'signer_details'])
+
+            permit.save(update_fields=['data'])
+            _advance_after_approval_step(permit, supervisor_step, user)
+            permit.save()
+
+            return Response({'ok': True, 'signature_path': rel_path})
+        except Exception as e:
+            return Response(
+                {'error': f'Ошибка сохранения подписи: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
     # --- МЕТОД СКАЧИВАНИЯ ---
     # 👇 НОВЫЙ МЕТОД ГЕНЕРАЦИИ PDF
     @action(detail=True, methods=['get'])
@@ -1074,6 +1216,16 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                     if step.status == 'APPROVED' and step.signed_at:
                         data['date'] = format_date(step.signed_at)
                     return data
+            if step and role_enum == 'COORDINATOR' and step.approver_id is None and permit.data:
+                s_data = permit.data.get(json_key) or {}
+                if isinstance(s_data, dict) and s_data.get('external'):
+                    line = (s_data.get('name') or s_data.get('freeText') or '').strip()
+                    data['name'] = line or '_________________'
+                    has_graphic_sig = bool(permit.data.get('supervisor_signature'))
+                    data['job'] = '' if has_graphic_sig else '_________________'
+                    if step.status == 'APPROVED' and step.signed_at:
+                        data['date'] = format_date(step.signed_at)
+                    return data
             if permit.data and json_key in permit.data:
                 p_data = permit.data[json_key]
                 if isinstance(p_data, dict) and p_data.get('name'):
@@ -1093,11 +1245,25 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         if coord_steps:
             main_coord_step = coord_steps[-1]
             user = main_coord_step.approver
-            super_info = {
-                'name': user.get_full_name() if user else '_________________',
-                'job': getattr(user, 'job_title', getattr(user, 'position', 'Должность не указана')) if user else '_________________',
-                'date': format_date(main_coord_step.signed_at) if main_coord_step.status == 'APPROVED' and main_coord_step.signed_at else '"___" _________ 20___г.',
-            }
+            if user:
+                super_info = {
+                    'name': user.get_full_name(),
+                    'job': getattr(user, 'job_title', getattr(user, 'position', 'Должность не указана')),
+                    'date': format_date(main_coord_step.signed_at) if main_coord_step.status == 'APPROVED' and main_coord_step.signed_at else '"___" _________ 20___г.',
+                }
+            elif main_coord_step.approver_id is None and permit.data:
+                s_data = permit.data.get('supervisor') or {}
+                if isinstance(s_data, dict) and s_data.get('external'):
+                    line = (s_data.get('name') or s_data.get('freeText') or '').strip()
+                    super_info = {
+                        'name': line or '_________________',
+                        'job': '' if bool(permit.data.get('supervisor_signature')) else '_________________',
+                        'date': format_date(main_coord_step.signed_at) if main_coord_step.status == 'APPROVED' and main_coord_step.signed_at else '"___" _________ 20___г.',
+                    }
+                else:
+                    super_info = empty_person.copy()
+            else:
+                super_info = empty_person.copy()
         else:
             super_info = get_person('COORDINATOR', 'supervisor')
             if '___' in super_info['name']:
@@ -1165,8 +1331,13 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         # Графическая подпись производителя (исполнитель без ЭЦП)
         producer_sig_img = ''
         producer_close_sig_img = ''
+        supervisor_sig_img = ''
         if permit.data:
-            for sig_key, var_name in [('producer_signature', 'producer_sig_img'), ('producer_close_signature', 'producer_close_sig_img')]:
+            for sig_key, var_name in [
+                ('producer_signature', 'producer_sig_img'),
+                ('producer_close_signature', 'producer_close_sig_img'),
+                ('supervisor_signature', 'supervisor_sig_img'),
+            ]:
                 sig_rel = permit.data.get(sig_key)
                 if sig_rel:
                     sig_full = os.path.join(settings.MEDIA_ROOT, sig_rel)
@@ -1176,8 +1347,10 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                                 img = InlineImage(doc, BytesIO(f.read()), height=Mm(7))
                             if var_name == 'producer_sig_img':
                                 producer_sig_img = img
-                            else:
+                            elif var_name == 'producer_close_sig_img':
                                 producer_close_sig_img = img
+                            else:
+                                supervisor_sig_img = img
                         except Exception:
                             pass
 
@@ -1188,6 +1361,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             'producer_name': prod_info['name'], 'producer_job': prod_info['job'], 'producer_date': prod_info['date'],
             'producer_signature_img': producer_sig_img,
             'producer_close_signature_img': producer_close_sig_img,
+            'supervisor_signature_img': supervisor_sig_img,
             'admitting_name': admit_info['name'], 'admitting_job': admit_info['job'], 'admitting_date': admit_info['date'],
             'responsible_name': resp_info['name'], 'responsible_job': resp_info['job'], 'responsible_date': resp_info['date'],
             'issuer_name': issuer_info['name'], 'issuer_job': issuer_info['job'], 'issuer_date': issuer_info['date'],

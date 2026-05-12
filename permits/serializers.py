@@ -42,6 +42,11 @@ class ApprovalStepSerializer(serializers.ModelSerializer):
             pdata = (permit.data or {}).get('producer') or {}
             if isinstance(pdata, dict) and pdata.get('external'):
                 return (pdata.get('name') or pdata.get('freeText') or '').strip() or 'Производитель работ (без ЭЦП)'
+        if obj.role == 'COORDINATOR':
+            permit = obj.permit
+            sdata = (permit.data or {}).get('supervisor') or {}
+            if isinstance(sdata, dict) and sdata.get('external'):
+                return (sdata.get('name') or sdata.get('freeText') or '').strip() or 'Согласующий (без ЭЦП)'
         return '—'
 
 

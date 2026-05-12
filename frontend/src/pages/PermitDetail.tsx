@@ -87,6 +87,17 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const externalProducer = producerStep && !producerStep.approver_id &&
     typeof data.producer === 'object' && data.producer?.external;
 
+  const coordStepsOrdered = [...steps]
+    .filter((s: any) => s.role === 'COORDINATOR')
+    .sort((a: any, b: any) => (a.step_order || 0) - (b.step_order || 0));
+  const mainSupervisorStep =
+    coordStepsOrdered.length > 0 ? coordStepsOrdered[coordStepsOrdered.length - 1] : null;
+  const externalSupervisor =
+    !!mainSupervisorStep &&
+    !mainSupervisorStep.approver_id &&
+    typeof data.supervisor === 'object' &&
+    data.supervisor?.external;
+
   // Выдающий или Допускающий с подписанным шагом — могут действовать за внешнего производителя
   const issuerApprovedStep = steps.find((s: any) => s.role === 'ISSUER' && s.status === 'APPROVED');
   const admitApprovedStep = steps.find((s: any) => s.role === 'ADMITTING' && s.status === 'APPROVED');
@@ -124,6 +135,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
   const [signingMemberIndex, setSigningMemberIndex] = useState<number | null>(null);
   const [producerPadOpen, setProducerPadOpen] = useState(false);
+  const [supervisorPadOpen, setSupervisorPadOpen] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [newMember, setNewMember] = useState({ name: '', role: '', instructedBy: '' });
   const [addingMember, setAddingMember] = useState(false);
@@ -437,6 +449,23 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
       (admitApprovedStep && String(admitApprovedStep.approver_id) === currentUserId)
     );
 
+  const pendingExternalSupervisorSig =
+    permit.status === 'PENDING_APPROVAL' &&
+    externalSupervisor &&
+    mainSupervisorStep?.status === 'PENDING';
+
+  const canRecordSupervisorGraphicSig =
+    !!pendingExternalSupervisorSig &&
+    mainSupervisorStep &&
+    (isAdmin ||
+      steps.some(
+        (s: any) =>
+          s.status === 'APPROVED' &&
+          s.approver_id &&
+          String(s.approver_id) === currentUserId &&
+          s.step_order < mainSupervisorStep.step_order
+      ));
+
   const safetyFields = [
       { key: 'm5_1_stop', label: '5.1 Остановить' },
       { key: 'm5_2_disconnect', label: '5.2 Отключить' },
@@ -621,6 +650,30 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                   </div>
                 )}
 
+                {pendingExternalSupervisorSig && (
+                  <div className="rounded-xl border border-sky-200 bg-sky-50/90 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-sky-950">Графическая подпись согласующего (без ЭЦП)</p>
+                      <p className="text-sm text-sky-900/90 mt-1 leading-snug">
+                        Указан согласующий без учётной записи. Любой участник, уже подписавший свой шаг до этого согласующего, может открыть окно подписи и передать устройство для росписи на экране.
+                      </p>
+                    </div>
+                    {canRecordSupervisorGraphicSig ? (
+                      <button
+                        type="button"
+                        onClick={() => setSupervisorPadOpen(true)}
+                        className="shrink-0 px-4 py-2.5 rounded-lg bg-sky-600 text-white font-medium hover:bg-sky-700"
+                      >
+                        Внести подпись
+                      </button>
+                    ) : (
+                      <p className="text-xs text-sky-800/80 shrink-0 max-w-xs">
+                        Кнопка доступна только тем, кто уже подписал шаги до этого согласующего (или администратору).
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* БЛОК ОТВЕТСТВЕННЫХ ЛИЦ (Сохранен оригинал с 5 блоками) */}
                 <div>
                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><User size={20} className="text-slate-400"/> Ответственные лица</h3>
@@ -642,7 +695,18 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                         )}
                       </div>
                       <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Допускающий</span><p className="font-medium text-gray-900">{renderUserName(data.admitting, '—')}</p></div>
-                      <div className="p-4 border border-gray-200 rounded-lg "><span className="text-xs text-gray-400 uppercase font-bold">Согласовано (Нач. смены / Участка / Инженер ТБ)</span><p className="font-medium text-gray-900">{renderUserName(data.supervisor, '—')}</p></div>
+                      <div className="p-4 border border-gray-200 rounded-lg "><span className="text-xs text-gray-400 uppercase font-bold">Согласовано (Нач. смены / Участка / Инженер ТБ)</span><p className="font-medium text-gray-900">{renderUserName(data.supervisor, '—')}</p>
+                        {data.supervisor_signature && (
+                          <div className="mt-2">
+                            <span className="text-xs text-gray-400 uppercase font-bold block mb-1">Графическая подпись</span>
+                            <img
+                              src={getSignatureUrl(data.supervisor_signature)}
+                              alt="Подпись согласующего"
+                              className="h-12 object-contain bg-gray-50 border border-gray-200 rounded"
+                            />
+                          </div>
+                        )}
+                      </div>
                       {data.additionalCoordinators && Array.isArray(data.additionalCoordinators) && data.additionalCoordinators.map((coord: any, idx: number) => (
                         <div key={idx} className="p-4 border border-blue-200 rounded-lg bg-blue-50/30">
                           <span className="text-xs text-blue-400 uppercase font-bold">Дополнительный согласующий {idx + 1}</span>
@@ -896,6 +960,30 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                    throw new Error(msg);
                  }
                  setProducerPadOpen(false);
+                 onRefresh?.();
+               }}
+             />
+           )}
+           {supervisorPadOpen && (
+             <SignaturePadModal
+               open={true}
+               memberLabel={renderUserName(data.supervisor, 'Согласующий')}
+               onClose={() => setSupervisorPadOpen(false)}
+               onConfirm={async (blob) => {
+                 const token = localStorage.getItem('auth_token');
+                 const form = new FormData();
+                 form.append('signature', blob, 'signature.png');
+                 const res = await fetch(`/api/v1/permits/${permit.id}/supervisor_signature/`, {
+                   method: 'POST',
+                   headers: token ? { 'Authorization': `Token ${token}` } : {},
+                   body: form,
+                 });
+                 if (!res.ok) {
+                   const err = await res.json().catch(() => ({}));
+                   const msg = err.error || err.detail || `Ошибка ${res.status}`;
+                   throw new Error(msg);
+                 }
+                 setSupervisorPadOpen(false);
                  onRefresh?.();
                }}
              />

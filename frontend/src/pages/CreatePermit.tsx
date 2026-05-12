@@ -133,6 +133,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
   /** Исполнитель без ЭЦП: одна строка (ФИО, должность); графическая подпись на согласовании */
   const [producerIsExternal, setProducerIsExternal] = useState(false);
+  /** Основной согласующий без ЭЦП — аналогично, графическая подпись на согласовании */
+  const [supervisorIsExternal, setSupervisorIsExternal] = useState(false);
 
   // Редактирование во время согласования: блок подписантов полностью заблокирован
   const isApprovalEdit = isEditing && initialData?.status === 'PENDING_APPROVAL';
@@ -166,6 +168,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       roles.admitting.id ||
       roles.responsible.id ||
       roles.supervisor.id ||
+      !!(supervisorIsExternal && roles.supervisor.name?.trim()) ||
       additionalCoordinators.some(c => !!c.id) ||
       teamMembers.length > 0
     );
@@ -179,10 +182,19 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
           return p;
         })();
 
+    const supervisorPayload: RoleUser | { id: null; external: true; name: string } = supervisorIsExternal
+      ? { id: null, external: true, name: roles.supervisor.name.trim() }
+      : (() => {
+          const s = { ...roles.supervisor };
+          delete (s as { external?: boolean }).external;
+          return s;
+        })();
+
     const fullDataPayload = {
       ...formData,
       ...roles,
       producer: producerPayload,
+      supervisor: supervisorPayload,
       ...(producerIsExternal && roles.producer.name.trim()
         ? { completionHandOverName: roles.producer.name.trim() }
         : {}),
@@ -366,6 +378,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
           setProducerIsExternal(
             !!(savedData.producer && typeof savedData.producer === 'object' && (savedData.producer as RoleUser).external)
           );
+          setSupervisorIsExternal(
+            !!(savedData.supervisor && typeof savedData.supervisor === 'object' && (savedData.supervisor as RoleUser).external)
+          );
 
           if (savedData.additionalCoordinators && Array.isArray(savedData.additionalCoordinators)) {
               setAdditionalCoordinators(savedData.additionalCoordinators.map((c: any) => restoreRole(c)));
@@ -501,6 +516,11 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       }
       if (!roles.admitting.id && !roles.admitting.name) {
           alert("Не заполнен Допускающий к работе!"); setIsSubmitting(false); return;
+      }
+      if (supervisorIsExternal) {
+          if (!roles.supervisor.name.trim()) {
+            alert("Введите ФИО и должность согласующего — без ЭЦП (одной строкой)."); setIsSubmitting(false); return;
+          }
       }
 
       // Валидация обязательных чек-листов
@@ -926,6 +946,26 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
                  {/* 5. Согласующий (необязательный — без звёздочки) */}
                   <div className="md:col-span-2 border-t pt-4 mt-2">
+                   <div className="flex flex-col min-w-0">
+                   {supervisorIsExternal ? (
+                     <>
+                       <label className="block text-sm font-bold text-gray-700 mb-1">
+                         {t('create.roles.supervisor')}
+                       </label>
+                       <textarea
+                         rows={2}
+                         value={roles.supervisor.name}
+                         onChange={(e) => {
+                           setRoles((prev) => ({
+                             ...prev,
+                             supervisor: { id: null, name: e.target.value, external: true },
+                           }));
+                         }}
+                         placeholder={t('create.roles.externalPlaceholder')}
+                         className={commonInputClasses}
+                       />
+                     </>
+                   ) : (
                    <UserSearchSelect
                       label={t('create.roles.supervisor')}
                       value={roles.supervisor.name}
@@ -933,6 +973,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                       requiredRole="COORDINATOR"
                       onChange={(user) => {
                          const displayName = user ? `${user.name} (${user.position || t('create.roles.positionNotSet')})` : '';
+                         setSupervisorIsExternal(false);
                          setRoles(prev => ({
                              ...prev,
                              supervisor: user ? { id: user.id, name: displayName, role: user.role } : { id: null, name: '' }
@@ -940,6 +981,26 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                       }}
                       placeholder={t('create.roles.searchPlaceholder')}
                    />
+                   )}
+                   <div className="flex justify-end mt-1.5">
+                     <button
+                       type="button"
+                       onClick={() => {
+                         if (supervisorIsExternal) {
+                           setSupervisorIsExternal(false);
+                           setRoles((prev) => ({ ...prev, supervisor: { id: null, name: '' } }));
+                         } else {
+                           setSupervisorIsExternal(true);
+                           setRoles((prev) => ({ ...prev, supervisor: { id: null, name: '', external: true } }));
+                         }
+                       }}
+                       className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                     >
+                       <Plus size={14} className="shrink-0" />
+                       {supervisorIsExternal ? t('create.roles.selectFromDb') : t('create.roles.externalSupervisor')}
+                     </button>
+                   </div>
+                   </div>
 
                    {/* Дополнительные согласующие (до 5) */}
                    {additionalCoordinators.map((coord, idx) => (
