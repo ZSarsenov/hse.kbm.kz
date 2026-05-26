@@ -295,7 +295,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
           });
 
           // 3. Восстанавливаем сложные массивы (Бригада, Риски, Расширения)
-          if (savedData.teamMembers) setTeamMembers(savedData.teamMembers);
+          // При загрузке черновика/наряда сбрасываем instructedAt — дата всегда ставится по моменту подписи
+          if (savedData.teamMembers) setTeamMembers(
+              savedData.teamMembers.map((m: any) => ({ ...m, instructedAt: '' }))
+          );
           // Остальные массивы (riskTable, extensions) уже попали через setFormData
 
       } else if (!isEditing) {
@@ -443,7 +446,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       const fullDataPayload = {
         ...formData,
         ...roles, // Отправляем объекты ролей ({id, name, role})
-        teamMembers: teamMembers,
+        // Очищаем instructedAt — дата ставится автоматически в момент подписи члена бригады
+        teamMembers: teamMembers.map((m: any) => ({ ...m, instructedAt: '' })),
         riskTable: formData.riskTable,
         riskGroup: formData.riskGroup,
         isolationMatrix: formData.isolationMatrix,
@@ -829,10 +833,13 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                              </td>
                              <td className="px-3 py-2">
                                 <input
-                                   type="datetime-local"
-                                   value={member.instructedAt}
-                                   onChange={(e) => updateTeamMember(member.id, 'instructedAt', e.target.value)}
-                                   className="w-full bg-[#f7f7f7] border-gray-300 rounded px-2 py-2 text-lg text-gray-900 border focus:ring-1 focus:ring-blue-500"
+                                   type="text"
+                                   value={member.instructedAt ? new Date(member.instructedAt).toLocaleString() : ''}
+                                   readOnly
+                                   disabled
+                                   placeholder="Заполнится при подписи"
+                                   title="Дата/время инструктажа фиксируется автоматически в момент подписи члена бригады"
+                                   className="w-full bg-gray-100 border-gray-200 rounded px-2 py-2 text-lg text-gray-500 border cursor-not-allowed placeholder-gray-400"
                                 />
                              </td>
                              <td className="px-3 py-2 text-center">

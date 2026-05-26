@@ -784,7 +784,8 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             sigs[member_index] = rel_path
             data['brigade_signatures'] = sigs
             team = data.get('teamMembers') or []
-            if member_index < len(team) and not team[member_index].get('instructedAt'):
+            # Дата/время инструктажа всегда фиксируется по моменту подписи члена бригады
+            if member_index < len(team):
                 team[member_index]['instructedAt'] = timezone.now().isoformat()
                 data['teamMembers'] = team
             permit.data = data
@@ -823,7 +824,8 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             'name': name,
             'role': role,
             'instructedBy': admitting_name,
-            'instructedAt': timezone.now().isoformat(),
+            # instructedAt НЕ заполняем при добавлении — дата ставится по моменту подписи члена бригады
+            'instructedAt': '',
         })
         data['teamMembers'] = team
         permit.data = data
@@ -2192,6 +2194,33 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 {'error': 'Только Производитель работ может подтвердить завершение работ.'},
                 status=403
             )
+
+        # Проверка: все члены бригады должны подписать наряд перед закрытием
+        permit_data = permit.data or {}
+        team = permit_data.get('teamMembers') or []
+        if team:
+            sigs = permit_data.get('brigade_signatures')
+            if isinstance(sigs, dict):
+                sigs = [sigs.get(str(i)) for i in range(len(team))]
+            elif not isinstance(sigs, list):
+                sigs = []
+            unsigned = [
+                {'index': i, 'name': (m.get('name') or '—')}
+                for i, m in enumerate(team)
+                if i >= len(sigs) or not sigs[i]
+            ]
+            if unsigned:
+                names = '; '.join(f"№{u['index'] + 1} {u['name']}" for u in unsigned)
+                return Response(
+                    {
+                        'error': (
+                            'Вы не можете закрыть наряд, пока не подпишут «Состав бригады». '
+                            f'Не подписали: {names}.'
+                        ),
+                        'unsigned_members': unsigned,
+                    },
+                    status=400,
+                )
 
         # Сохраняем графическую подпись производителя при закрытии (если внешний)
         signature_file = request.FILES.get('signature')

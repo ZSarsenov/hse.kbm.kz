@@ -360,8 +360,34 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
       }
   };
 
+  // Список членов бригады, не поставивших подпись (для блокировки закрытия)
+  const getUnsignedBrigadeMembers = (): string[] => {
+      const team = data.teamMembers || [];
+      if (!team.length) return [];
+      const sigList: any = data.brigade_signatures;
+      const unsigned: string[] = [];
+      team.forEach((m: any, idx: number) => {
+          const sig = Array.isArray(sigList)
+              ? sigList[idx]
+              : (sigList && (sigList[idx] ?? sigList[String(idx)]));
+          if (!sig) unsigned.push(`№${idx + 1} ${m?.name || '—'}`);
+      });
+      return unsigned;
+  };
+
+  const ensureBrigadeSigned = (): boolean => {
+      const unsigned = getUnsignedBrigadeMembers();
+      if (unsigned.length === 0) return true;
+      alert(
+          'Вы не можете закрыть наряд, пока не подпишут «Состав бригады».\n\n' +
+          'Не подписали:\n• ' + unsigned.join('\n• ')
+      );
+      return false;
+  };
+
   // Для обычного производителя (с учётной записью) — простое подтверждение
   const handleProducerClose = async () => {
+      if (!ensureBrigadeSigned()) return;
       if (!confirm("Вы подтверждаете завершение работ?\nПосле этого Допускающий должен будет закрыть наряд.")) return;
       try {
           const response = await fetch(`/api/v1/permits/${permit.id}/producer_close/`, {
@@ -1100,7 +1126,9 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
             {/* Шаг 1: Закрыть наряд как Производитель работ */}
             {showProducerClose && (
                 <button
-                    onClick={canActForExternalProducer ? () => setProducerClosePadOpen(true) : handleProducerClose}
+                    onClick={canActForExternalProducer
+                        ? () => { if (ensureBrigadeSigned()) setProducerClosePadOpen(true); }
+                        : handleProducerClose}
                     className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center gap-2 shadow-sm"
                 >
                     <CheckCircle2 size={18} />
