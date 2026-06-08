@@ -23,8 +23,8 @@ def parse_xml_signature_info(signed_xml: str) -> dict:
         "not_before": datetime,
         "not_after": datetime,
         "iin": "931005300182" или None,
-        "bin": "950540000524" или None,
-        "org_name": "Акционерное общество \"Каражанбасмунай\"" или None,
+        "bin": "000000000000" или None,
+        "org_name": "ТОО \"Каспий Битум\"" или None,
       }
 
     Если что-то критично не найдено — кидает ValueError.
@@ -84,7 +84,7 @@ def parse_xml_signature_info(signed_xml: str) -> dict:
 
     for ou in ou_attrs:
         val_u = ou.value.upper().replace(" ", "")
-        # Пример: "BIN950540000524"
+        # Пример: "BIN000000000000"
         if "BIN" in val_u and bin_ is None:
             # вытащим подряд идущие цифры
             digits = "".join(ch for ch in val_u if ch.isdigit())

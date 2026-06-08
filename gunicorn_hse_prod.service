@@ -1,0 +1,17 @@
+[Unit]
+Description=Gunicorn daemon for Caspian Bitum HSE (prod)
+After=network.target
+
+[Service]
+User=admin_cb
+Group=admin_cb
+WorkingDirectory=/home/sadmin/web/prod
+ExecStart=/home/sadmin/web/prod/venv/bin/gunicorn \
+          --access-logfile /home/sadmin/web/prod/gunicorn-access.log \
+          --error-logfile /home/sadmin/web/prod/gunicorn-error.log \
+          --workers 3 \
+          --bind unix:/home/sadmin/web/prod/hse_project.sock \
+          config.wsgi:application
+
+[Install]
+WantedBy=multi-user.target

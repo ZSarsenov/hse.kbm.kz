@@ -88,21 +88,21 @@ WSGI_APPLICATION = 'config.wsgi.application'
 IS_LINUX = platform.system() == 'Linux'
 BASE_DIR_STR = str(BASE_DIR)
 
-# Определяем имя базы в зависимости от условий
-# Если это Linux, то смотрим путь (dev или prod), если Windows - то local
-if IS_LINUX:
-    # Простейшая проверка: если мы в папке 'prod', то это боевая база
-    if '/web/prod' in str(BASE_DIR):
-         DB_NAME = 'end.kbm.kz'
-    # Если мы в папке 'dev', то это тестовая база
-    elif '/web/dev' in str(BASE_DIR):
-         DB_NAME = 'end_kbm_dev'
+
+# Сначала пытаемся прочитать имя БД из переменных окружения (.env)
+DB_NAME = os.getenv('DB_NAME')
+if not DB_NAME:
+    # Fallback: старая логика по пути установки (для совместимости с KBM-сервером)
+    if platform.system() == "Linux":
+        if '/web/prod' in str(BASE_DIR):
+            DB_NAME = 'end.cb.kz'
+        elif '/web/dev' in str(BASE_DIR):
+            DB_NAME = 'end_kbm_dev'
+        else:
+            DB_NAME = 'end_kbm_dev'
     else:
-         # Запасной вариант для Linux
-         DB_NAME = 'end_kbm_dev'
-else:
-    # Если это Windows
-    DB_NAME = 'hse.kbm.kz_local'
+        DB_NAME = 'hse.cb.kz_local'
+
 
 
 DATABASES = {
@@ -192,7 +192,8 @@ REST_FRAMEWORK = {
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:3000",
-    "http://10.60.2.89:3000",
+    "http://10.108.2.38",
+    "http://10.108.2.38:8080",
 ]
 
 CORS_ALLOW_CREDENTIALS = True

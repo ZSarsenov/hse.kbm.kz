@@ -14,9 +14,9 @@ ROLE_CHOICES = (
 
 class User(AbstractUser):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='WORK_PRODUCER', verbose_name="Роль")
-    company_name = models.CharField(max_length=50, default='АО Каражанбасмунай', blank=True, null=True, verbose_name="Компания")
+    company_name = models.CharField(max_length=50, default='ТОО Каспий Битум', blank=True, null=True, verbose_name="Компания")
     iin = models.CharField(max_length=12, unique=True, verbose_name='ИИН')
-    bin = models.CharField(max_length=12, blank=True, null=True, default='950540000524',
+    bin = models.CharField(max_length=12, blank=True, null=True, default='000000000000',
                            verbose_name='БИН Организации',
                            help_text="Заполняется, если сотрудник использует ЭЦП юридического лица")
     tabel_number = models.CharField(max_length=20, unique=True, verbose_name='Табельный номер')

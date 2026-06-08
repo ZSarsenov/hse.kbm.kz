@@ -77,7 +77,7 @@ export const PermitPrintView: React.FC<PermitPrintViewProps> = ({ data, onClose 
         {/* 1. Header */}
         <header className="border-b-2 border-black pb-4 mb-6 flex justify-between items-start">
           <div className="w-1/3">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-gray-600 mb-1">АО «Каражанбасмунай»</h2>
+            <h2 className="text-sm font-bold uppercase tracking-widest text-gray-600 mb-1">ТОО «Каспий Битум»</h2>
             <div className="text-xs">Система электронных нарядов-допусков</div>
           </div>
           
@@ -231,7 +231,7 @@ export const PermitPrintView: React.FC<PermitPrintViewProps> = ({ data, onClose 
           </div>
           
           <div className="mt-8 text-[10px] text-center text-gray-400">
-            Документ сформирован в ИС "Электронный Наряд-Допуск" АО "Каражанбасмунай". 
+            Документ сформирован в ИС "Электронный Наряд-Допуск" ТОО "Каспий Битум". 
             Проверить подлинность документа можно по ID: {data.id}
           </div>
         </section>

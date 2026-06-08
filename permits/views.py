@@ -546,7 +546,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         # Проверка БИН
         sign_bin = cert_info.get('bin')
         user_bin = user.bin
-        target_bin = user_bin if user_bin else '950540000524'
+        target_bin = user_bin if user_bin else '000000000000'
 
         if not sign_bin:
             return Response({"ok": False, "error": "Нужна ЭЦП юридического лица (GOST) с БИН."}, status=400)
@@ -1972,7 +1972,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         from io import BytesIO
 
         permit = self.get_object()
-        base = getattr(settings, 'HSE_BASE_URL', 'https://hse.kbm.kz')
+        base = getattr(settings, 'HSE_BASE_URL', 'https://hse.cb.kz')
         qr_url = f"{base}/api/v1/verify/{permit.verify_token}/"
         try:
             doc = self._get_rendered_doc(permit, qr_url)
@@ -2453,11 +2453,11 @@ def verify_permit_public(request, token):
         <div class="card">
             <div class="header">
                 <h1>Наряд-допуск {permit.permit_id}</h1>
-                <p>Система HSE — КБМ</p>
+                <p>Система HSE — Caspian Bitum</p>
                 <div class="badge">{status_label}</div>
             </div>
             <div class="body">
-                <div class="verified">&#9989; Документ зарегистрирован в системе HSE KBM</div>
+                <div class="verified">&#9989; Документ зарегистрирован в системе HSE Caspian Bitum</div>
 
                 <div class="section">
                     <div class="section-title">Основная информация</div>
@@ -2484,7 +2484,7 @@ def verify_permit_public(request, token):
                     </div>
                 </div>
             </div>
-            <div class="footer">Система HSE KBM &bull; hse.kbm.kz</div>
+            <div class="footer">Система HSE Caspian Bitum &bull; hse.cb.kz</div>
         </div>
     </div>
 </body>
@@ -2516,7 +2516,7 @@ class AIAssistantView(APIView):
 
         # Инструкция, чтобы он не болтал лишнего
         system_prompt = """
-        Ты — умный ассистент по технике безопасности (HSE) в нефтяной компании АО «Каражанбасмунай».
+        Ты — умный ассистент по технике безопасности (HSE) в нефтяной компании ТОО «Каспий Битум».
         Твоя задача — помогать персоналу грамотно заполнять наряды-допуски и оценивать риски.
 
         Правила:
