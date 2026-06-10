@@ -93,6 +93,7 @@
     "colPrimary": "Первичный допуск",
     "colSecondary": "Вторичный допуск",
     "colPermitNo": "№ наряда-допуска",
+    "colWorkshop": "Цех",
     "colIssuer": "Лицо, выдавшее наряд",
     "colWorkNature": "Характер выполняемых работ",
     "colStatus": "Статус",

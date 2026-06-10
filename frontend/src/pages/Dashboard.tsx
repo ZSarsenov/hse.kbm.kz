@@ -260,8 +260,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                     <th className="px-4 py-5 w-[140px]">{t('dashboard.colPrimary')}</th>
                     <th className="px-4 py-5 w-[140px]">{t('dashboard.colSecondary')}</th>
                     <th className="px-4 py-5 w-36">{t('dashboard.colPermitNo')}</th>
-                    <th className="px-4 py-5">{t('dashboard.colIssuer')}</th>
-                    <th className="px-4 py-5">{t('dashboard.colWorkNature')}</th>
+                    <th className="px-4 py-5 w-[320px]">{t('dashboard.colWorkshop')}</th>
+                    <th className="px-4 py-5 w-[240px]">{t('dashboard.colIssuer')}</th>
+                    <th className="px-4 py-5 w-[420px]">{t('dashboard.colWorkNature')}</th>
                     <th className="px-4 py-5 text-center w-28">{t('dashboard.colStatus')}</th>
                     <th className="px-4 py-5 w-12"></th>
                   </>
@@ -307,8 +308,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                         <div className="leading-tight mt-0.5">{t('dashboard.endShort')} —</div>
                       </td>
                       <td className="px-4 py-5 font-mono font-medium text-blue-600 group-hover:text-blue-800">{permit.permitId}</td>
-                      <td className="px-4 py-5 text-gray-700">{issuerName}</td>
-                      <td className="px-4 py-5 font-semibold text-gray-800 truncate max-w-[220px]" title={permit.data?.workName || ''}>{permit.data?.workName || '—'}</td>
+                      <td
+                        className="px-4 py-5 text-gray-700 truncate max-w-[320px]"
+                        title={permit.data?.department || ''}
+                      >
+                        {permit.data?.department || '—'}
+                      </td>
+                      <td
+                        className="px-4 py-5 text-gray-700 truncate max-w-[240px]"
+                        title={issuerName}
+                      >
+                        {issuerName}
+                      </td>
+                      <td className="px-4 py-5 font-semibold text-gray-800 truncate max-w-[420px]" title={permit.data?.workName || ''}>{permit.data?.workName || '—'}</td>
                       <td className="px-4 py-5 text-center">
                         <StatusBadge status={permit.status} />
                       </td>
