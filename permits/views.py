@@ -278,7 +278,15 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         for item in period_qs:
             payload = item.get('data') or {}
             work_type = (payload.get('workName') or payload.get('content') or 'Не указано').strip()
-            location_name = (item.get('location__name') or payload.get('workPlace') or 'Не указано').strip()
+            # "Топ локаций" показывает Участок/Цех (поле department формы) — оно заполняется всегда.
+            # Старые поля location__name и workPlace оставлены как fallback для исторических нарядов.
+            location_name = (
+                payload.get('department')
+                or item.get('initiator__department__name')
+                or item.get('location__name')
+                or payload.get('workPlace')
+                or 'Не указано'
+            ).strip()
             department_name = (
                 item.get('initiator__department__name') or payload.get('department') or 'Не указано'
             ).strip()
