@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Plus, Trash2, Save, FileText, AlertTriangle, Users, CheckCircle2, Lock, Zap, ShieldAlert, Building, Edit3, ClipboardCheck, Paperclip, X } from 'lucide-react';
 import { TeamMember, RegulationFormData, UserRole, WORK_TYPES_LIST, RiskTableRow, RiskGroupMember, PermitExtension, PermitCategory, WorkPermit } from '../types';
 import { IsolationMatrixForm } from '../components/IsolationMatrixForm';
-import { ElectricalPermitForm } from '../components/ElectricalPermitForm';
+import { ElectricalPermitFormNew } from '../components/ElectricalPermitFormNew';
 import { UserSearchSelect } from '../components/UserSearchSelect';
 import { SearchableSelect } from  "../components/SearchableSelect"
 import ChecklistSection, { ChecklistData, validateRequiredChecklists } from '../components/ChecklistSection';
@@ -61,8 +61,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
            </div>
         </div>
 
-        <ElectricalPermitForm
-          mode="create" // Для электро пока оставляем create, т.к. там своя логика
+        <ElectricalPermitFormNew
+          mode="create"
           onCancel={onCancel}
           onSubmit={() => onSubmit()}
         />
