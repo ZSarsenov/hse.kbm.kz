@@ -41,14 +41,51 @@ export interface ElectricalSafetyMeasure {
   actionRequired: string; // Что должно быть отключено и где заземлено
 }
 
+export interface BrigadeMember {
+  name: string;
+  group: string; // Группа по электробезопасности
+}
+
+export interface ElectricalPermitExtension {
+  id: string;
+  extensionDate: string; // Күні / дата продления
+  extensionTime: string; // уақыты / время продления
+  extensionSignature: string; // Қолы / Подпись
+  extensionLastName: string; // Тегі / Фамилия
+}
+
+export interface BacksideDailyAdmission {
+  id: string;
+  workplaceName: string;
+  admissionDateTime: string;
+  admitterSignature: string;
+  producerSignature: string;
+  endDateTime: string;
+  producerEndSignature: string;
+}
+
+export interface BacksideBrigadeChange {
+  id: string;
+  introducedMember: string;
+  introducedMemberGroup?: string; // Группа введенного
+  removedMember: string;
+  removedMemberGroup?: string; // Группа выведенного
+  dateTime: string;
+  authorizedBy: string;
+}
+
 export interface ElectricalFormData {
   organization: string;
   department: string;
   workManagerId: string; // Руководитель работ
+  workManagerGroup?: string; // Группа по электробезопасности руководителя работ
   admittingAuthorityId: string; // Допускающий
+  admittingAuthorityGroup?: string; // Группа по электробезопасности допускающего
   workProducerId: string; // Производитель работ
+  workProducerGroup?: string; // Группа по электробезопасности производителя работ
   observerId?: string; // Наблюдающий (опционально)
-  brigadeMembers: string[]; // Члены бригады
+  observerGroup?: string; // Группа по электробезопасности наблюдающего
+  brigadeMembers: (string | BrigadeMember)[]; // Члены бригады — поддерживает старый строковый и новый объектный формат
   workCategory: string; // Категория работ
   assignment: string; // Поручается
   startDate: string;
@@ -58,8 +95,41 @@ export interface ElectricalFormData {
   separateInstructions?: string; // Отдельные указания
   issuerId: string; // Наряд выдал
   issuerIdDate?: string;
+  issuerTime?: string; // Время выдачи наряда
+  issuerLastName?: string; // Фамилия выдавшего
   issuerDate: string;
+  extensions?: ElectricalPermitExtension[]; // Продления наряда
   voltageRemainsAt?: string; // Кернеу бар жері / Под напряжением остались
+  // Модульные блоки
+  riskTable?: RiskTableRow[];
+  lotoEnabled?: boolean;
+  isolationMatrix?: IsolationMatrix;
+  // Admission Permission (разрешение на допуск)
+  admissionDateTime?: string;
+  admissionFromWhom?: string;
+  admissionSignature?: string;
+  underVoltageRemaining?: string;
+  admissionPermitSigner?: string;
+  responsibleWorkManagerSigner?: string;
+  // Оборотная сторона — ежедневный допуск
+  dailyAdmissions?: BacksideDailyAdmission[];
+  // Оборотная сторона — изменения в составе бригады
+  brigadeChanges?: BacksideBrigadeChange[];
+  // Целевой инструктаж — кто провёл
+  briefingConductedByIssuer?: string;
+  briefingConductedByAdmitter?: string;
+  briefingConductedByManager?: string;
+  // Целевой инструктаж — кто получил
+  briefingReceivedByManager?: string;
+  briefingReceivedByProducer?: string;
+  briefingReceivedByMembers?: string;
+  // Завершение работ
+  completionNotifiedTo?: string;
+  completionDate?: string;
+  completionTime?: string;
+  completionProducerSignature?: string;
+  completionManagerSignature?: string;
+  completionAdmitterSignature?: string;
 }
 
 // --- PART 2: ELECTRICAL LIFECYCLE DATA (The "Backside") ---
