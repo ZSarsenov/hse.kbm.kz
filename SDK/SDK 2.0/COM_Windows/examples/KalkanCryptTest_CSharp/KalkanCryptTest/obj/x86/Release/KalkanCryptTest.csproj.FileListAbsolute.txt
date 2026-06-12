@@ -1,3 +1,0 @@
-D:\SDK\SDK 2023.12.06\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\bin\x86\Release\KalkanCryptTest.exe.config
-D:\SDK\SDK 2023.12.06\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\obj\x86\Release\Interop.KalkanCryptCOMLib.dll
-D:\SDK\SDK 2023.12.06\SDK 2.0\COM_Windows\examples\KalkanCryptTest_CSharp\KalkanCryptTest\obj\x86\Release\KalkanCryptTest.csproj.ResolveComReference.cache
