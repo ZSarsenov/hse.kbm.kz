@@ -24,7 +24,8 @@ from rest_framework.exceptions import PermissionDenied
 
 from .models import WorkPermit, WorkPermitTemplate, Department, DangerousWorkType, ApprovalStep, Notification
 from core.signature import parse_xml_signature_info
-from .serializers import (PermitSerializer, WorkPermitTemplateSerializer, DepartamentSerializer,
+from .serializers import (PermitSerializer, PermitListSerializer,
+                          WorkPermitTemplateSerializer, DepartamentSerializer,
                           DangerousWorkTypeSerializer, NotificationSerializer)
 
 from .kalkan import Kalkan # временно не используем способ подписания через Kalkan
@@ -198,14 +199,29 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
     serializer_class = PermitSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_serializer_class(self):
+        # Для списочных эндпоинтов (list, my_tasks и т.п.) отдаём облегчённый
+        # сериализатор без тяжёлых полей (signed_xml, riskTable, brigade_signatures и др).
+        # При retrieve/create/update/partial_update — полная версия PermitSerializer.
+        if self.action in ('list', 'my_tasks'):
+            return PermitListSerializer
+        return PermitSerializer
+
     def get_queryset(self):
         user = self.request.user
+        # Оптимизация N+1: подтягиваем связи одним запросом.
+        # - select_related: ForeignKey (initiator, location, template)
+        # - prefetch_related: обратная связь one-to-many (approval_steps)
+        base_qs = WorkPermit.objects.select_related(
+            'initiator', 'initiator__department', 'location', 'template'
+        ).prefetch_related('approval_steps__approver')
+
         if user.is_admin or user.is_auditor:
-            return WorkPermit.objects.all()
+            return base_qs
         q = Q(initiator=user) | Q(approval_steps__approver=user)
         if user.username == 'dispatcher_semser':
             q = q | Q(data__notifyFireService=True)
-        return WorkPermit.objects.filter(q).distinct()
+        return base_qs.filter(q).distinct()
 
     @action(detail=False, methods=['get'], url_path='audit_stats')
     def audit_stats(self, request):
