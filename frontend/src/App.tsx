@@ -124,68 +124,68 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, currentView]);
 
-  // --- EFFECT 2: LOAD SINGLE PERMIT (Fix for My Tasks) ---
+  // --- EFFECT 2: LOAD FULL PERMIT FOR DETAIL VIEW ---
+  // ВАЖНО: после оптимизации (Этап 2) список нарядов от /api/v1/permits/
+  // отдаёт ОБЛЕГЧЁННУЮ версию data (без safetyMeasures, teamMembers, checklist,
+  // isolationMatrix, riskTable и др. тяжёлых полей). Полная версия доступна
+  // только через GET /api/v1/permits/{id}/. Поэтому при открытии деталей
+  // ВСЕГДА дозапрашиваем полный наряд и заменяем кешированную облегчённую
+  // версию на полную — иначе вкладки "Бригада", "Меры", "LOTO" и т.д. пустые.
   useEffect(() => {
-    // Если мы в режиме просмотра деталей и выбран ID
     if (currentView === 'DETAIL' && selectedPermitId && token) {
-        // Проверяем, есть ли наряд в памяти (сравниваем как строки!)
-        const existing = permits.find(p => String(p.id) === String(selectedPermitId));
-
-        // Если наряда нет — загружаем его
-        if (!existing) {
-            console.log("Загружаю детали наряда ID:", selectedPermitId);
-
-            fetch(`/api/v1/permits/${selectedPermitId}/`, {
-                headers: { 'Authorization': `Token ${token}` }
-            })
-            .then(res => {
-                if (res.ok) return res.json();
-                throw new Error('Не удалось загрузить наряд');
-            })
-            .then(p => {
-                // Форматируем данные
-                const formattedPermit: WorkPermit = {
-                    id: p.id,
-                    permitId: p.permit_id || 'Черновик',
-                    templateType: p.templateType || 'Наряд повышенной опасности',
-                    status: p.status,
-                    scan_file: p.scan_file,
-                    safety_document: p.safety_document,
+      fetch(`/api/v1/permits/${selectedPermitId}/`, {
+        headers: { 'Authorization': `Token ${token}` }
+      })
+      .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('Не удалось загрузить наряд');
+      })
+      .then(p => {
+        const formattedPermit: WorkPermit = {
+          id: p.id,
+          permitId: p.permit_id || 'Черновик',
+          templateType: p.templateType || 'Наряд повышенной опасности',
+          status: p.status,
+          scan_file: p.scan_file,
+          safety_document: p.safety_document,
           loto_photo: p.loto_photo,
-                    initiator: {
-                        name: p.initiator.name || `${p.initiator.last_name} ${p.initiator.first_name}`,
-                        position: p.initiator.position,
-                        iin: p.initiator.iin,
-                        bin: p.initiator.bin,
-                        id: p.initiator.id
-                    },
-                    location: {
-                        name: p.location_name || 'Место не указано'
-                    },
-                    createdAt: p.created_at,
-                    validFrom: p.valid_from,
-                    validTo: p.valid_to,
-                    data: p.data,
-                    approvalSteps: p.approval_steps,
-                    producer_closed: p.producer_closed,
-                };
+          initiator: {
+            name: p.initiator?.name || [p.initiator?.last_name, p.initiator?.first_name].filter(Boolean).join(' ') || '—',
+            position: p.initiator?.position,
+            iin: p.initiator?.iin,
+            bin: p.initiator?.bin,
+            id: p.initiator?.id,
+          },
+          location: {
+            name: p.location_name || 'Место не указано'
+          },
+          createdAt: p.created_at,
+          validFrom: p.valid_from,
+          validTo: p.valid_to,
+          data: p.data,
+          approvalSteps: p.approval_steps,
+          producer_closed: p.producer_closed,
+        };
 
-                // Добавляем в список (с проверкой на дубликаты)
-                setPermits(prev => {
-                    if (prev.find(item => String(item.id) === String(formattedPermit.id))) {
-                        return prev;
-                    }
-                    return [...prev, formattedPermit];
-                });
-            })
-            .catch(err => {
-                console.error("Ошибка загрузки деталей наряда:", err);
-                alert(t('app.openPermitFail'));
-                setCurrentView('MY_TASKS' as any);
-            });
-        }
+        // Заменяем облегчённую версию на полную или добавляем, если не было
+        setPermits(prev => {
+          const exists = prev.some(item => String(item.id) === String(formattedPermit.id));
+          if (exists) {
+            return prev.map(item =>
+              String(item.id) === String(formattedPermit.id) ? formattedPermit : item
+            );
+          }
+          return [...prev, formattedPermit];
+        });
+      })
+      .catch(err => {
+        console.error("Ошибка загрузки деталей наряда:", err);
+        alert(t('app.openPermitFail'));
+        setCurrentView('MY_TASKS' as any);
+      });
     }
-  }, [selectedPermitId, currentView, token, permits]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPermitId, currentView, token]);
 
   // --- HANDLERS ---
   const handleLogin = (newToken: string, data: any) => {
