@@ -190,6 +190,7 @@ class WorkPermitTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = WorkPermitTemplate.objects.all()
     serializer_class = WorkPermitTemplateSerializer
     permission_classes = [AllowAny]  # на время DEV можно открыть для всех
+    pagination_class = None  # справочник — отдаём массивом, без пагинации
 
 
 class WorkPermitViewSet(viewsets.ModelViewSet):
@@ -2314,6 +2315,7 @@ class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Department.objects.all()
     serializer_class = DepartamentSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # справочник — отдаём массивом
 
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'name_kk']
@@ -2326,6 +2328,7 @@ class DangerousWorkTypeViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = DangerousWorkType.objects.all()
     serializer_class = DangerousWorkTypeSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # справочник — отдаём массивом
 
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'name_kk']
@@ -2335,6 +2338,7 @@ class DangerousWorkTypeViewSet(viewsets.ReadOnlyModelViewSet):
 class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = NotificationSerializer
+    pagination_class = None  # уведомления в колокольчике — фронт ждёт массив
 
     def get_queryset(self):
         # Показываем только уведомления текущего юзера

@@ -40,70 +40,88 @@ function App() {
   const [permits, setPermits] = useState<WorkPermit[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
 
-  // --- FETCHING DATA (Функция загрузки) ---
-  const fetchPermits = async () => {
+  // Приводит сырой объект наряда из API к нашему формату camelCase
+  const formatPermit = (p: any): WorkPermit => ({
+    id: p.id,
+    permitId: p.permit_id || 'Черновик',
+    templateType: p.templateType || 'Наряд повышенной опасности',
+    status: p.status,
+    scan_file: p.scan_file,
+    safety_document: p.safety_document,
+    loto_photo: p.loto_photo,
+    initiator: {
+      name: p.initiator?.name || [p.initiator?.last_name, p.initiator?.first_name].filter(Boolean).join(' ') || '—',
+      position: p.initiator?.position,
+      iin: p.initiator?.iin,
+      bin: p.initiator?.bin,
+      id: p.initiator?.id,
+    },
+    location: { name: p.location_name || 'Место не указано' },
+    createdAt: p.created_at,
+    validFrom: p.valid_from,
+    validTo: p.valid_to,
+    data: p.data,
+    approvalSteps: p.approval_steps,
+    producer_closed: p.producer_closed,
+  });
+
+  // --- FETCHING DATA: первая страница быстро, остальные — в фоне ---
+  // Бэкенд использует пагинацию DRF (PAGE_SIZE=20). Чтобы UX был мгновенным,
+  // сначала показываем 20 первых нарядов, затем подгружаем page=2,3,... в фоне.
+  const fetchPermits = async (currentToken: string) => {
     setIsLoading(true);
     try {
-        const response = await fetch('/api/v1/permits/', {
-            headers: { 'Authorization': `Token ${token}` }
+      const firstResp = await fetch('/api/v1/permits/?page=1', {
+        headers: { 'Authorization': `Token ${currentToken}` },
+      });
+      if (firstResp.status === 401) {
+        handleLogout();
+        return;
+      }
+      if (!firstResp.ok) throw new Error('Ошибка загрузки списка нарядов');
+      const firstData = await firstResp.json();
+
+      // Поддержка обоих форматов: пагинированный {results,count,next} или массив (на случай отключённой пагинации)
+      const firstItems: any[] = Array.isArray(firstData) ? firstData : (firstData.results || []);
+      setPermits(firstItems.map(formatPermit));
+      setIsLoading(false); // Dashboard уже может рендерить первые 20
+
+      // Если массив (старый формат без пагинации) — больше ничего не догружаем
+      if (Array.isArray(firstData)) return;
+
+      // Догружаем остальные страницы в фоне
+      const totalCount: number = firstData.count || 0;
+      const pageSize = firstItems.length || 20;
+      const totalPages = Math.ceil(totalCount / pageSize);
+      if (totalPages <= 1) return;
+
+      setIsBackgroundLoading(true);
+      for (let page = 2; page <= totalPages; page++) {
+        const resp = await fetch(`/api/v1/permits/?page=${page}`, {
+          headers: { 'Authorization': `Token ${currentToken}` },
         });
-        if (response.ok) {
-            const data = await response.json();
-            setPermits(data);
-        } else if (response.status === 401) {
-            handleLogout();
-        }
+        if (!resp.ok) break;
+        const data = await resp.json();
+        const items: any[] = Array.isArray(data) ? data : (data.results || []);
+        if (items.length === 0) break;
+        setPermits(prev => [...prev, ...items.map(formatPermit)]);
+      }
+      setIsBackgroundLoading(false);
     } catch (error) {
-        console.error("Ошибка загрузки:", error);
-    } finally {
-        setIsLoading(false);
+      console.error('Ошибка загрузки:', error);
+      setIsLoading(false);
+      setIsBackgroundLoading(false);
     }
   };
 
   // --- EFFECT 1: LOAD PERMITS FOR DASHBOARD ---
   useEffect(() => {
     if (token && currentView === 'DASHBOARD') {
-      fetch('/api/v1/permits/', {
-        headers: {
-          'Authorization': `Token ${token}`
-        }
-      })
-      .then(res => {
-        if (res.ok) return res.json();
-        throw new Error('Ошибка загрузки списка нарядов');
-      })
-      .then(data => {
-        const items = Array.isArray(data) ? data : (data.results || []);
-        const formattedPermits = items.map((p: any) => ({
-          id: p.id,
-          permitId: p.permit_id || 'Черновик',
-          templateType: p.templateType || 'Наряд повышенной опасности',
-          status: p.status,
-          scan_file: p.scan_file,
-          safety_document: p.safety_document,
-          loto_photo: p.loto_photo,
-          initiator: {
-            name: p.initiator.name || `${p.initiator.last_name} ${p.initiator.first_name}`,
-            position: p.initiator.position,
-            iin: p.initiator.iin,
-            bin: p.initiator.bin,
-            id: p.initiator.id
-          },
-          location: {
-            name: p.location_name || 'Место не указано'
-          },
-          createdAt: p.created_at,
-          validFrom: p.valid_from,
-          validTo: p.valid_to,
-          data: p.data,
-          approvalSteps: p.approval_steps,
-          producer_closed: p.producer_closed,
-        }));
-        setPermits(formattedPermits);
-      })
-      .catch(err => console.error("Ошибка при получении нарядов:", err));
+      fetchPermits(token);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, currentView]);
 
   // --- EFFECT 2: LOAD SINGLE PERMIT (Fix for My Tasks) ---
@@ -389,6 +407,7 @@ function App() {
                     onSelectPermit={handleSelectPermit}
                     onCreateNew={handleCreateNew}
                     isArchiveView={currentView === 'ARCHIVE'}
+                    isBackgroundLoading={isBackgroundLoading}
                   />
               )
           )

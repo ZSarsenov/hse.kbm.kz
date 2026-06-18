@@ -9,11 +9,12 @@ interface DashboardProps {
   onSelectPermit: (id: string) => void;
   onCreateNew: () => void;
   isArchiveView?: boolean; // 👈 ДОБАВИЛИ ФЛАГ "РЕЖИМ АРХИВА"
+  isBackgroundLoading?: boolean; // фоновая подгрузка остальных страниц с сервера
 }
 
 const ITEMS_PER_PAGE = 10;
 
-export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, onCreateNew, isArchiveView = false }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, onCreateNew, isArchiveView = false, isBackgroundLoading = false }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language?.startsWith('kk') ? 'kk-KZ' : 'ru-RU';
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
@@ -389,8 +390,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
         {/* Pagination Footer */}
         {filteredPermits.length > 0 && (
           <div className="flex items-center justify-between px-6 py-5 border-t border-gray-200 bg-white">
-            <div className="text-base text-gray-500">
-              {t('dashboard.shown')} <span className="font-medium text-gray-900">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredPermits.length)}</span> {t('dashboard.of')} <span className="font-medium text-gray-900">{filteredPermits.length}</span>
+            <div className="text-base text-gray-500 flex items-center gap-3">
+              <span>
+                {t('dashboard.shown')} <span className="font-medium text-gray-900">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredPermits.length)}</span> {t('dashboard.of')} <span className="font-medium text-gray-900">{filteredPermits.length}</span>
+              </span>
+              {isBackgroundLoading && (
+                <span className="flex items-center gap-1.5 text-blue-600 text-sm">
+                  <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-200 border-t-blue-600" />
+                  Подгружаются ещё…
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2">

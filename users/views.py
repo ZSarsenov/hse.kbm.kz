@@ -18,6 +18,7 @@ class UserSearchViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.filter(is_active=True) # Показываем только активных
     serializer_class = UserInfoSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # UserSearchSelect ожидает массив, не пагинированный объект
 
     # Включаем поиск
     filter_backends = [filters.SearchFilter]

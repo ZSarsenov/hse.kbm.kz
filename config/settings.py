@@ -176,7 +176,11 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         # Если не указано иное, доступ только для аутентифицированных
         'rest_framework.permissions.IsAuthenticated',
-    ]
+    ],
+    # Пагинация — чтобы списки нарядов и т.п. не возвращали тысячи записей разом.
+    # Ответ будет вида { count, next, previous, results: [...] }.
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
 }
 
 CORS_ALLOWED_ORIGINS = [
