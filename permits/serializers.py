@@ -149,17 +149,41 @@ class PermitSerializer(serializers.ModelSerializer):
 class PermitListSerializer(serializers.ModelSerializer):
     """
     Облегчённый сериализатор нарядов для списочных эндпоинтов (Дашборд, Журнал).
+
     Отличия от PermitSerializer:
       - approval_steps без signed_xml/signer_details/rejection_reason (≈ −50 КБ/шаг)
-      - data урезана до полей, которые реально используются в списках:
-        workName, department, lotoEnabled, isolationMatrix, admitting, producer, supervisor
-        (это даёт экономию 5-10× по объёму JSON)
-    Полная информация о наряде по-прежнему доступна через GET /api/v1/permits/{id}/
+      - data урезана до полей LIST_DATA_KEYS, которые реально используются в
+        списках (Dashboard, Журнал, LotoReports, MyTasks). Все остальные ключи
+        (riskTable, safetyMeasures, brigadeMembers, checklist, extensions,
+        teamMembers, m5_1_stop...m5_10_additional, brigade_signatures,
+        producer_close_signature и т.д.) — отбрасываются. Это даёт экономию
+        ≈5× по объёму JSON для типичного наряда.
+
+    Полная информация о наряде доступна через GET /api/v1/permits/{id}/
+    (использует полный PermitSerializer). ВАЖНО: фронт перед открытием формы
+    редактирования (handleEditPermit в App.tsx) ВСЕГДА явно догружает полную
+    версию через GET /api/v1/permits/{id}/ — иначе сохранение PUT с обрезанной
+    data перезапишет JSON-поле в БД пустотой.
     """
     initiator = UserInfoSerializer(read_only=True)
     approval_steps = ApprovalStepListSerializer(many=True, read_only=True)
     templateType = serializers.CharField(source='template.name', read_only=True)
     location_name = serializers.CharField(source='location.name', read_only=True)
+    data = serializers.SerializerMethodField()
+
+    # Ключи, которые сохраняются в data при выдаче списка.
+    LIST_DATA_KEYS = (
+        'workName',          # колонка "Характер выполняемых работ"
+        'department',        # колонка "Цех"
+        'workPlace',         # поиск по месту работ
+        'lotoEnabled',       # фильтр в LotoReports
+        'isolationMatrix',   # вывод LOTO-отчёта в LotoReports
+        'admitting',         # ФИО допускающего (LotoReports)
+        'producer',          # ApprovalStep.approver_name для внешнего производителя
+        'supervisor',        # ApprovalStep.approver_name для внешнего согласующего
+        'notifyFireService', # фильтр для dispatcher_semser
+        'callFirePost',      # баннер для dispatcher_semser
+    )
 
     class Meta:
         model = WorkPermit
@@ -171,6 +195,11 @@ class PermitListSerializer(serializers.ModelSerializer):
             'scan_file', 'safety_document', 'loto_photo',
             'producer_closed',
         )
+
+    def get_data(self, obj):
+        if not obj.data:
+            return {}
+        return {k: obj.data[k] for k in self.LIST_DATA_KEYS if k in obj.data}
 
 
 # 5. Сериализатор для Департаментов

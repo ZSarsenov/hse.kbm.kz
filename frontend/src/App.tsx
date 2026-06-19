@@ -250,11 +250,40 @@ function App() {
   };
 
   // Редактирование
-  const handleEditPermit = (permit: WorkPermit) => {
-      setEditingPermit(permit);
+  // ВАЖНО: списочный эндпоинт /api/v1/permits/ отдаёт ОБЛЕГЧЁННУЮ data
+  // (без teamMembers, riskTable, checklist, m5_* и др. — см. PermitListSerializer
+  // LIST_DATA_KEYS). Если открыть редактирование с этими "дырявыми" данными
+  // и сохранить через PUT — бэкенд перезапишет JSON-поле в БД пустотой.
+  // Поэтому ВСЕГДА явно догружаем полную версию через /api/v1/permits/{id}/
+  // перед показом формы редактирования.
+  const handleEditPermit = async (permit: WorkPermit) => {
+      if (!token) return;
       setSelectedCategory(PermitCategory.DANGEROUS);
+      // Сначала переходим во view CREATE с временно "обрезанной" версией —
+      // показываем форму, чтобы не было паузы. Полная версия подгрузится через
+      // мгновение и заменит state.
+      setEditingPermit(permit);
       setCurrentView('CREATE');
       window.scrollTo(0, 0);
+      try {
+          const response = await fetch(`/api/v1/permits/${permit.id}/`, {
+              headers: { 'Authorization': `Token ${token}` }
+          });
+          if (response.ok) {
+              const raw = await response.json();
+              const fullPermit = formatPermit(raw);
+              setEditingPermit(fullPermit);
+              // Также обновляем кеш — нам пригодится при следующем открытии деталей
+              setPermits(prev => prev.map(item =>
+                  String(item.id) === String(fullPermit.id) ? fullPermit : item
+              ));
+          } else if (response.status === 401) {
+              handleLogout();
+          }
+      } catch (e) {
+          console.error('Ошибка догрузки полной версии для редактирования:', e);
+          // Падать назад не нужно — у нас уже есть кешированная версия в editingPermit
+      }
   };
 
   // Удаление
