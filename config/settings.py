@@ -167,6 +167,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'users.User'
 
+# Кастомный backend аутентификации: позволяет вводить логин в любом регистре
+# (Z_Sarsenov == z_sarsenov). Подробнее — users/auth_backends.py
+AUTHENTICATION_BACKENDS = [
+    'users.auth_backends.CaseInsensitiveModelBackend',
+]
+
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
