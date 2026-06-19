@@ -164,23 +164,6 @@ class PermitListSerializer(serializers.ModelSerializer):
     approval_steps = ApprovalStepListSerializer(many=True, read_only=True)
     templateType = serializers.CharField(source='template.name', read_only=True)
     location_name = serializers.CharField(source='location.name', read_only=True)
-    data = serializers.SerializerMethodField()
-
-    # Ключи, которые остаются в data при отдаче списка.
-    # Всё остальное (riskTable, safetyMeasures, brigadeMembers, checklist, extensions, teamMembers,
-    # brigade_signatures, producer_close_signature и т.д.) — отбрасывается.
-    LIST_DATA_KEYS = (
-        'workName',         # колонка "Характер выполняемых работ"
-        'department',       # колонка "Цех"
-        'workPlace',        # поиск по месту работ
-        'lotoEnabled',      # фильтр в LotoReports
-        'isolationMatrix',  # вывод LOTO-отчёта в LotoReports
-        'admitting',        # ФИО допускающего для LotoReports
-        'producer',         # для ApprovalStep.approver_name (внешний производитель)
-        'supervisor',       # для ApprovalStep.approver_name (внешний согласующий)
-        'notifyFireService',  # фильтр для dispatcher_semser
-        'callFirePost',     # баннер для dispatcher_semser
-    )
 
     class Meta:
         model = WorkPermit
@@ -192,11 +175,6 @@ class PermitListSerializer(serializers.ModelSerializer):
             'scan_file', 'safety_document', 'loto_photo',
             'producer_closed',
         )
-
-    def get_data(self, obj):
-        if not obj.data:
-            return {}
-        return {k: obj.data[k] for k in self.LIST_DATA_KEYS if k in obj.data}
 
 
 # 5. Сериализатор для Департаментов
