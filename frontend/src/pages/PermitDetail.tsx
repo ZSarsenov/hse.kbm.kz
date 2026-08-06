@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  ArrowLeft, MapPin, User, Clock, FileText, CheckCircle2, AlertTriangle, FileSignature, XCircle, Download, Shield, Users, Edit3, Trash2, Copy
+  ArrowLeft, MapPin, User, Clock, FileText, CheckCircle2, AlertTriangle, FileSignature, XCircle, Download, Shield, Users, Edit3, Trash2, Copy, FlaskConical
 } from 'lucide-react';
 import { WorkPermit, PermitCategory, ElectricalLifecycle } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
@@ -106,6 +106,15 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
     (admitApprovedStep && String(admitApprovedStep.approver_id) === currentUserId)
   );
 
+  // Кто может управлять лаборантами: Производитель работ (из базы или внешний)
+  const isWorkProducerUser = !!(
+    permit.status === 'APPROVED' &&
+    (
+      isProducerUser ||
+      canActForExternalProducer
+    )
+  );
+
   // Кнопка "Закрыть наряд" — Производитель работ (шаг 1)
   const showProducerClose = !isAuditor && permit.status === 'APPROVED' && !permit.producer_closed &&
     (isProducerUser || canActForExternalProducer);
@@ -139,6 +148,12 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const [showAddMember, setShowAddMember] = useState(false);
   const [newMember, setNewMember] = useState({ name: '', role: '', instructedBy: '' });
   const [addingMember, setAddingMember] = useState(false);
+
+  // --- ЛАБОРАНТ ЦНИПР ---
+  const [showAddLabTechnician, setShowAddLabTechnician] = useState(false);
+  const [newLabTechnician, setNewLabTechnician] = useState({ name: '', samplingLocation: '', concentration: '' });
+  const [addingLabTechnician, setAddingLabTechnician] = useState(false);
+  const [signingLabTechnicianIndex, setSigningLabTechnicianIndex] = useState<number | null>(null);
 
   // --- ЭЛЕКТРОУСТАНОВКИ ---
   const [lifecycle, setLifecycle] = useState<ElectricalLifecycle>({
@@ -451,6 +466,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
     { id: 'info', label: 'Основное' },
     { id: 'safety', label: 'Меры безопасности' },
     { id: 'team', label: 'Бригада' },
+    { id: 'lab', label: 'Лаборант' },
     { id: 'checklist', label: 'Чек лист' },
     ...(data.lotoEnabled ? [{ id: 'loto', label: 'LOTO' }] : []),
   ];
@@ -898,7 +914,134 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                </div>
            )}
 
-           {activeTab === 'checklist' && (
+           {activeTab === 'lab' && (
+                <div className="animate-in fade-in duration-300">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><FlaskConical size={20} className="text-purple-500"/> Лаборант ЦНИПР</h3>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">Всего: {data.labTechnicians?.length || 0} чел.</span>
+                        {isWorkProducerUser && (
+                          <button onClick={() => setShowAddLabTechnician(!showAddLabTechnician)} className="text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-full transition-colors">
+                            + Добавить Лаборанта
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {showAddLabTechnician && isWorkProducerUser && (
+                      <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                          <input type="text" placeholder="ФИО лаборанта" value={newLabTechnician.name} onChange={e => setNewLabTechnician({...newLabTechnician, name: e.target.value})} className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
+                          <input type="text" placeholder="Место отбора проб" value={newLabTechnician.samplingLocation} onChange={e => setNewLabTechnician({...newLabTechnician, samplingLocation: e.target.value})} className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
+                          <input type="text" placeholder="Концентрация" value={newLabTechnician.concentration} onChange={e => setNewLabTechnician({...newLabTechnician, concentration: e.target.value})} className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
+                        </div>
+                        <div className="flex gap-2">
+                          <button disabled={addingLabTechnician || !newLabTechnician.name.trim()} onClick={async () => {
+                            setAddingLabTechnician(true);
+                            try {
+                              const token = localStorage.getItem('auth_token');
+                              const res = await fetch(`/api/v1/permits/${permit.id}/add_lab_technician/`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Token ${token}` } : {}) },
+                                body: JSON.stringify({ name: newLabTechnician.name, sampling_location: newLabTechnician.samplingLocation, concentration: newLabTechnician.concentration }),
+                              });
+                              if (res.ok) {
+                                setNewLabTechnician({ name: '', samplingLocation: '', concentration: '' });
+                                setShowAddLabTechnician(false);
+                                onRefresh?.();
+                              } else {
+                                const err = await res.json().catch(() => ({}));
+                                alert(err.error || 'Ошибка');
+                              }
+                            } finally { setAddingLabTechnician(false); }
+                          }} className="px-4 py-2 bg-purple-600 text-white rounded-md text-sm font-medium hover:bg-purple-700 disabled:opacity-50">
+                            {addingLabTechnician ? 'Сохранение...' : 'Сохранить'}
+                          </button>
+                          <button onClick={() => { setShowAddLabTechnician(false); setNewLabTechnician({ name: '', samplingLocation: '', concentration: '' }); }} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-300">
+                            Отмена
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {data.labTechnicians && data.labTechnicians.length > 0 ? (
+                        <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                            <table className="w-full text-left text-sm">
+                              <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase">
+                                <tr>
+                                  <th className="px-4 py-3 w-10">№</th>
+                                  <th className="px-4 py-3">ФИО</th>
+                                  <th className="px-4 py-3">Место отбора проб</th>
+                                  <th className="px-4 py-3">Концентрация</th>
+                                  <th className="px-4 py-3 w-40">Подпись</th>
+                                  <th className="px-4 py-3 w-40">Дата подписи</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100">
+                                {data.labTechnicians.map((tech: any, idx: number) => {
+                                  const hasSig = !!tech.signature;
+                                  return (
+                                    <tr key={idx} className="hover:bg-gray-50">
+                                      <td className="px-4 py-3 text-gray-400">{idx + 1}</td>
+                                      <td className="px-4 py-3 font-medium text-gray-900">{tech.name}</td>
+                                      <td className="px-4 py-3 text-gray-600">{tech.samplingLocation || '—'}</td>
+                                      <td className="px-4 py-3 text-gray-600">{tech.concentration || '—'}</td>
+                                      <td className="px-4 py-3">
+                                        {hasSig ? (
+                                          <img src={getSignatureUrl(tech.signature)} alt="Подпись лаборанта" className="h-10 object-contain bg-gray-50 border border-gray-200 rounded" />
+                                        ) : isWorkProducerUser ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => setSigningLabTechnicianIndex(idx)}
+                                            className="text-purple-600 hover:text-purple-800 font-medium text-sm"
+                                          >
+                                            Подписать
+                                          </button>
+                                        ) : (
+                                          <span className="text-gray-400 text-sm">—</span>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-3 text-gray-500">{tech.signedAt ? new Date(tech.signedAt).toLocaleString('ru-RU') : '—'}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                      <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                        Лаборанты не добавлены
+                        {isWorkProducerUser && (
+                          <p className="mt-2 text-sm">Нажмите «+ Добавить Лаборанта» для внесения данных</p>
+                        )}
+                      </div>
+                    )}
+                    {isWorkProducerUser && signingLabTechnicianIndex !== null && (
+                      <SignaturePadModal
+                        open={true}
+                        memberLabel={`${data.labTechnicians[signingLabTechnicianIndex]?.name || ''} (Лаборант № ${signingLabTechnicianIndex + 1})`}
+                        onClose={() => setSigningLabTechnicianIndex(null)}
+                        onConfirm={async (blob) => {
+                          const token = localStorage.getItem('auth_token');
+                          const form = new FormData();
+                          form.append('index', String(signingLabTechnicianIndex));
+                          form.append('signature', blob, 'signature.png');
+                          const res = await fetch(`/api/v1/permits/${permit.id}/lab_technician_sign/`, {
+                            method: 'POST',
+                            headers: token ? { 'Authorization': `Token ${token}` } : {},
+                            body: form,
+                          });
+                          if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            const msg = err.error || err.detail || `Ошибка ${res.status}`;
+                            throw new Error(msg);
+                          }
+                          onRefresh?.();
+                        }}
+                      />
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'checklist' && (
                <div className="animate-in fade-in duration-300">
                    {/* Таблица анализа рисков */}
                    <div className="flex items-center gap-2 mb-4">

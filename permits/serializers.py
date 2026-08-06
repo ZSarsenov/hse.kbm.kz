@@ -183,6 +183,8 @@ class PermitListSerializer(serializers.ModelSerializer):
         'supervisor',        # ApprovalStep.approver_name для внешнего согласующего
         'notifyFireService', # фильтр для dispatcher_semser
         'callFirePost',      # баннер для dispatcher_semser
+        'issuer',            # проверка hasRequiredFields в PermitDetail
+        'teamMembers',       # проверка hasRequiredFields в PermitDetail
     )
 
     class Meta:

@@ -178,6 +178,14 @@ export interface TeamMember {
   instructedBy: string;
 }
 
+export interface LabTechnician {
+  name: string;
+  samplingLocation: string;
+  concentration: string;
+  signature: string;
+  signedAt: string;
+}
+
 export interface PermitExtension {
   id: string;
   dateTime: string;

@@ -858,6 +858,105 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
         return Response({'ok': True, 'member_index': len(team) - 1, 'total': len(team)})
 
+    @action(detail=True, methods=['post'], url_path='add_lab_technician')
+    def add_lab_technician(self, request, pk=None):
+        """Добавление лаборанта ЦНИПР к согласованному наряду. Только Производитель работ."""
+        permit = self.get_object()
+        if permit.status != 'APPROVED':
+            return Response({'error': 'Добавить лаборанта можно только к согласованному наряду.'}, status=400)
+
+        producer_step = permit.approval_steps.filter(role='WORK_PRODUCER').first()
+        is_producer = producer_step and producer_step.approver_id and str(producer_step.approver_id) == str(request.user.id)
+        external_producer = (
+            producer_step and not producer_step.approver_id
+            and isinstance((permit.data or {}).get('producer'), dict)
+            and permit.data['producer'].get('external')
+        )
+        if not (is_producer or external_producer or getattr(request.user, 'is_admin', False)):
+            return Response({'error': 'Только Производитель работ может добавить лаборанта.'}, status=403)
+
+        name = (request.data.get('name') or '').strip()
+        if not name:
+            return Response({'error': 'Укажите ФИО лаборанта.'}, status=400)
+        sampling_location = (request.data.get('sampling_location') or '').strip()
+        concentration = (request.data.get('concentration') or '').strip()
+
+        data = dict(permit.data) if permit.data else {}
+        lab_technicians = data.get('labTechnicians') or []
+        lab_technicians.append({
+            'name': name,
+            'samplingLocation': sampling_location,
+            'concentration': concentration,
+            'signature': '',
+            'signedAt': '',
+        })
+        data['labTechnicians'] = lab_technicians
+        permit.data = data
+        permit.save(update_fields=['data'])
+
+        return Response({'ok': True, 'index': len(lab_technicians) - 1, 'total': len(lab_technicians)})
+
+    @action(detail=True, methods=['post'], url_path='lab_technician_sign')
+    def lab_technician_sign(self, request, pk=None):
+        """Графическая подпись лаборанта ЦНИПР. Открывает Производитель работ."""
+        permit = self.get_object()
+        if permit.status != 'APPROVED':
+            return Response({'error': 'Подпись лаборанта доступна только для согласованного наряда.'}, status=400)
+
+        producer_step = permit.approval_steps.filter(role='WORK_PRODUCER').first()
+        is_producer = producer_step and producer_step.approver_id and str(producer_step.approver_id) == str(request.user.id)
+        external_producer = (
+            producer_step and not producer_step.approver_id
+            and isinstance((permit.data or {}).get('producer'), dict)
+            and permit.data['producer'].get('external')
+        )
+        if not (is_producer or external_producer or getattr(request.user, 'is_admin', False)):
+            return Response({'error': 'Только Производитель работ может дать подписать лаборанту.'}, status=403)
+
+        tech_index = request.data.get('index')
+        if tech_index is None:
+            return Response({'error': 'Укажите index лаборанта.'}, status=400)
+        try:
+            tech_index = int(tech_index)
+        except (TypeError, ValueError):
+            return Response({'error': 'index должен быть числом.'}, status=400)
+
+        data = dict(permit.data) if permit.data else {}
+        lab_technicians = data.get('labTechnicians') or []
+        if tech_index < 0 or tech_index >= len(lab_technicians):
+            return Response({'error': 'Недопустимый индекс лаборанта.'}, status=400)
+
+        image_file = request.FILES.get('signature')
+        if not image_file:
+            return Response({'error': 'Приложите файл подписи (signature).'}, status=400)
+        ct = (image_file.content_type or '').lower()
+        if ct and not ct.startswith('image/'):
+            return Response({'error': f'Разрешены только изображения (получен {image_file.content_type}).'}, status=400)
+        if image_file.size > 2 * 1024 * 1024:
+            return Response({'error': 'Размер файла не более 2 МБ.'}, status=400)
+
+        try:
+            rel_dir = os.path.join('brigade_signatures', str(permit.pk))
+            dest_dir = os.path.join(settings.MEDIA_ROOT, rel_dir)
+            os.makedirs(dest_dir, exist_ok=True)
+            fname = f'lab_{tech_index}.png'
+            rel_path = os.path.join(rel_dir, fname).replace('\\', '/')
+            full_path = os.path.join(settings.MEDIA_ROOT, rel_dir, fname)
+            with open(full_path, 'wb') as f:
+                for chunk in image_file.chunks():
+                    f.write(chunk)
+            lab_technicians[tech_index]['signature'] = rel_path
+            lab_technicians[tech_index]['signedAt'] = timezone.now().isoformat()
+            data['labTechnicians'] = lab_technicians
+            permit.data = data
+            permit.save(update_fields=['data'])
+            return Response({'ok': True, 'index': tech_index, 'signature_path': rel_path, 'signed_at': lab_technicians[tech_index]['signedAt']})
+        except Exception as e:
+            return Response(
+                {'error': f'Ошибка сохранения подписи: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
     @action(detail=True, methods=['post'], url_path='producer_signature')
     def producer_signature(self, request, pk=None):
         """
