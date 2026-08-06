@@ -106,13 +106,9 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
     (admitApprovedStep && String(admitApprovedStep.approver_id) === currentUserId)
   );
 
-  // Кто может управлять лаборантами: Производитель работ (из базы или внешний)
-  const isWorkProducerUser = !!(
-    permit.status === 'APPROVED' &&
-    (
-      isProducerUser ||
-      canActForExternalProducer
-    )
+  // Кто может управлять лаборантами: Допускающий (до своей подписи, статус PENDING_APPROVAL)
+  const isAdmittingCanManageLab = !!(permit.status === 'PENDING_APPROVAL' &&
+    steps.some((s: any) => s.role === 'ADMITTING' && String(s.approver_id) === currentUserId && s.status === 'PENDING')
   );
 
   // Кнопка "Закрыть наряд" — Производитель работ (шаг 1)
@@ -920,14 +916,14 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                       <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><FlaskConical size={20} className="text-purple-500"/> Лаборант ЦНИПР</h3>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">Всего: {data.labTechnicians?.length || 0} чел.</span>
-                        {isWorkProducerUser && (
+                        {isAdmittingCanManageLab && (
                           <button onClick={() => setShowAddLabTechnician(!showAddLabTechnician)} className="text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-full transition-colors">
                             + Добавить Лаборанта
                           </button>
                         )}
                       </div>
                     </div>
-                    {showAddLabTechnician && isWorkProducerUser && (
+                    {showAddLabTechnician && isAdmittingCanManageLab && (
                       <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                           <input type="text" placeholder="ФИО лаборанта" value={newLabTechnician.name} onChange={e => setNewLabTechnician({...newLabTechnician, name: e.target.value})} className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
@@ -987,7 +983,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                       <td className="px-4 py-3">
                                         {hasSig ? (
                                           <img src={getSignatureUrl(tech.signature)} alt="Подпись лаборанта" className="h-10 object-contain bg-gray-50 border border-gray-200 rounded" />
-                                        ) : isWorkProducerUser ? (
+                                        ) : isAdmittingCanManageLab ? (
                                           <button
                                             type="button"
                                             onClick={() => setSigningLabTechnicianIndex(idx)}
@@ -1009,12 +1005,12 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                     ) : (
                       <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">
                         Лаборанты не добавлены
-                        {isWorkProducerUser && (
+                        {isAdmittingCanManageLab && (
                           <p className="mt-2 text-sm">Нажмите «+ Добавить Лаборанта» для внесения данных</p>
                         )}
                       </div>
                     )}
-                    {isWorkProducerUser && signingLabTechnicianIndex !== null && (
+                    {isAdmittingCanManageLab && signingLabTechnicianIndex !== null && (
                       <SignaturePadModal
                         open={true}
                         memberLabel={`${data.labTechnicians[signingLabTechnicianIndex]?.name || ''} (Лаборант № ${signingLabTechnicianIndex + 1})`}

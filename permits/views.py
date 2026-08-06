@@ -860,20 +860,16 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='add_lab_technician')
     def add_lab_technician(self, request, pk=None):
-        """Добавление лаборанта ЦНИПР к согласованному наряду. Только Производитель работ."""
+        """Добавление лаборанта ЦНИПР. Только Допускающий до своей подписи."""
         permit = self.get_object()
-        if permit.status != 'APPROVED':
-            return Response({'error': 'Добавить лаборанта можно только к согласованному наряду.'}, status=400)
+        if permit.status != 'PENDING_APPROVAL':
+            return Response({'error': 'Добавить лаборанта можно только на этапе согласования.'}, status=400)
 
-        producer_step = permit.approval_steps.filter(role='WORK_PRODUCER').first()
-        is_producer = producer_step and producer_step.approver_id and str(producer_step.approver_id) == str(request.user.id)
-        external_producer = (
-            producer_step and not producer_step.approver_id
-            and isinstance((permit.data or {}).get('producer'), dict)
-            and permit.data['producer'].get('external')
-        )
-        if not (is_producer or external_producer or getattr(request.user, 'is_admin', False)):
-            return Response({'error': 'Только Производитель работ может добавить лаборанта.'}, status=403)
+        admitting_step = permit.approval_steps.filter(
+            role='ADMITTING', approver=request.user, status='PENDING'
+        ).first()
+        if not admitting_step and not getattr(request.user, 'is_admin', False):
+            return Response({'error': 'Только Допускающий может добавить лаборанта (до своей подписи).'}, status=403)
 
         name = (request.data.get('name') or '').strip()
         if not name:
@@ -898,20 +894,16 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='lab_technician_sign')
     def lab_technician_sign(self, request, pk=None):
-        """Графическая подпись лаборанта ЦНИПР. Открывает Производитель работ."""
+        """Графическая подпись лаборанта ЦНИПР. Открывает Допускающий."""
         permit = self.get_object()
-        if permit.status != 'APPROVED':
-            return Response({'error': 'Подпись лаборанта доступна только для согласованного наряда.'}, status=400)
+        if permit.status != 'PENDING_APPROVAL':
+            return Response({'error': 'Подпись лаборанта доступна только на этапе согласования.'}, status=400)
 
-        producer_step = permit.approval_steps.filter(role='WORK_PRODUCER').first()
-        is_producer = producer_step and producer_step.approver_id and str(producer_step.approver_id) == str(request.user.id)
-        external_producer = (
-            producer_step and not producer_step.approver_id
-            and isinstance((permit.data or {}).get('producer'), dict)
-            and permit.data['producer'].get('external')
-        )
-        if not (is_producer or external_producer or getattr(request.user, 'is_admin', False)):
-            return Response({'error': 'Только Производитель работ может дать подписать лаборанту.'}, status=403)
+        admitting_step = permit.approval_steps.filter(
+            role='ADMITTING', approver=request.user, status='PENDING'
+        ).first()
+        if not admitting_step and not getattr(request.user, 'is_admin', False):
+            return Response({'error': 'Только Допускающий может дать подписать лаборанту (до своей подписи).'}, status=403)
 
         tech_index = request.data.get('index')
         if tech_index is None:
