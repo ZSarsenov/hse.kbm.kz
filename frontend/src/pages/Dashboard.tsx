@@ -301,7 +301,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                     >
                       <td className="px-4 py-5 font-medium text-gray-700">{indexOfFirstItem + index + 1}</td>
                       <td className="px-4 py-5 text-gray-600 text-sm">
-                        <div className="leading-tight">{t('dashboard.startShort')} {formatDt(permit.validFrom)}</div>
+                        <div className="leading-tight">{t('dashboard.startShort')} {formatDt(permit.validFrom || permit.createdAt)}</div>
                         <div className="leading-tight mt-0.5">{t('dashboard.endShort')} {formatDt(permit.validTo)}</div>
                       </td>
                       <td className="px-4 py-5 text-gray-400 text-sm">
@@ -485,7 +485,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                   <>
                     <div className="flex items-start gap-2.5">
                       <Calendar size={18} className="text-gray-400 mt-0.5 shrink-0" />
-                      <span><strong>{t('dashboard.primaryPermit')}</strong> {formatDt(permit.validFrom)} — {formatDt(permit.validTo)}</span>
+                      <span><strong>{t('dashboard.primaryPermit')}</strong> {formatDt(permit.validFrom || permit.createdAt)} — {formatDt(permit.validTo)}</span>
                     </div>
                     <div className="flex items-start gap-2.5">
                       <Calendar size={18} className="text-gray-400 mt-0.5 shrink-0" />
