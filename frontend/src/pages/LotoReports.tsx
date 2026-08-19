@@ -20,51 +20,80 @@ export const LotoReports: React.FC<LotoReportsProps> = ({ onNavigateToPermit }) 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedReport, setSelectedReport] = useState<LOTOReport | null>(null);
 
+  const mapItemToReport = (p: any): LOTOReport => {
+    const d = p.data || {};
+    const matrix = d.isolationMatrix || {};
+    const admitting = d.admitting || {};
+    return {
+      id: p.permit_id || `#${p.id}`,
+      permitId: String(p.id),
+      equipmentTag: matrix.techNumber || '—',
+      isolationPoint: matrix.installLocation || '—',
+      status: mapPermitStatus(p.status),
+      lockedBy: admitting.name || '—',
+      lockedAt: matrix.dateDeveloped || p.created_at || '',
+      signatureStatus: p.status === 'APPROVED' || p.status === 'CLOSED' ? 'VALID' as const : 'PENDING' as const,
+      lotoPhotoUrl: p.loto_photo || null,
+      matrixData: {
+        department: matrix.department || '',
+        site: matrix.site || '',
+        dateDeveloped: matrix.dateDeveloped || '',
+        dateRevised: matrix.dateRevised || '',
+        equipmentName: matrix.equipmentName || '',
+        techNumber: matrix.techNumber || '',
+        energySourceCount: matrix.energySourceCount || 1,
+        energyType: matrix.energyType || '',
+        lockType: matrix.lockType || '',
+        installLocation: matrix.installLocation || '',
+        checkResidualEnergy: matrix.checkResidualEnergy || false,
+        checkLockDevice: matrix.checkLockDevice || false,
+        checkPadlock: matrix.checkPadlock || false,
+        checkTag: matrix.checkTag || false,
+      },
+    };
+  };
+
   const loadData = async () => {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('auth_token');
-      const res = await fetch('/api/v1/permits/', {
-        headers: { ...(token ? { 'Authorization': `Token ${token}` } : {}) }
-      });
-      if (!res.ok) throw new Error('Ошибка загрузки');
-      const raw = await res.json();
-      const items = Array.isArray(raw) ? raw : (raw.results || []);
+      const authHeaders: Record<string, string> = token ? { 'Authorization': `Token ${token}` } : {};
 
-      const lotoReports: LOTOReport[] = items
-        .filter((p: any) => p.data?.lotoEnabled)
-        .map((p: any) => {
-          const d = p.data || {};
-          const matrix = d.isolationMatrix || {};
-          const admitting = d.admitting || {};
-          return {
-            id: p.permit_id || `#${p.id}`,
-            permitId: String(p.id),
-            equipmentTag: matrix.techNumber || '—',
-            isolationPoint: matrix.installLocation || '—',
-            status: mapPermitStatus(p.status),
-            lockedBy: admitting.name || '—',
-            lockedAt: matrix.dateDeveloped || p.created_at || '',
-            signatureStatus: p.status === 'APPROVED' || p.status === 'CLOSED' ? 'VALID' as const : 'PENDING' as const,
-            lotoPhotoUrl: p.loto_photo || null,
-            matrixData: {
-              department: matrix.department || '',
-              site: matrix.site || '',
-              dateDeveloped: matrix.dateDeveloped || '',
-              dateRevised: matrix.dateRevised || '',
-              equipmentName: matrix.equipmentName || '',
-              techNumber: matrix.techNumber || '',
-              energySourceCount: matrix.energySourceCount || 1,
-              energyType: matrix.energyType || '',
-              lockType: matrix.lockType || '',
-              installLocation: matrix.installLocation || '',
-              checkResidualEnergy: matrix.checkResidualEnergy || false,
-              checkLockDevice: matrix.checkLockDevice || false,
-              checkPadlock: matrix.checkPadlock || false,
-              checkTag: matrix.checkTag || false,
-            },
-          };
+      const firstResp = await fetch('/api/v1/permits/?page=1', {
+        headers: authHeaders,
+      });
+      if (!firstResp.ok) throw new Error('Ошибка загрузки');
+      const firstData = await firstResp.json();
+
+      if (Array.isArray(firstData)) {
+        const reports = firstData
+          .filter((p: any) => p.data?.lotoEnabled)
+          .map(mapItemToReport);
+        setReports(reports);
+        return;
+      }
+
+      const firstItems: any[] = firstData.results || [];
+      let allItems = [...firstItems];
+
+      const totalCount: number = firstData.count || 0;
+      const pageSize = firstItems.length || 20;
+      const totalPages = Math.ceil(totalCount / pageSize);
+
+      for (let page = 2; page <= totalPages; page++) {
+        const resp = await fetch(`/api/v1/permits/?page=${page}`, {
+          headers: authHeaders,
         });
+        if (!resp.ok) break;
+        const data = await resp.json();
+        const items: any[] = Array.isArray(data) ? data : (data.results || []);
+        if (items.length === 0) break;
+        allItems = allItems.concat(items);
+      }
+
+      const lotoReports: LOTOReport[] = allItems
+        .filter((p: any) => p.data?.lotoEnabled)
+        .map(mapItemToReport);
 
       setReports(lotoReports);
     } catch (error) {

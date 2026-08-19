@@ -8,6 +8,7 @@ import { ElectricalPermitForm } from '../components/ElectricalPermitForm';
 import { useNCALayer } from '../hooks/useNCALayer';
 import { ApprovalTracker } from '../components/ApprovalTracker';
 import { FileCheck, ClipboardList } from 'lucide-react';
+import { WellMap } from '../components/WellMap';
 import ChecklistSection, { ChecklistData } from '../components/ChecklistSection';
 import { SignaturePadModal, getSignatureUrl } from '../components/SignaturePadModal';
 import { IsolationMatrixForm } from '../components/IsolationMatrixForm';
@@ -39,6 +40,7 @@ const formatPermitCompact = (iso?: string | null) => {
 export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEdit, onDelete, onRefresh }) => {
   // Распаковка данных (безопасный доступ)
   const data: any = permit.data || (permit as any).formData || {};
+  const wellCoords = data?.wellCoords || null;
   const initiator = (permit.initiator as any) || {};
 
   /** Начало: плановая дата работ (valid_from) или дата создания наряда (открыт в системе). */
@@ -538,10 +540,12 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 <span className="text-sm font-mono text-slate-400">#{permit.permitId}</span>
               </div>
               <h1 className="text-3xl font-bold text-slate-900 leading-tight mb-2">{permit.templateType || 'Наряд-допуск'}</h1>
-              <div className="flex items-center gap-2 text-slate-600">
-                <MapPin size={18} className="text-blue-500" />
-                <span className="font-medium">{permit.location?.name || 'Место не указано'}</span>
-              </div>
+              {permit.location?.name && (
+                <div className="flex items-center gap-2 text-slate-600">
+                  <MapPin size={18} className="text-blue-500" />
+                  <span className="font-medium">{permit.location.name}</span>
+                </div>
+              )}
             </div>
 
             {/* 👇 КНОПКА СКАЧИВАНИЯ (Видна только для согласованных/закрытых) */}
@@ -571,6 +575,15 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
           )}
 
           </div>
+
+          {wellCoords && (
+            <div className="mt-5">
+              <WellMap
+                readOnly={true}
+                pinnedCoords={wellCoords}
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50 p-5 rounded-xl border border-slate-100">
              <div className="flex items-start gap-3">

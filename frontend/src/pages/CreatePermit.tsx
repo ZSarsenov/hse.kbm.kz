@@ -7,6 +7,7 @@ import { ElectricalPermitFormNew } from '../components/ElectricalPermitFormNew';
 import { UserSearchSelect } from '../components/UserSearchSelect';
 import { SearchableSelect } from  "../components/SearchableSelect"
 import ChecklistSection, { ChecklistData, validateRequiredChecklists } from '../components/ChecklistSection';
+import { WellMap } from '../components/WellMap';
 
 
 // Интерфейс для объекта пользователя в роли
@@ -153,6 +154,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
   const [draftPermitId, setDraftPermitId] = useState<number | null>(
     isEditing && initialData?.status === 'DRAFT' ? Number(initialData.id) : null
   );
+  const [wellCoords, setWellCoords] = useState<{ lat: number; lon: number } | null>(null);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoSaveInProgressRef = useRef(false);
 
@@ -172,6 +174,16 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       additionalCoordinators.some(c => !!c.id) ||
       teamMembers.length > 0
     );
+
+  const handleSelectWell = (wellNo: string | null, coords?: { lat: number; lon: number }) => {
+    if (wellNo) {
+      updateForm('workPlace', wellNo);
+      setWellCoords(coords || null);
+    } else {
+      updateForm('workPlace', '');
+      setWellCoords(null);
+    }
+  };
 
   const buildApiPayload = () => {
     const producerPayload: RoleUser | { id: null; external: true; name: string } = producerIsExternal
@@ -209,7 +221,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       templateType: 'Наряд повышенной опасности',
       category: category,
       notifyFireService: notifyFireService,
-      callFirePost: callFirePost
+      callFirePost: callFirePost,
+      wellCoords: wellCoords || undefined,
     };
 
     return {
@@ -740,18 +753,24 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                         onChange={(val) => updateForm('workName', val)}
                     />
                  </div>
-                 <div className="md:col-span-2">
-                   <label className="block text-lg font-semibold text-gray-700 mb-2">{t('create.general.workPlace')}</label>
-                   <input
-                     type="text"
-                     value={formData.workPlace}
-                     onChange={(e) => updateForm('workPlace', e.target.value)}
-                     placeholder={t('create.general.workPlacePlaceholder')}
-                     className={commonInputClasses}
-                   />
-                 </div>
-                 <div className="md:col-span-2">
-                   <label className="block text-lg font-semibold text-gray-700 mb-2">{t('create.general.workContent')}</label>
+                  <div className="md:col-span-2">
+                    <label className="block text-lg font-semibold text-gray-700 mb-2">{t('create.general.workPlace')}</label>
+                    <input
+                      type="text"
+                      value={formData.workPlace}
+                      onChange={(e) => updateForm('workPlace', e.target.value)}
+                      placeholder={t('create.general.workPlacePlaceholder')}
+                      className={commonInputClasses}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <WellMap
+                      onSelectWell={handleSelectWell}
+                      selectedWell={formData.workPlace || undefined}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-lg font-semibold text-gray-700 mb-2">{t('create.general.workContent')}</label>
                    <textarea
                      rows={3}
                      value={formData.content}
