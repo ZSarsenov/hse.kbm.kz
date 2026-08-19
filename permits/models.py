@@ -178,6 +178,8 @@ class WorkPermit(models.Model):
             for ac in additional_coords[:5]:
                 if isinstance(ac, dict) and ac.get('id'):
                     steps_config.append({'role': 'COORDINATOR', 'user_id': ac['id']})
+                elif isinstance(ac, dict) and ac.get('external'):
+                    steps_config.append({'role': 'COORDINATOR', 'external': True})
 
         # 6. Основной согласующий (Нач. смены / участка / инженер ТБ) — подписывает ПОСЛЕДНИМ
         coord_id = get_user_id('supervisor')

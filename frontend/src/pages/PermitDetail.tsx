@@ -100,6 +100,29 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
     typeof data.supervisor === 'object' &&
     data.supervisor?.external;
 
+  // Дополнительные внешние согласующие и возможность их графической подписи
+  const addlCoordSteps = coordStepsOrdered.slice(0, -1);
+  const addlCoordStates = (data.additionalCoordinators && Array.isArray(data.additionalCoordinators))
+    ? data.additionalCoordinators.map((coord: any, idx: number) => {
+        const step = addlCoordSteps[idx] || null;
+        const isExternal = coord.external && !coord.id;
+        const isPending = isExternal && step?.status === 'PENDING' && permit.status === 'PENDING_APPROVAL';
+        const canSign = isPending && (
+          isAdmin ||
+          steps.some(
+            (s: any) =>
+              s.status === 'APPROVED' &&
+              s.approver_id &&
+              String(s.approver_id) === currentUserId &&
+              s.step_order < (step?.step_order || Infinity)
+          )
+        );
+        const sigKey = `coordinator_${idx}_signature`;
+        const signature = data[sigKey] || null;
+        return { coord, step, isExternal, isPending, canSign, signature, idx };
+      })
+    : [];
+
   // Выдающий или Допускающий с подписанным шагом — могут действовать за внешнего производителя
   const issuerApprovedStep = steps.find((s: any) => s.role === 'ISSUER' && s.status === 'APPROVED');
   const admitApprovedStep = steps.find((s: any) => s.role === 'ADMITTING' && s.status === 'APPROVED');
@@ -758,10 +781,40 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                           </div>
                         )}
                       </div>
-                      {data.additionalCoordinators && Array.isArray(data.additionalCoordinators) && data.additionalCoordinators.map((coord: any, idx: number) => (
-                        <div key={idx} className="p-4 border border-blue-200 rounded-lg bg-blue-50/30">
-                          <span className="text-xs text-blue-400 uppercase font-bold">Дополнительный согласующий {idx + 1}</span>
-                          <p className="font-medium text-gray-900">{renderUserName(coord, '—')}</p>
+                      {addlCoordStates.length > 0 && addlCoordStates.map((state) => (
+                        <div key={state.idx} className="p-4 border border-blue-200 rounded-lg bg-blue-50/30">
+                          <span className="text-xs text-blue-400 uppercase font-bold">Дополнительный согласующий {state.idx + 1}</span>
+                          <p className="font-medium text-gray-900">{renderUserName(state.coord, '—')}</p>
+                          {state.signature && (
+                            <div className="mt-2">
+                              <span className="text-xs text-gray-400 uppercase font-bold block mb-1">Графическая подпись</span>
+                              <img
+                                src={getSignatureUrl(state.signature)}
+                                alt="Подпись согласующего"
+                                className="h-12 object-contain bg-gray-50 border border-gray-200 rounded"
+                              />
+                            </div>
+                          )}
+                          {state.isPending && (
+                            <div className="mt-3 rounded-lg border border-sky-200 bg-sky-100/80 p-3">
+                              <p className="text-xs text-sky-800 font-medium mb-2">
+                                Согласующий без ЭЦП — можно внести графическую подпись
+                              </p>
+                              {state.canSign ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setSupervisorPadOpen(true)}
+                                  className="shrink-0 px-3 py-1.5 rounded-md bg-sky-600 text-white text-sm font-medium hover:bg-sky-700"
+                                >
+                                  Внести подпись
+                                </button>
+                              ) : (
+                                <p className="text-xs text-sky-700/80">
+                                  Доступно тем, кто уже подписал предыдущие шаги
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                    </div>

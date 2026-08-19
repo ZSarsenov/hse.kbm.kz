@@ -1038,8 +1038,9 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='supervisor_signature')
     def supervisor_signature(self, request, pk=None):
         """
-        Графическая подпись основного согласующего (Нач. смены / участка / инженер ТБ), если указан без ЭЦП.
-        Внести могут пользователи, уже подписавшие любой шаг до этого согласующего (передать планшет/телефон).
+        Графическая подпись согласующего без ЭЦП (основного или дополнительного).
+        Находит первый ожидающий (PENDING) внешний шаг COORDINATOR и подписывает его.
+        Внести могут пользователи, уже подписавшие любой шаг до этого согласующего.
         """
         permit = self.get_object()
         if permit.status != 'PENDING_APPROVAL':
@@ -1048,27 +1049,52 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        supervisor_step = permit.approval_steps.filter(
+        coordinator_step = permit.approval_steps.filter(
             role='COORDINATOR', status='PENDING', approver__isnull=True,
-        ).order_by('-step_order').first()
-        if not supervisor_step:
+        ).order_by('step_order').first()
+        if not coordinator_step:
             return Response(
-                {'error': 'Нет активного шага основного согласующего без ЭЦП.'},
+                {'error': 'Нет активного шага согласующего без ЭЦП.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        sup = permit.data.get('supervisor') if permit.data else {}
-        if not (isinstance(sup, dict) and sup.get('external')):
-            return Response(
-                {'error': 'Согласующий указан из базы — используйте ЭЦП.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        # Определяем, основной это согласующий или дополнительный
+        all_coord_steps = list(permit.approval_steps.filter(
+            role='COORDINATOR', approver__isnull=True,
+        ).order_by('step_order'))
+
+        addl_coords = (permit.data or {}).get('additionalCoordinators') or []
+        if not isinstance(addl_coords, list):
+            addl_coords = []
+
+        is_main = (coordinator_step == all_coord_steps[-1]) if all_coord_steps else True
+        coord_index = len(addl_coords) - 1 if is_main else all_coord_steps.index(coordinator_step)
+
+        if is_main:
+            sup = permit.data.get('supervisor') if permit.data else {}
+            if not (isinstance(sup, dict) and sup.get('external')):
+                return Response(
+                    {'error': 'Согласующий указан из базы — используйте ЭЦП.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            if coord_index < 0 or coord_index >= len(addl_coords):
+                return Response(
+                    {'error': 'Дополнительный согласующий не найден.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            ac = addl_coords[coord_index]
+            if not (isinstance(ac, dict) and ac.get('external')):
+                return Response(
+                    {'error': 'Дополнительный согласующий указан из базы — используйте ЭЦП.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         user = request.user
         prior_ids = set(
             permit.approval_steps.filter(
                 status='APPROVED',
-                step_order__lt=supervisor_step.step_order,
+                step_order__lt=coordinator_step.step_order,
                 approver_id__isnull=False,
             ).values_list('approver_id', flat=True)
         )
@@ -1096,7 +1122,14 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             rel_dir = os.path.join('brigade_signatures', str(permit.pk))
             dest_dir = os.path.join(settings.MEDIA_ROOT, rel_dir)
             os.makedirs(dest_dir, exist_ok=True)
-            fname = 'supervisor.png'
+
+            if is_main:
+                fname = 'supervisor.png'
+                sig_key = 'supervisor_signature'
+            else:
+                fname = f'coordinator_{coord_index}.png'
+                sig_key = f'coordinator_{coord_index}_signature'
+
             rel_path = os.path.join(rel_dir, fname).replace('\\', '/')
             full_path = os.path.join(settings.MEDIA_ROOT, rel_dir, fname)
             with open(full_path, 'wb') as f:
@@ -1104,17 +1137,17 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                     f.write(chunk)
 
             data = dict(permit.data) if permit.data else {}
-            data['supervisor_signature'] = rel_path
+            data[sig_key] = rel_path
             permit.data = data
 
-            supervisor_step.status = 'APPROVED'
-            supervisor_step.signed_at = timezone.now()
-            supervisor_step.signer_details = {
+            coordinator_step.status = 'APPROVED'
+            coordinator_step.signed_at = timezone.now()
+            coordinator_step.signer_details = {
                 'graphic': True,
                 'recorded_by': user.id,
                 'recorded_by_name': user.get_full_name(),
             }
-            supervisor_step.save(update_fields=['status', 'signed_at', 'signer_details'])
+            coordinator_step.save(update_fields=['status', 'signed_at', 'signer_details'])
 
             permit.save(update_fields=['data'])
             _advance_after_approval_step(permit, supervisor_step, user)

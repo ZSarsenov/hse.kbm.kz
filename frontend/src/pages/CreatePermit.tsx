@@ -210,7 +210,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       ...(producerIsExternal && roles.producer.name.trim()
         ? { completionHandOverName: roles.producer.name.trim() }
         : {}),
-      additionalCoordinators: additionalCoordinators.filter(c => c.id),
+      additionalCoordinators: additionalCoordinators.filter(c => c.id || c.external),
       // Очищаем instructedAt при сохранении — поле заполняется автоматически в момент подписи члена бригады
       teamMembers: teamMembers.map((m: any) => ({ ...m, instructedAt: '' })),
       checklist: checklistData,
@@ -1026,35 +1026,76 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                    </div>
 
                    {/* Дополнительные согласующие (до 5) */}
-                   {additionalCoordinators.map((coord, idx) => (
-                     <div key={idx} className="mt-3 flex items-start gap-2">
-                       <div className="flex-1">
-                         <UserSearchSelect
-                           label={t('create.roles.additionalCoord', { n: idx + 1 })}
-                           value={coord.name}
-                           required={false}
-                           requiredRole="COORDINATOR"
-                           onChange={(user) => {
-                             const displayName = user ? `${user.name} (${user.position || t('create.roles.positionNotSet')})` : '';
-                             setAdditionalCoordinators(prev => {
-                               const updated = [...prev];
-                               updated[idx] = user ? { id: user.id, name: displayName, role: user.role } : { id: null, name: '' };
-                               return updated;
-                             });
-                           }}
-                           placeholder={t('create.roles.searchPlaceholder')}
-                         />
-                       </div>
-                       <button
-                         type="button"
-                         onClick={() => setAdditionalCoordinators(prev => prev.filter((_, i) => i !== idx))}
-                         className="mt-8 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                         title="Удалить согласующего"
-                       >
-                         <Trash2 size={18} />
-                       </button>
-                     </div>
-                   ))}
+                    {additionalCoordinators.map((coord, idx) => (
+                      <div key={idx} className="mt-3 flex items-start gap-2">
+                        <div className="flex-1">
+                          {coord.external ? (
+                            <div>
+                              <label className="block text-sm font-bold text-gray-700 mb-1">
+                                {t('create.roles.additionalCoord', { n: idx + 1 })}
+                              </label>
+                              <textarea
+                                rows={2}
+                                value={coord.name}
+                                onChange={(e) => {
+                                  setAdditionalCoordinators(prev => {
+                                    const updated = [...prev];
+                                    updated[idx] = { id: null, name: e.target.value, external: true };
+                                    return updated;
+                                  });
+                                }}
+                                placeholder={t('create.roles.externalPlaceholder')}
+                                className={commonInputClasses}
+                              />
+                            </div>
+                          ) : (
+                            <UserSearchSelect
+                              label={t('create.roles.additionalCoord', { n: idx + 1 })}
+                              value={coord.name}
+                              required={false}
+                              requiredRole="COORDINATOR"
+                              onChange={(user) => {
+                                const displayName = user ? `${user.name} (${user.position || t('create.roles.positionNotSet')})` : '';
+                                setAdditionalCoordinators(prev => {
+                                  const updated = [...prev];
+                                  updated[idx] = user ? { id: user.id, name: displayName, role: user.role } : { id: null, name: '' };
+                                  return updated;
+                                });
+                              }}
+                              placeholder={t('create.roles.searchPlaceholder')}
+                            />
+                          )}
+                          <div className="flex justify-end mt-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAdditionalCoordinators(prev => {
+                                  const updated = [...prev];
+                                  if (coord.external) {
+                                    updated[idx] = { id: null, name: '' };
+                                  } else {
+                                    updated[idx] = { id: null, name: '', external: true };
+                                  }
+                                  return updated;
+                                });
+                              }}
+                              className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                            >
+                              <Plus size={14} className="shrink-0" />
+                              {coord.external ? t('create.roles.selectFromDb') : t('create.roles.externalSupervisor')}
+                            </button>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setAdditionalCoordinators(prev => prev.filter((_, i) => i !== idx))}
+                          className="mt-8 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Удалить согласующего"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ))}
 
                    {additionalCoordinators.length < 5 && (
                      <button
