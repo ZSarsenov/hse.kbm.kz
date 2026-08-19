@@ -79,7 +79,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
   // Form State strictly following Item 1-10 of Order 344 + Risk + LOTO
   const [formData, setFormData] = useState<RegulationFormData>({
-    organization: 'ТОО "Каспий Битум"',
+    organization: 'АО "Каражанбасмунай"',
     contractor: '',
     department: '',
     workName: '',
