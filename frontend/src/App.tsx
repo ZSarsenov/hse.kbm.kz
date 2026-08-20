@@ -403,7 +403,7 @@ function App() {
                 'Пользователь',
           position: userData?.position || 'Сотрудник',
           department: userData?.department || 'Не указано',
-          organization: userData?.company || 'ТОО "Каспий Битум"',
+          organization: userData?.company || 'АО "Каражанбасмунай"',
           role: userData?.role,
           permissions: userData?.role === 'ADMIN'
             ? ['CREATE_PERMIT', 'VIEW_LOTO_LOGS', 'APPROVE_PERMIT', 'ADMIN_ACCESS', 'VIEW_AUDIT_STATS']

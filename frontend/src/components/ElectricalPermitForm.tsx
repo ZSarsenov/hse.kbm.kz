@@ -35,7 +35,7 @@ export const ElectricalPermitForm: React.FC<Props> = ({
 
   // --- State: Creation Form (Image 1) ---
   const [formData, setFormData] = useState<ElectricalFormData>(initialData || {
-    organization: '«Каспий Битум» ЖШС',
+    organization: '«Қаражанбасмұнай» АҚ',
     department: 'Электр цехы',
     workManagerId: '',
     admittingAuthorityId: '',
@@ -152,7 +152,7 @@ export const ElectricalPermitForm: React.FC<Props> = ({
                                     }
                                 }}
                             >
-                                <option value="«Каспий Битум» ЖШС">«Каспий Битум» ЖШС (ТОО «Каспий Битум»)</option>
+                                <option value="«Қаражанбасмұнай» АҚ">«Қаражанбасмұнай» АҚ (АО «Каражанбасмунай»)</option>
                                 <option value="CONTRACTOR">Мердігер ұйым / Подрядная организация</option>
                             </select>
                             <ChevronDown className="absolute right-2 top-2 text-gray-400 pointer-events-none" size={14} />
