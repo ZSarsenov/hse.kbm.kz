@@ -94,6 +94,15 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         @keyframes lgx-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
         .lgx-fade { animation: lgx-fade-up .7s cubic-bezier(.22, 1, .36, 1) both; }
 
+        /* Словесный знак: ледяной вертикальный градиент + глубина поверх фото */
+        .lgx-brand {
+          background: linear-gradient(180deg, #ffffff 28%, #a9d5f1 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          filter: drop-shadow(0 3px 18px rgba(4, 16, 31, 0.45));
+        }
+
         /* Ротация фото: непрерывный синхронный дрейфт масштаба у всех слоёв —
            смена кадра проходит как чистое растворение, без скачка зума */
         .lgx-drift { animation: lgx-zoom 16s ease-in-out infinite alternate; }
@@ -130,7 +139,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         <div className="relative h-full flex flex-col p-8 sm:p-12 lg:p-14 gap-8">
           {/* Словесный знак системы */}
           <div>
-            <h1 className="lgx-fade font-['PT_Sans'] text-white text-6xl sm:text-7xl font-bold tracking-tight leading-none">
+            <h1 className="lgx-fade lgx-brand font-['PT_Sans'] text-6xl sm:text-7xl font-bold tracking-[-0.02em] leading-none">
               ЭНД
             </h1>
             <div className="lgx-fade mt-5 h-[3px] w-14 bg-amber-400 rounded-full" style={{ animationDelay: '.1s' }} />
