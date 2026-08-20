@@ -99,29 +99,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         {/* Корпоративный навy-оверлей — читаемость текста поверх фото */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#04101F]/95 via-[#06203A]/65 to-[#06203A]/40" />
 
-        {/* Изолинии — структурная карта дна Каспия, мотив нефтедобычи */}
-        <svg
-          className="absolute inset-0 w-full h-full"
-          viewBox="0 0 800 600"
-          preserveAspectRatio="xMidYMid slice"
-          aria-hidden="true"
-        >
-          <g transform="rotate(-10 500 400)" fill="none" stroke="rgba(140,180,210,0.10)" strokeWidth="1">
-            <ellipse cx="500" cy="400" rx="70"  ry="50" />
-            <ellipse cx="500" cy="400" rx="130" ry="95" />
-            <ellipse cx="500" cy="400" rx="195" ry="140" />
-            <ellipse cx="500" cy="400" rx="265" ry="190" />
-            <ellipse cx="500" cy="400" rx="340" ry="245" />
-            <ellipse cx="500" cy="400" rx="420" ry="300" />
-            <ellipse cx="500" cy="400" rx="505" ry="360" />
-          </g>
-          {/* Реперный крест и точка — «платформа» на месторождении */}
-          <line x1="0" y1="400" x2="800" y2="400" stroke="rgba(140,180,210,0.07)" strokeWidth="1" strokeDasharray="2 6" />
-          <line x1="500" y1="0" x2="500" y2="600" stroke="rgba(140,180,210,0.07)" strokeWidth="1" strokeDasharray="2 6" />
-          <circle cx="500" cy="400" r="12" fill="none" stroke="rgba(251,191,36,0.35)" strokeWidth="1" />
-          <circle cx="500" cy="400" r="4" fill="#fbbf24" />
-        </svg>
-
         {/* Мягкие глубинные свечения */}
         <div className="absolute -top-40 -left-40 w-[520px] h-[520px] rounded-full bg-[#0E4C7E]/40 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-32 -right-24 w-[460px] h-[460px] rounded-full bg-[#063455]/30 blur-3xl pointer-events-none" />
