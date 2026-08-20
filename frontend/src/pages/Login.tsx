@@ -104,11 +104,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               {t('login.tagline')}
             </p>
           </div>
-
-          {/* Тихий футер панели */}
-          <div className="lgx-fade flex items-center gap-3 text-[11px] text-sky-200/35 tracking-[0.22em] uppercase" style={{ animationDelay: '.3s' }}>
-            Атырау · Каспий · 2026
-          </div>
         </div>
       </div>
 
