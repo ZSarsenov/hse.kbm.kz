@@ -66,6 +66,16 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
       {/* ═══ ЛЕВАЯ ПАНЕЛЬ — «Каспийский горизонт» ═══ */}
       <div className="relative overflow-hidden bg-[#06203A] min-h-[300px] lg:min-h-screen">
+        {/* Фотография производства */}
+        <img
+          src="/main.jpg"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        {/* Корпоративный навy-оверлей — читаемость текста поверх фото */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#04101F]/95 via-[#06203A]/65 to-[#06203A]/40" />
+
         {/* Изолинии — структурная карта дна Каспия, мотив нефтедобычи */}
         <svg
           className="absolute inset-0 w-full h-full"
