@@ -24,7 +24,7 @@ def parse_xml_signature_info(signed_xml: str) -> dict:
         "not_after": datetime,
         "iin": "931005300182" или None,
         "bin": "000000000000" или None,
-        "org_name": "ТОО \"Каспий Битум\"" или None,
+        "org_name": "АО \"Каражанбасмунай\"" или None,
       }
 
     Если что-то критично не найдено — кидает ValueError.
