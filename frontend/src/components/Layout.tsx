@@ -110,6 +110,13 @@ export const Layout: React.FC<LayoutProps> = ({
           </div>
 
           <div className="flex items-center gap-3 sm:gap-4">
+            {/* Логотип организации — вписан по высоте шапки (h-16) с запасом сверху/снизу */}
+            <img
+              src="/logo-kbm.jpg"
+              alt="АО «Каражанбасмунай»"
+              title="АО «Каражанбасмунай»"
+              className="h-12 w-auto object-contain shrink-0"
+            />
             <LanguageSwitcher className="hidden sm:inline-flex" />
             {/* Уведомления */}
             <div className="relative" ref={notifRef}>
