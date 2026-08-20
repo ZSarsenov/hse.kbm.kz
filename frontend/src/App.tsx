@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
@@ -42,6 +42,11 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
 
+  // Кеш списка нарядов: полный рефетч делаем только если список пуст,
+  // сменился пользователь (token) или данные помечены устаревшими (dirty).
+  const permitsDirtyRef = useRef(true);
+  const loadedForTokenRef = useRef<string | null>(null);
+
   // Приводит сырой объект наряда из API к нашему формату camelCase
   const formatPermit = (p: any): WorkPermit => ({
     id: p.id,
@@ -67,13 +72,14 @@ function App() {
     producer_closed: p.producer_closed,
   });
 
-  // --- FETCHING DATA: первая страница быстро, остальные — в фоне ---
-  // Бэкенд использует пагинацию DRF (PAGE_SIZE=20). Чтобы UX был мгновенным,
-  // сначала показываем 20 первых нарядов, затем подгружаем page=2,3,... в фоне.
+  // --- FETCHING DATA: первая страница крупным размером, остальные — параллельно ---
+  // Бэкенд поддерживает ?page_size (до 200, см. DynamicPageSizePagination на бэке).
+  // Сначала показываем первые 100 нарядов, затем (если их больше) догружаем
+  // оставшиеся страницы ОДНОВРЕМЕННО, а не последовательно друг за другом.
   const fetchPermits = async (currentToken: string) => {
     setIsLoading(true);
     try {
-      const firstResp = await fetch('/api/v1/permits/?page=1', {
+      const firstResp = await fetch('/api/v1/permits/?page=1&page_size=100', {
         headers: { 'Authorization': `Token ${currentToken}` },
       });
       if (firstResp.status === 401) {
@@ -86,27 +92,35 @@ function App() {
       // Поддержка обоих форматов: пагинированный {results,count,next} или массив (на случай отключённой пагинации)
       const firstItems: any[] = Array.isArray(firstData) ? firstData : (firstData.results || []);
       setPermits(firstItems.map(formatPermit));
-      setIsLoading(false); // Dashboard уже может рендерить первые 20
+      setIsLoading(false); // Dashboard уже может рендерить первую сотню
 
       // Если массив (старый формат без пагинации) — больше ничего не догружаем
       if (Array.isArray(firstData)) return;
 
-      // Догружаем остальные страницы в фоне
+      // Догружаем остальные страницы параллельно
       const totalCount: number = firstData.count || 0;
-      const pageSize = firstItems.length || 20;
+      const pageSize = firstItems.length || 100;
       const totalPages = Math.ceil(totalCount / pageSize);
       if (totalPages <= 1) return;
 
       setIsBackgroundLoading(true);
-      for (let page = 2; page <= totalPages; page++) {
-        const resp = await fetch(`/api/v1/permits/?page=${page}`, {
-          headers: { 'Authorization': `Token ${currentToken}` },
-        });
-        if (!resp.ok) break;
-        const data = await resp.json();
+      const restPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+      const responses = await Promise.all(
+        restPages.map(page =>
+          fetch(`/api/v1/permits/?page=${page}&page_size=100`, {
+            headers: { 'Authorization': `Token ${currentToken}` },
+          })
+            .then(resp => (resp.ok ? resp.json() : null))
+            .catch(() => null)
+        )
+      );
+      const restItems = responses.flatMap(data => {
+        if (!data) return [];
         const items: any[] = Array.isArray(data) ? data : (data.results || []);
-        if (items.length === 0) break;
-        setPermits(prev => [...prev, ...items.map(formatPermit)]);
+        return items.map(formatPermit);
+      });
+      if (restItems.length > 0) {
+        setPermits(prev => [...prev, ...restItems]);
       }
       setIsBackgroundLoading(false);
     } catch (error) {
@@ -117,10 +131,15 @@ function App() {
   };
 
   // --- EFFECT 1: LOAD PERMITS FOR DASHBOARD ---
+  // Кеш: полный рефетч только когда список пуст, сменился token или выставлен
+  // dirty-флаг. Обычные переходы дашборд↔карточка ничего не перезагружают —
+  // локальный state обновляется точечно (удаление/подписи/редактирование).
   useEffect(() => {
-    if (token && currentView === 'DASHBOARD') {
-      fetchPermits(token);
-    }
+    if (!token || currentView !== 'DASHBOARD') return;
+    if (permits.length > 0 && !permitsDirtyRef.current && loadedForTokenRef.current === token) return;
+    permitsDirtyRef.current = false;
+    loadedForTokenRef.current = token;
+    fetchPermits(token);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, currentView]);
 
@@ -322,11 +341,15 @@ function App() {
   };
 
   const handleCloseCreate = () => {
+    // Автосохранение могло создать черновик на сервере — список устарел
+    permitsDirtyRef.current = true;
     setCurrentView('DASHBOARD');
     setEditingPermit(null);
   };
 
   const handleSubmitNew = () => {
+    // Наряд создан/изменён — при возврате на дашборд список перезагрузится
+    permitsDirtyRef.current = true;
     setCurrentView('DASHBOARD');
     setEditingPermit(null);
   };
