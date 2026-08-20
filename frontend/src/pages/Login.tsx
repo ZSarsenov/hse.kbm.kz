@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lock, User, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 interface LoginProps {
-  // Теперь мы ожидаем, что onLogin примет не просто имя, а весь объект data
+  // Мы ожидаем, что onLogin примет не просто имя, а весь объект data
   onLogin: (token: string, userData: any) => void;
 }
 
@@ -22,7 +22,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setIsLoading(true);
 
     try {
-      // Стучимся на твой IP адрес (проверь, что он актуален)
       const response = await fetch('/api/v1/api-token-auth/', {
         method: 'POST',
         headers: {
@@ -33,7 +32,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
       if (response.ok) {
         const data = await response.json();
-        // Если пришел токен, передаем ВСЕ данные (data) наверх
         if (data.token) {
            onLogin(data.token, data);
         } else {
@@ -57,74 +55,131 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    // Исправленные стили для картинки на весь экран
-    <div className="fixed inset-0 h-screen w-screen overflow-hidden flex items-center justify-center font-sans text-slate-800">
+    <div className="min-h-screen grid lg:grid-cols-[1.08fr_1fr] bg-white font-sans">
+      {/* Локальные анимации появления (stagger) и «дыхания» точки на карте */}
+      <style>{`
+        @keyframes lgx-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+        @keyframes lgx-pulse { 0%, 100% { opacity: .9; } 50% { opacity: .35; } }
+        .lgx-fade { animation: lgx-fade-up .7s cubic-bezier(.22, 1, .36, 1) both; }
+        .lgx-pulse { animation: lgx-pulse 3.2s ease-in-out infinite; }
+      `}</style>
 
-      {/* 1. ФОНОВАЯ КАРТИНКА */}
-      <div className="absolute inset-0 z-0">
-        <img
-          src="/bg-login.png"
-          alt="Background"
-          className="w-full h-full object-cover"
-        />
-        {/* Затемнение */}
-        <div className="absolute inset-0 bg-blue-900/80 backdrop-blur-sm"></div>
+      {/* ═══ ЛЕВАЯ ПАНЕЛЬ — «Каспийский горизонт» ═══ */}
+      <div className="relative overflow-hidden bg-[#06203A] min-h-[300px] lg:min-h-screen">
+        {/* Изолинии — структурная карта дна Каспия, мотив нефтедобычи */}
+        <svg
+          className="absolute inset-0 w-full h-full"
+          viewBox="0 0 800 600"
+          preserveAspectRatio="xMidYMid slice"
+          aria-hidden="true"
+        >
+          <g transform="rotate(-10 500 400)" fill="none" stroke="rgba(140,180,210,0.10)" strokeWidth="1">
+            <ellipse cx="500" cy="400" rx="70"  ry="50" />
+            <ellipse cx="500" cy="400" rx="130" ry="95" />
+            <ellipse cx="500" cy="400" rx="195" ry="140" />
+            <ellipse cx="500" cy="400" rx="265" ry="190" />
+            <ellipse cx="500" cy="400" rx="340" ry="245" />
+            <ellipse cx="500" cy="400" rx="420" ry="300" />
+            <ellipse cx="500" cy="400" rx="505" ry="360" />
+          </g>
+          {/* Реперный крест и точка — «платформа» на месторождении */}
+          <line x1="0" y1="400" x2="800" y2="400" stroke="rgba(140,180,210,0.07)" strokeWidth="1" strokeDasharray="2 6" />
+          <line x1="500" y1="0" x2="500" y2="600" stroke="rgba(140,180,210,0.07)" strokeWidth="1" strokeDasharray="2 6" />
+          <circle cx="500" cy="400" r="12" fill="none" stroke="rgba(251,191,36,0.35)" strokeWidth="1" />
+          <circle cx="500" cy="400" r="4" fill="#fbbf24" className="lgx-pulse" />
+        </svg>
+
+        {/* Мягкие глубинные свечения */}
+        <div className="absolute -top-40 -left-40 w-[520px] h-[520px] rounded-full bg-[#0E4C7E]/40 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -right-24 w-[460px] h-[460px] rounded-full bg-[#063455]/30 blur-3xl pointer-events-none" />
+
+        <div className="relative h-full flex flex-col justify-between p-8 sm:p-12 lg:p-14 gap-8">
+          {/* Организация */}
+          <div className="flex items-center gap-4 lgx-fade">
+            <img
+              src="/logo-kbm.jpg"
+              alt={t('login.subtitle')}
+              className="h-14 w-auto object-contain shrink-0"
+            />
+            <div className="font-['PT_Sans'] text-sky-200/80 text-sm font-bold tracking-[0.18em] uppercase leading-relaxed">
+              {t('login.subtitle')}
+            </div>
+          </div>
+
+          {/* Словесный знак системы */}
+          <div className="my-auto py-6 lg:py-0">
+            <h1 className="lgx-fade font-['PT_Sans'] text-white text-6xl sm:text-7xl font-bold tracking-tight leading-none">
+              ЭНД
+            </h1>
+            <div className="lgx-fade mt-5 h-[3px] w-14 bg-amber-400 rounded-full" style={{ animationDelay: '.1s' }} />
+            <p className="lgx-fade mt-5 text-sky-200/55 text-lg font-['PT_Sans'] max-w-[280px] leading-snug" style={{ animationDelay: '.2s' }}>
+              {t('login.tagline')}
+            </p>
+          </div>
+
+          {/* Тихий футер панели */}
+          <div className="lgx-fade flex items-center gap-3 text-[11px] text-sky-200/35 tracking-[0.22em] uppercase" style={{ animationDelay: '.3s' }}>
+            Атырау · Каспий · 2026
+          </div>
+        </div>
       </div>
 
-      {/* 2. ФОРМА ВХОДА */}
-      <div className="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden relative z-10 mx-4">
-        <div className="bg-gray-50 p-8 text-center border-b border-gray-100 font-['PT_Sans'] relative">
-           <div className="absolute top-4 right-4">
-             <LanguageSwitcher />
-           </div>
-           <h1 className="text-4xl font-bold text-blue-900 tracking-tight">ЭНД</h1>
-           <p className="text-gray-500 mt-2 text-lg font-medium">{t('login.subtitle')}</p>
+      {/* ═══ ПРАВАЯ ПАНЕЛЬ — ФОРМА ═══ */}
+      <div className="relative flex flex-col justify-center px-6 sm:px-12 lg:px-16 py-12 lg:py-16 bg-white">
+        <div className="absolute top-5 right-6">
+          <LanguageSwitcher />
         </div>
 
-        <div className="p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="w-full max-w-sm mx-auto lg:mx-0">
+          <h2 className="lgx-fade text-3xl font-bold text-slate-900 tracking-tight">
+            {t('login.title')}
+          </h2>
+          <div className="lgx-fade mt-3 h-[2px] w-8 bg-amber-400 rounded-full" style={{ animationDelay: '.05s' }} />
+
+          <form onSubmit={handleSubmit} className="mt-10 space-y-6">
             {error && (
-              <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm flex items-center gap-2">
-                <AlertCircle size={16} />
+              <div className="lgx-fade bg-red-50 border border-red-100 text-red-700 p-3.5 rounded-lg text-sm flex items-start gap-2.5">
+                <AlertCircle size={17} className="mt-0.5 shrink-0" />
                 {error}
               </div>
             )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('login.loginLabel')}</label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                  <User size={20} />
-                </span>
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900 focus:border-transparent transition-all"
-                  placeholder={t('login.loginPlaceholder')}
-                  required
-                />
-              </div>
+            <div className="lgx-fade" style={{ animationDelay: '.1s' }}>
+              <label htmlFor="login-username" className="block text-sm font-semibold text-slate-700 mb-2">
+                {t('login.loginLabel')}
+              </label>
+              <input
+                id="login-username"
+                type="text"
+                autoComplete="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full bg-[#f4f6f8] border border-slate-200 rounded-lg px-4 py-3 text-lg text-slate-900 placeholder-slate-400 outline-none transition-all focus:bg-white focus:border-[#0A3D62] focus:ring-4 focus:ring-[#0A3D62]/10"
+                placeholder={t('login.loginPlaceholder')}
+                required
+              />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Пароль</label>
+            <div className="lgx-fade" style={{ animationDelay: '.18s' }}>
+              <label htmlFor="login-password" className="block text-sm font-semibold text-slate-700 mb-2">
+                {t('login.passwordLabel')}
+              </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                  <Lock size={20} />
-                </span>
                 <input
-                  type={showPassword ? "text" : "password"}
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900 focus:border-transparent transition-all"
+                  className="w-full bg-[#f4f6f8] border border-slate-200 rounded-lg px-4 py-3 pr-12 text-lg text-slate-900 placeholder-slate-400 outline-none transition-all focus:bg-white focus:border-[#0A3D62] focus:ring-4 focus:ring-[#0A3D62]/10"
                   placeholder="••••••••"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-blue-600 transition-colors cursor-pointer"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-300 hover:text-[#0A3D62] transition-colors cursor-pointer"
+                  aria-label={showPassword ? t('login.passwordLabel') : t('login.passwordLabel')}
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
@@ -134,11 +189,16 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors flex justify-center items-center gap-2"
+              className="lgx-fade w-full bg-[#0A3D62] hover:bg-[#0C4A77] disabled:opacity-60 text-white text-lg font-semibold py-3.5 rounded-lg transition-all flex items-center justify-center gap-2 active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-[#0A3D62]/20"
+              style={{ animationDelay: '.26s' }}
             >
-              {isLoading ? <Loader2 className="animate-spin" /> : t('login.submit')}
+              {isLoading ? <Loader2 className="animate-spin" size={20} /> : t('login.submit')}
             </button>
           </form>
+
+          <p className="lgx-fade mt-12 text-xs text-slate-400" style={{ animationDelay: '.35s' }}>
+            © 2026 · {t('login.subtitle')}
+          </p>
         </div>
       </div>
     </div>
