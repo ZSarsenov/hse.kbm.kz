@@ -93,19 +93,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         <div className="absolute -top-40 -left-40 w-[520px] h-[520px] rounded-full bg-[#0E4C7E]/40 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-32 -right-24 w-[460px] h-[460px] rounded-full bg-[#063455]/30 blur-3xl pointer-events-none" />
 
-        <div className="relative h-full flex flex-col justify-between p-8 sm:p-12 lg:p-14 gap-8">
-          {/* Организация */}
-          <div className="flex items-center gap-4 lgx-fade">
-            <img
-              src="/logo-kbm.jpg"
-              alt={t('login.subtitle')}
-              className="h-14 w-auto object-contain shrink-0"
-            />
-            <div className="font-['PT_Sans'] text-sky-200/80 text-sm font-bold tracking-[0.18em] uppercase leading-relaxed">
-              {t('login.subtitle')}
-            </div>
-          </div>
-
+        <div className="relative h-full flex flex-col p-8 sm:p-12 lg:p-14 gap-8">
           {/* Словесный знак системы */}
           <div className="my-auto py-6 lg:py-0">
             <h1 className="lgx-fade font-['PT_Sans'] text-white text-6xl sm:text-7xl font-bold tracking-tight leading-none">
@@ -131,10 +119,22 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         </div>
 
         <div className="w-full max-w-sm mx-auto lg:mx-0">
-          <h2 className="lgx-fade text-3xl font-bold text-slate-900 tracking-tight">
+          {/* Организация с логотипом */}
+          <div className="lgx-fade flex items-center gap-3 mb-8">
+            <img
+              src="/logo-kbm.jpg"
+              alt={t('login.subtitle')}
+              className="h-12 w-auto object-contain shrink-0"
+            />
+            <div className="font-['PT_Sans'] text-slate-700 text-sm font-bold tracking-[0.14em] uppercase leading-relaxed">
+              {t('login.subtitle')}
+            </div>
+          </div>
+
+          <h2 className="lgx-fade text-3xl font-bold text-slate-900 tracking-tight" style={{ animationDelay: '.05s' }}>
             {t('login.title')}
           </h2>
-          <div className="lgx-fade mt-3 h-[2px] w-8 bg-amber-400 rounded-full" style={{ animationDelay: '.05s' }} />
+          <div className="lgx-fade mt-3 h-[2px] w-8 bg-amber-400 rounded-full" style={{ animationDelay: '.1s' }} />
 
           <form onSubmit={handleSubmit} className="mt-10 space-y-6">
             {error && (
