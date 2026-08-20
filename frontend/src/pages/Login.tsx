@@ -105,7 +105,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
         <div className="relative h-full flex flex-col p-8 sm:p-12 lg:p-14 gap-8">
           {/* Словесный знак системы */}
-          <div className="my-auto py-6 lg:py-0">
+          <div>
             <h1 className="lgx-fade font-['PT_Sans'] text-white text-6xl sm:text-7xl font-bold tracking-tight leading-none">
               ЭНД
             </h1>
