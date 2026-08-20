@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
@@ -8,6 +8,13 @@ interface LoginProps {
   onLogin: (token: string, userData: any) => void;
 }
 
+// Фото фоновой панели (класть в frontend/public). Файлы main2.jpg, main3.jpg…
+// подхватываются в ротацию автоматически — достаточно добавить файл в папку.
+// Фото с другими именами можно вписать в EXTRA_PANEL_PHOTOS вручную.
+const PANEL_PHOTO_CANDIDATES = ['/main.jpg', '/main2.jpg', '/main3.jpg', '/main4.jpg', '/main5.jpg', '/main6.jpg'];
+const EXTRA_PANEL_PHOTOS: string[] = [];
+const SLIDE_INTERVAL_MS = 8000;
+
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const { t } = useTranslation();
   const [username, setUsername] = useState('');
@@ -15,6 +22,32 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // --- Ротация фото на брендовой панели ---
+  const [panelPhotos, setPanelPhotos] = useState<string[]>([]);
+  const [slide, setSlide] = useState(0);
+
+  // Проверяем, какие из кандидатов реально существуют (отсутствующие молча пропускаем)
+  useEffect(() => {
+    let alive = true;
+    const probe = (src: string) => new Promise<string | null>(resolve => {
+      const img = new Image();
+      img.onload = () => resolve(src);
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+    Promise.all([...PANEL_PHOTO_CANDIDATES, ...EXTRA_PANEL_PHOTOS].map(probe)).then(res => {
+      if (alive) setPanelPhotos(res.filter((s): s is string => !!s));
+    });
+    return () => { alive = false; };
+  }, []);
+
+  // Переключение слайда, только если фото больше одного
+  useEffect(() => {
+    if (panelPhotos.length < 2) return;
+    const id = setInterval(() => setSlide(s => (s + 1) % panelPhotos.length), SLIDE_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [panelPhotos.length]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,17 +118,32 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             color: #ffffff;
           }
         }
+
+        /* Ротация фото: мягкий наезд камеры на активном слайде */
+        .lgx-slide { animation: lgx-zoom 9s cubic-bezier(.25, .1, .25, 1) both; }
+        @keyframes lgx-zoom { from { transform: scale(1); } to { transform: scale(1.07); } }
+        @media (prefers-reduced-motion: reduce) {
+          .lgx-slide { animation: none; }
+        }
       `}</style>
 
       {/* ═══ ЛЕВАЯ ПАНЕЛЬ — «Каспийский горизонт» ═══ */}
       <div className="relative overflow-hidden bg-[#06203A] min-h-[300px] lg:min-h-screen">
-        {/* Фотография производства */}
+        {/* Фотографии производства — ротация с плавным перетеканием */}
         <img
-          src="/main.jpg"
+          src={panelPhotos[0] || '/main.jpg'}
           alt=""
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover"
         />
+        {panelPhotos.length > 1 && panelPhotos.map((src, i) => (
+          <div
+            key={src}
+            className={`absolute inset-0 transition-opacity duration-[1400ms] ease-in-out ${i === slide ? 'opacity-100 lgx-slide' : 'opacity-0'}`}
+          >
+            <img src={src} alt="" aria-hidden="true" className="w-full h-full object-cover" />
+          </div>
+        ))}
         {/* Корпоративный навy-оверлей — читаемость текста поверх фото */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#04101F]/95 via-[#06203A]/65 to-[#06203A]/40" />
 
