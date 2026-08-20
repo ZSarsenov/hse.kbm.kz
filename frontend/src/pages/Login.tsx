@@ -149,11 +149,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
         <div className="w-full max-w-sm mx-auto lg:mx-0">
           {/* Организация с логотипом */}
-          <div className="lgx-fade flex items-center gap-3 mb-8">
+          <div className="lgx-fade flex items-center gap-4 mb-8">
             <img
-              src="/logo-kbm.jpg"
+              src="/logo-kbm.png"
               alt={t('login.subtitle')}
-              className="h-12 w-auto object-contain shrink-0"
+              className="h-20 w-auto object-contain shrink-0"
             />
             <div className="font-['PT_Sans'] text-slate-700 text-sm font-bold tracking-[0.14em] uppercase leading-relaxed">
               {t('login.subtitle')}
