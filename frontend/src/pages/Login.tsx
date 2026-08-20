@@ -94,11 +94,12 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         @keyframes lgx-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
         .lgx-fade { animation: lgx-fade-up .7s cubic-bezier(.22, 1, .36, 1) both; }
 
-        /* Ротация фото: мягкий наезд камеры на активном слайде */
-        .lgx-slide { animation: lgx-zoom 9s cubic-bezier(.25, .1, .25, 1) both; }
-        @keyframes lgx-zoom { from { transform: scale(1); } to { transform: scale(1.07); } }
+        /* Ротация фото: непрерывный синхронный дрейфт масштаба у всех слоёв —
+           смена кадра проходит как чистое растворение, без скачка зума */
+        .lgx-drift { animation: lgx-zoom 16s ease-in-out infinite alternate; }
+        @keyframes lgx-zoom { from { transform: scale(1); } to { transform: scale(1.06); } }
         @media (prefers-reduced-motion: reduce) {
-          .lgx-slide { animation: none; }
+          .lgx-drift { animation: none; }
         }
       `}</style>
 
@@ -114,7 +115,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         {panelPhotos.length > 1 && panelPhotos.map((src, i) => (
           <div
             key={src}
-            className={`absolute inset-0 transition-opacity duration-[1400ms] ease-in-out ${i === slide ? 'opacity-100 lgx-slide' : 'opacity-0'}`}
+            className={`absolute inset-0 lgx-drift transition-opacity duration-[2500ms] ${i === slide ? 'opacity-100' : 'opacity-0'}`}
           >
             <img src={src} alt="" aria-hidden="true" className="w-full h-full object-cover" />
           </div>
