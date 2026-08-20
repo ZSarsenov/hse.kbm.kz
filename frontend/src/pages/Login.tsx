@@ -56,12 +56,10 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-[1.08fr_1fr] bg-white font-sans">
-      {/* Локальные анимации: появление (stagger), «дыхание» точки, блик по знаку ЭНД */}
+      {/* Локальные анимации: появление (stagger), блик по знаку ЭНД */}
       <style>{`
         @keyframes lgx-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-        @keyframes lgx-pulse { 0%, 100% { opacity: .9; } 50% { opacity: .35; } }
         .lgx-fade { animation: lgx-fade-up .7s cubic-bezier(.22, 1, .36, 1) both; }
-        .lgx-pulse { animation: lgx-pulse 3.2s ease-in-out infinite; }
 
         /* Блик света, изредка пробегающий по словесному знаку */
         .lgx-shimmer {
@@ -121,7 +119,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <line x1="0" y1="400" x2="800" y2="400" stroke="rgba(140,180,210,0.07)" strokeWidth="1" strokeDasharray="2 6" />
           <line x1="500" y1="0" x2="500" y2="600" stroke="rgba(140,180,210,0.07)" strokeWidth="1" strokeDasharray="2 6" />
           <circle cx="500" cy="400" r="12" fill="none" stroke="rgba(251,191,36,0.35)" strokeWidth="1" />
-          <circle cx="500" cy="400" r="4" fill="#fbbf24" className="lgx-pulse" />
+          <circle cx="500" cy="400" r="4" fill="#fbbf24" />
         </svg>
 
         {/* Мягкие глубинные свечения */}
