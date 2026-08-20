@@ -102,6 +102,13 @@ export const Layout: React.FC<LayoutProps> = ({
               <Menu size={24} />
             </button>
             <div className="flex items-center gap-3 cursor-pointer" onClick={onNavigate}>
+              {/* Логотип организации — слева, перед названием; вписан по высоте шапки с запасом */}
+              <img
+                src="/logo-kbm.jpg"
+                alt="АО «Каражанбасмунай»"
+                title="АО «Каражанбасмунай»"
+                className="h-12 w-auto object-contain shrink-0"
+              />
               <div className="flex flex-col font-['PT_Sans']">
                 <span className="text-3xl font-bold text-blue-700 leading-none">ЭНД</span>
                 <span className="text-sm text-blue-600 font-bold tracking-wider uppercase">{t('layout.brandSubtitle')}</span>
@@ -110,13 +117,6 @@ export const Layout: React.FC<LayoutProps> = ({
           </div>
 
           <div className="flex items-center gap-3 sm:gap-4">
-            {/* Логотип организации — вписан по высоте шапки (h-16) с запасом сверху/снизу */}
-            <img
-              src="/logo-kbm.jpg"
-              alt="АО «Каражанбасмунай»"
-              title="АО «Каражанбасмунай»"
-              className="h-12 w-auto object-contain shrink-0"
-            />
             <LanguageSwitcher className="hidden sm:inline-flex" />
             {/* Уведомления */}
             <div className="relative" ref={notifRef}>
