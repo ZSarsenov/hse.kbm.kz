@@ -56,12 +56,37 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-[1.08fr_1fr] bg-white font-sans">
-      {/* Локальные анимации появления (stagger) и «дыхания» точки на карте */}
+      {/* Локальные анимации: появление (stagger), «дыхание» точки, блик по знаку ЭНД */}
       <style>{`
         @keyframes lgx-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
         @keyframes lgx-pulse { 0%, 100% { opacity: .9; } 50% { opacity: .35; } }
         .lgx-fade { animation: lgx-fade-up .7s cubic-bezier(.22, 1, .36, 1) both; }
         .lgx-pulse { animation: lgx-pulse 3.2s ease-in-out infinite; }
+
+        /* Блик света, изредка пробегающий по словесному знаку */
+        .lgx-shimmer {
+          background: linear-gradient(105deg, #ffffff 38%, #cfe8fa 50%, #ffffff 62%);
+          background-size: 250% 100%;
+          background-position: 130% 0;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          animation: lgx-sweep 5s cubic-bezier(.77, 0, .175, 1) 1.4s infinite;
+        }
+        @keyframes lgx-sweep {
+          0%   { background-position: 130% 0; }
+          45%  { background-position: -130% 0; }
+          100% { background-position: -130% 0; } /* пауза до следующего пробега */
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .lgx-shimmer {
+            animation: none;
+            background: none;
+            background-clip: border-box;
+            -webkit-background-clip: border-box;
+            color: #ffffff;
+          }
+        }
       `}</style>
 
       {/* ═══ ЛЕВАЯ ПАНЕЛЬ — «Каспийский горизонт» ═══ */}
@@ -106,7 +131,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         <div className="relative h-full flex flex-col p-8 sm:p-12 lg:p-14 gap-8">
           {/* Словесный знак системы */}
           <div>
-            <h1 className="lgx-fade font-['PT_Sans'] text-white text-6xl sm:text-7xl font-bold tracking-tight leading-none">
+            <h1 className="lgx-fade lgx-shimmer font-['PT_Sans'] text-6xl sm:text-7xl font-bold tracking-tight leading-none">
               ЭНД
             </h1>
             <div className="lgx-fade mt-5 h-[3px] w-14 bg-amber-400 rounded-full" style={{ animationDelay: '.1s' }} />
