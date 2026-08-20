@@ -32,7 +32,9 @@
     "errorInvalidCreds": "Логин немесе құпия сөз дұрыс емес",
     "errorUrl404": "Кіру URL табылмады (404). urls.py тексеріңіз",
     "errorServer": "Сервер қатесі: {{status}}",
-    "errorConnection": "Байланыс қатесі. Django іске қосылғанын тексеріңіз."
+    "errorConnection": "Байланыс қатесі. Django іске қосылғанын тексеріңіз.",
+    "title": "Жүйеге кіру",
+    "tagline": "Электронды жұмыс бұйрығы-рұқсаты"
   },
   "module": {
     "portalTitle": "HSE порталы",

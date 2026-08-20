@@ -102,6 +102,13 @@ export const Layout: React.FC<LayoutProps> = ({
               <Menu size={24} />
             </button>
             <div className="flex items-center gap-3 cursor-pointer" onClick={onNavigate}>
+              {/* Логотип организации — слева, перед названием; вписан по высоте шапки с запасом */}
+              <img
+                src="/logo-kbm.png"
+                alt="АО «Каражанбасмунай»"
+                title="АО «Каражанбасмунай»"
+                className="h-14 w-auto object-contain shrink-0"
+              />
               <div className="flex flex-col font-['PT_Sans']">
                 <span className="text-3xl font-bold text-blue-700 leading-none">ЭНД</span>
                 <span className="text-sm text-blue-600 font-bold tracking-wider uppercase">{t('layout.brandSubtitle')}</span>

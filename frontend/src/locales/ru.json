@@ -32,7 +32,9 @@
     "errorInvalidCreds": "Неверный логин или пароль",
     "errorUrl404": "URL для входа не найден (404). Проверьте urls.py",
     "errorServer": "Ошибка сервера: {{status}}",
-    "errorConnection": "Ошибка соединения. Убедитесь, что Django запущен."
+    "errorConnection": "Ошибка соединения. Убедитесь, что Django запущен.",
+    "title": "Вход в систему",
+    "tagline": "Электронные наряды-допуски"
   },
   "module": {
     "portalTitle": "HSE Portal",
