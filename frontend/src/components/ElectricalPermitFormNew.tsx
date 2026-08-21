@@ -1071,7 +1071,9 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
    return (
       <div className="w-full space-y-6 animate-in fade-in duration-300">
-         {/* STEPPER — закреплён под шапкой приложения, без начального смещения */}
+         {/* Заголовок формы (передаётся снаружи) */}
+         {header}
+         {/* STEPPER — круги с номерами и соединители; живёт в шапке формы и уезжает при прокрутке */}
          {(() => {
             const tabs: { id: TabKey; label: string }[] = isReadonly
               ? [
@@ -1089,7 +1091,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                 ];
             const currentIdx = Math.max(0, tabs.findIndex(t => t.id === activeTab));
             return (
-              <div className="sticky top-0 z-50 bg-white px-4 py-3 rounded-xl border border-gray-200 shadow-sm">
+              <div className="bg-white px-4 py-3 rounded-xl border border-gray-200 shadow-sm">
                 <div className="flex items-start">
                   {tabs.map((tab, idx) => (
                     <React.Fragment key={tab.id}>
@@ -1125,9 +1127,6 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
               </div>
             );
          })()}
-
-         {/* Заголовок формы (передаётся снаружи) */}
-         {header}
 
          {/* FORM CONTENT */}
          <div className="w-full">
