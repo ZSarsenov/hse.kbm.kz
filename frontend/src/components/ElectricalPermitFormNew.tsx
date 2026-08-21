@@ -28,6 +28,8 @@ interface Props {
    onSubmit?: (data: ElectricalFormData) => void;
    onUpdateLifecycle?: (lifecycle: ElectricalLifecycle) => void;
    onCancel?: () => void;
+   /** Заголовок формы — рендерится в закреплённой группе над степпером */
+   header?: React.ReactNode;
 }
 
 type TabKey = 'main' | 'backside' | 'lifecycle' | 'risks' | 'loto';
@@ -38,7 +40,8 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
    initialLifecycle,
    onSubmit,
    onUpdateLifecycle,
-   onCancel
+   onCancel,
+   header
 }) => {
    const isReadonly = mode === 'execution';
    const [activeTab, setActiveTab] = useState<TabKey>(mode === 'execution' ? 'lifecycle' : 'main');
@@ -1068,6 +1071,9 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
    return (
       <div className="w-full space-y-6 animate-in fade-in duration-300">
+         {/* Закреплённая группа: заголовок + степпер не перемещаются при прокрутке */}
+         <div className="sticky top-0 z-50 bg-slate-50 pt-1 pb-2">
+            {header}
          {/* STEPPER — круги с номерами и соединители (единый стиль с нарядом повыш. опасности) */}
          {(() => {
             const tabs: { id: TabKey; label: string }[] = isReadonly
@@ -1122,6 +1128,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
               </div>
             );
          })()}
+         </div>
 
          {/* FORM CONTENT */}
          <div className="w-full">

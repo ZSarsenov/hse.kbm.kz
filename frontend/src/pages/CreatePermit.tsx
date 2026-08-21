@@ -45,27 +45,28 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
   if (category === PermitCategory.ELECTRICAL) {
     return (
       <div className="w-full space-y-6 animate-in fade-in duration-300">
-        <div className="flex items-center gap-4">
-           <button onClick={onCancel} className="p-2 -ml-2 hover:bg-gray-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
-              <ArrowLeft size={28} />
-           </button>
-           <div>
-               <h1 className="text-3xl font-bold text-slate-900 leading-tight">
-                   {isEditing ? `Редактирование: ${initialData?.permitId}` : 'Создание Наряда-Допуска'}
-               </h1>
-               <div className="flex items-center gap-2 mt-1">
-                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-blue-100 text-blue-700 border-blue-200">
-                    <Zap size={12}/> Электроустановки
-                 </span>
-                 <span className="text-slate-400 text-sm font-mono">Стандарт РК</span>
-               </div>
-           </div>
-        </div>
-
         <ElectricalPermitFormNew
           mode="create"
           onCancel={onCancel}
           onSubmit={() => onSubmit()}
+          header={
+            <div className="flex items-center gap-4">
+               <button onClick={onCancel} className="p-2 -ml-2 hover:bg-gray-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+                  <ArrowLeft size={28} />
+               </button>
+               <div>
+                   <h1 className="text-3xl font-bold text-slate-900 leading-tight">
+                       {isEditing ? `Редактирование: ${initialData?.permitId}` : 'Создание Наряда-Допуска'}
+                   </h1>
+                   <div className="flex items-center gap-2 mt-1">
+                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-blue-100 text-blue-700 border-blue-200">
+                        <Zap size={12}/> Электроустановки
+                     </span>
+                     <span className="text-slate-400 text-sm font-mono">Стандарт РК</span>
+                   </div>
+               </div>
+            </div>
+          }
         />
       </div>
     );
@@ -655,6 +656,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
   return (
     <div className="w-full space-y-6 animate-in fade-in duration-300">
 
+      {/* Закреплённая группа: заголовок + степпер не перемещаются при прокрутке */}
+      <div className="sticky top-0 z-50 bg-slate-50 pt-1 pb-2">
       {/* Header */}
       <div className="flex items-center gap-4 mb-2">
          <button onClick={handleCancel} className="p-2 -ml-2 hover:bg-gray-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
@@ -674,8 +677,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
          </div>
       </div>
 
-       {/* Stepper (Sticky) — круги с номерами и соединители */}
-       <div className="sticky top-0 z-50 bg-white px-4 py-3 rounded-xl border border-gray-200 shadow-sm">
+       {/* Stepper — круги с номерами и соединители */}
+       <div className="bg-white px-4 py-3 rounded-xl border border-gray-200 shadow-sm">
          <div className="flex items-start">
            {STEPS.map((step, idx) => (
              <React.Fragment key={step.id}>
@@ -709,6 +712,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
            ))}
          </div>
        </div>
+      </div>
 
        {/* Form Content */}
 
