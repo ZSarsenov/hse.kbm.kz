@@ -3,6 +3,7 @@ import {
   ArrowLeft, MapPin, User, Clock, FileText, CheckCircle2, AlertTriangle, FileSignature, XCircle, Download, Shield, Users, Edit3, Trash2, Copy, FlaskConical
 } from 'lucide-react';
 import { WorkPermit, PermitCategory, ElectricalLifecycle } from '../types';
+import { confirm as confirmDialog } from '../components/ConfirmDialog';
 import { StatusBadge } from '../components/StatusBadge';
 import { ElectricalPermitForm } from '../components/ElectricalPermitForm';
 import { useNCALayer } from '../hooks/useNCALayer';
@@ -210,7 +211,12 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
   // 👇 ФУНКЦИЯ КОПИРОВАНИЯ
   const handleDuplicate = async () => {
-      if (!confirm("Создать новый черновик на основе этого наряда?")) return;
+      const ok = await confirmDialog({
+        title: 'Новый черновик',
+        message: 'Создать новый черновик на основе этого наряда?',
+        confirmText: 'Создать черновик',
+      });
+      if (!ok) return;
 
       try {
           const response = await fetch(`/api/v1/permits/${permit.id}/duplicate/`, {
@@ -424,7 +430,12 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // Для обычного производителя (с учётной записью) — простое подтверждение
   const handleProducerClose = async () => {
       if (!ensureBrigadeSigned()) return;
-      if (!confirm("Вы подтверждаете завершение работ?\nПосле этого Допускающий должен будет закрыть наряд.")) return;
+      const ok = await confirmDialog({
+        title: 'Завершение работ',
+        message: 'Вы подтверждаете завершение работ?\nПосле этого Допускающий должен будет закрыть наряд.',
+        confirmText: 'Завершить работы',
+      });
+      if (!ok) return;
       try {
           const response = await fetch(`/api/v1/permits/${permit.id}/producer_close/`, {
               method: 'POST',
@@ -462,7 +473,13 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   };
 
   const handleAdmittingClose = async () => {
-      if (!confirm("Вы уверены, что хотите закрыть наряд?\nЭто действие необратимо.")) return;
+      const ok = await confirmDialog({
+        title: 'Закрытие наряда',
+        message: 'Вы уверены, что хотите закрыть наряд?\nЭто действие необратимо.',
+        confirmText: 'Закрыть наряд',
+        danger: true,
+      });
+      if (!ok) return;
       try {
           const response = await fetch(`/api/v1/permits/${permit.id}/close/`, {
               method: 'POST',

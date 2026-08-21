@@ -1,11 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { 
-  Menu, Bell, User, FilePlus, CheckSquare, 
-  FileText, LogOut, ChevronDown, LayoutDashboard, ClipboardList, Grid3X3, ChartColumn
+import {
+  Menu, Bell, User, FilePlus, CheckSquare,
+  FileText, LogOut, ChevronDown, LayoutDashboard, ClipboardList, Grid3X3, ChartColumn, Check
 } from 'lucide-react';
 import { Permission } from '../types';
 import { LanguageSwitcher } from './LanguageSwitcher';
+
+// Время уведомления: сегодня — только время, иначе дата + время
+const formatNotifTime = (iso: string): string => {
+  const d = new Date(iso);
+  const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  if (d.toDateString() === new Date().toDateString()) return time;
+  return `${d.toLocaleDateString('ru-RU')} ${time}`;
+};
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -94,6 +102,12 @@ export const Layout: React.FC<LayoutProps> = ({
 
   return (
     <div className="h-screen bg-slate-50 flex flex-col font-sans text-slate-600 overflow-hidden">
+      {/* Анимация выпадающих панелей (уведомления) */}
+      <style>{`
+        @keyframes notif-pop { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
+        .notif-pop { animation: notif-pop .16s cubic-bezier(.23, 1, .32, 1) both; transform-origin: top right; }
+        @media (prefers-reduced-motion: reduce) { .notif-pop { animation: none; } }
+      `}</style>
       {/* Navbar */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-[60] h-16 shadow-sm shrink-0">
         <div className="px-4 h-full flex items-center justify-between w-full">
@@ -129,22 +143,49 @@ export const Layout: React.FC<LayoutProps> = ({
                   )}
                 </button>
                 {isNotifOpen && (
-                    <div className="absolute right-0 mt-3 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right">
-                        <div className="p-3 border-b bg-gray-50/50 flex justify-between items-center">
-                            <span className="font-bold text-gray-700 text-sm">{t('layout.notifications')}</span>
-                            {notifications.length > 0 && (<button onClick={() => notifications.forEach(n => handleMarkAsRead(n.id))} className="text-xs text-blue-600 hover:underline">{t('layout.markAllRead')}</button>)}
+                    <div className="absolute right-0 mt-2 w-[380px] max-w-[calc(100vw-24px)] bg-white border border-slate-200/80 rounded-2xl shadow-[0_16px_48px_-12px_rgba(6,32,58,0.22)] z-50 overflow-hidden notif-pop">
+                        {/* Шапка: заголовок + счётчик + действие */}
+                        <div className="px-4 py-3.5 border-b border-slate-100 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-900 text-sm">{t('layout.notifications')}</span>
+                                {notifications.length > 0 && (
+                                    <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold flex items-center justify-center">
+                                        {notifications.length > 99 ? '99+' : notifications.length}
+                                    </span>
+                                )}
+                            </div>
+                            {notifications.length > 0 && (
+                                <button
+                                    onClick={() => notifications.forEach(n => handleMarkAsRead(n.id))}
+                                    className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded-md transition-colors"
+                                >
+                                    <Check size={13} /> {t('layout.markAllRead')}
+                                </button>
+                            )}
                         </div>
-                        <div className="max-h-[350px] overflow-y-auto">
-                            {notifications.length === 0 ? <div className="p-8 text-center text-gray-400 text-sm">{t('layout.noNotifications')}</div> :
-                                notifications.map(n => (
-                                    <div key={n.id} onClick={() => { handleMarkAsRead(n.id); if (n.permit_id && onSelectPermit) { onSelectPermit(String(n.permit_id)); setIsNotifOpen(false); } }} className="p-4 border-b border-gray-50 hover:bg-blue-50 cursor-pointer transition-colors group relative">
-                                        <div className="absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full group-hover:bg-blue-600 transition-colors"></div>
-                                        <p className="font-bold text-sm text-gray-800 pr-4">{n.title}</p>
-                                        <p className="text-xs text-gray-600 mt-1 leading-relaxed">{n.message}</p>
-                                        <p className="text-[10px] text-gray-400 mt-2">{new Date(n.created_at).toLocaleString()}</p>
+                        {/* Список */}
+                        <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100">
+                            {notifications.length === 0 ? (
+                                <div className="py-10 flex flex-col items-center gap-3">
+                                    <div className="w-12 h-12 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-300">
+                                        <Bell size={22} />
                                     </div>
-                                ))
-                            }
+                                    <p className="text-sm text-slate-400">{t('layout.noNotifications')}</p>
+                                </div>
+                            ) : notifications.map(n => (
+                                <div
+                                    key={n.id}
+                                    onClick={() => { handleMarkAsRead(n.id); if (n.permit_id && onSelectPermit) { onSelectPermit(String(n.permit_id)); setIsNotifOpen(false); } }}
+                                    className="group flex gap-3 px-4 py-3.5 hover:bg-slate-50 cursor-pointer transition-colors"
+                                >
+                                    <span className="mt-1.5 w-2 h-2 rounded-full bg-blue-500 shrink-0 group-hover:bg-blue-600 transition-colors"></span>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="font-semibold text-sm text-slate-800 leading-snug">{n.title}</p>
+                                        <p className="text-xs text-slate-500 mt-1 leading-relaxed">{n.message}</p>
+                                        <p className="text-[11px] text-slate-400 mt-1.5 tabular-nums">{formatNotifTime(n.created_at)}</p>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}

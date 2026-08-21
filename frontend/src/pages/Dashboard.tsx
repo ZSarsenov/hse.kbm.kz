@@ -252,30 +252,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
       {/* Desktop Table View */}
       <div className="hidden md:block bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto min-h-[400px]">
-          <table className="w-full text-base text-left">
+          <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 border-b border-gray-200 text-slate-500 font-bold uppercase tracking-wider text-sm">
               <tr>
                 {isArchiveView ? (
                   <>
-                    <th className="px-4 py-5 w-12">{t('dashboard.colNo')}</th>
-                    <th className="px-4 py-5 w-[140px]">{t('dashboard.colPrimary')}</th>
-                    <th className="px-4 py-5 w-[140px]">{t('dashboard.colSecondary')}</th>
-                    <th className="px-4 py-5 w-36">{t('dashboard.colPermitNo')}</th>
-                    <th className="px-4 py-5 w-[320px]">{t('dashboard.colWorkshop')}</th>
-                    <th className="px-4 py-5 w-[240px]">{t('dashboard.colIssuer')}</th>
-                    <th className="px-4 py-5 w-[420px]">{t('dashboard.colWorkNature')}</th>
-                    <th className="px-4 py-5 text-center w-28">{t('dashboard.colStatus')}</th>
-                    <th className="px-4 py-5 w-12"></th>
+                    <th className="px-4 py-3 w-12">{t('dashboard.colNo')}</th>
+                    <th className="px-4 py-3 w-[140px]">{t('dashboard.colPrimary')}</th>
+                    <th className="px-4 py-3 w-[140px]">{t('dashboard.colSecondary')}</th>
+                    <th className="px-4 py-3 w-36">{t('dashboard.colPermitNo')}</th>
+                    <th className="px-4 py-3 w-[320px]">{t('dashboard.colWorkshop')}</th>
+                    <th className="px-4 py-3 w-[240px]">{t('dashboard.colIssuer')}</th>
+                    <th className="px-4 py-3 w-[420px]">{t('dashboard.colWorkNature')}</th>
+                    <th className="px-4 py-3 text-center w-28">{t('dashboard.colStatus')}</th>
+                    <th className="px-4 py-3 w-12"></th>
                   </>
                 ) : (
                   <>
-                    <th className="px-6 py-5 w-36">{t('dashboard.colNumber')}</th>
-                    <th className="px-6 py-5">{t('dashboard.colWorkType')}</th>
-                    <th className="px-6 py-5">{t('dashboard.colLocation')}</th>
-                    <th className="px-6 py-5">{t('dashboard.colResponsible')}</th>
-                    <th className="px-6 py-5">{t('dashboard.colStartDate')}</th>
-                    <th className="px-6 py-5 text-center">{t('dashboard.colStatus')}</th>
-                    <th className="px-6 py-5 w-12"></th>
+                    <th className="px-6 py-3 w-36">{t('dashboard.colNumber')}</th>
+                    <th className="px-6 py-3">{t('dashboard.colWorkType')}</th>
+                    <th className="px-6 py-3">{t('dashboard.colLocation')}</th>
+                    <th className="px-6 py-3">{t('dashboard.colResponsible')}</th>
+                    <th className="px-6 py-3">{t('dashboard.colStartDate')}</th>
+                    <th className="px-6 py-3 text-center">{t('dashboard.colStatus')}</th>
+                    <th className="px-6 py-3 w-12"></th>
                   </>
                 )}
               </tr>
@@ -299,33 +299,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                       onClick={() => onSelectPermit(permit.id)}
                       className="group cursor-pointer transition-colors even:bg-slate-50/50 hover:bg-blue-50/60"
                     >
-                      <td className="px-4 py-5 font-medium text-gray-700">{indexOfFirstItem + index + 1}</td>
-                      <td className="px-4 py-5 text-gray-600 text-sm">
+                      <td className="px-4 py-3 font-medium text-gray-700">{indexOfFirstItem + index + 1}</td>
+                      <td className="px-4 py-3 text-gray-600 text-sm">
                         <div className="leading-tight">{t('dashboard.startShort')} {formatDt(permit.validFrom || permit.createdAt)}</div>
                         <div className="leading-tight mt-0.5">{t('dashboard.endShort')} {formatDt(permit.validTo)}</div>
                       </td>
-                      <td className="px-4 py-5 text-gray-400 text-sm">
+                      <td className="px-4 py-3 text-gray-400 text-sm">
                         <div className="leading-tight">{t('dashboard.startShort')} —</div>
                         <div className="leading-tight mt-0.5">{t('dashboard.endShort')} —</div>
                       </td>
-                      <td className="px-4 py-5 font-mono font-medium text-blue-600 group-hover:text-blue-800">{permit.permitId}</td>
+                      <td className="px-4 py-3 font-mono font-medium text-blue-600 group-hover:text-blue-800">{permit.permitId}</td>
                       <td
-                        className="px-4 py-5 text-gray-700 truncate max-w-[320px]"
+                        className="px-4 py-3 text-gray-700 truncate max-w-[320px]"
                         title={permit.data?.department || ''}
                       >
                         {permit.data?.department || '—'}
                       </td>
                       <td
-                        className="px-4 py-5 text-gray-700 truncate max-w-[240px]"
+                        className="px-4 py-3 text-gray-700 truncate max-w-[240px]"
                         title={issuerName}
                       >
                         {issuerName}
                       </td>
-                      <td className="px-4 py-5 font-semibold text-gray-800 truncate max-w-[420px]" title={permit.data?.workName || ''}>{permit.data?.workName || '—'}</td>
-                      <td className="px-4 py-5 text-center">
+                      <td className="px-4 py-3 font-semibold text-gray-800 truncate max-w-[420px]" title={permit.data?.workName || ''}>{permit.data?.workName || '—'}</td>
+                      <td className="px-4 py-3 text-center">
                         <StatusBadge status={permit.status} />
                       </td>
-                      <td className="px-4 py-5 text-right text-gray-300 group-hover:text-blue-500 transition-colors">
+                      <td className="px-4 py-3 text-right text-gray-300 group-hover:text-blue-500 transition-colors">
                         <ChevronRight size={22} />
                       </td>
                     </tr>
@@ -337,15 +337,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                     onClick={() => onSelectPermit(permit.id)}
                     className="group cursor-pointer transition-colors even:bg-slate-50/50 hover:bg-blue-50/60"
                   >
-                    <td className="px-6 py-5 font-mono font-medium text-blue-600 group-hover:text-blue-800">{permit.permitId}</td>
-                    <td className="px-6 py-5 font-semibold text-gray-800 truncate max-w-[220px]" title={permit.data?.workName || ''}>{permit.data?.workName || permit.templateType || '—'}</td>
-                    <td className="px-6 py-5 text-gray-600">
+                    <td className="px-6 py-3 font-mono font-medium text-blue-600 group-hover:text-blue-800">{permit.permitId}</td>
+                    <td className="px-6 py-3 font-semibold text-gray-800 truncate max-w-[220px]" title={permit.data?.workName || ''}>{permit.data?.workName || permit.templateType || '—'}</td>
+                    <td className="px-6 py-3 text-gray-600">
                       <div className="flex items-center gap-2">
                         <MapPin size={16} className="text-gray-400 shrink-0" />
                         <span className="truncate max-w-[200px]">{permit.location?.name || t('dashboard.notSpecified')}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-5 text-gray-700">
+                    <td className="px-6 py-3 text-gray-700">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-sm text-slate-600 font-bold shrink-0">
                           {permit.initiator?.name?.charAt(0) || '?'}
@@ -353,14 +353,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                         <span className="font-medium truncate">{permit.initiator?.name || t('dashboard.unknown')}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-5 text-gray-500 font-mono text-sm">
+                    <td className="px-6 py-3 text-gray-500 font-mono text-sm">
                       {new Date(permit.createdAt).toLocaleDateString(dateLocale)}
                       <span className="text-gray-400 ml-2">{new Date(permit.createdAt).toLocaleTimeString(dateLocale, {hour: '2-digit', minute:'2-digit'})}</span>
                     </td>
-                    <td className="px-6 py-5 text-center">
+                    <td className="px-6 py-3 text-center">
                       <StatusBadge status={permit.status} />
                     </td>
-                    <td className="px-6 py-5 text-right text-gray-300 group-hover:text-blue-500 transition-colors">
+                    <td className="px-6 py-3 text-right text-gray-300 group-hover:text-blue-500 transition-colors">
                       <ChevronRight size={22} />
                     </td>
                   </tr>
@@ -389,7 +389,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
 
         {/* Pagination Footer */}
         {filteredPermits.length > 0 && (
-          <div className="flex items-center justify-between px-6 py-5 border-t border-gray-200 bg-white">
+          <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-white">
             <div className="text-base text-gray-500 flex items-center gap-3">
               <span>
                 {t('dashboard.shown')} <span className="font-medium text-gray-900">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredPermits.length)}</span> {t('dashboard.of')} <span className="font-medium text-gray-900">{filteredPermits.length}</span>

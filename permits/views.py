@@ -16,6 +16,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
+from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db import IntegrityError, transaction
@@ -31,6 +32,14 @@ from .serializers import (PermitSerializer, PermitListSerializer,
 from .kalkan import Kalkan # временно не используем способ подписания через Kalkan
 
 logger = logging.getLogger(__name__)
+
+
+class DynamicPageSizePagination(PageNumberPagination):
+    """Пагинация с настраиваемым размером страницы: ?page_size=N (до 200).
+    Без параметра работает как раньше — 20 записей на страницу (PAGE_SIZE из settings)."""
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 200
 
 
 def _issuer_admitting_approved_users(permit):
@@ -198,6 +207,8 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
     queryset = WorkPermit.objects.all()
     serializer_class = PermitSerializer
     permission_classes = [IsAuthenticated]
+    # ?page_size=N позволяет фронту забирать список крупными страницами
+    pagination_class = DynamicPageSizePagination
 
     def get_serializer_class(self):
         # Для списочных эндпоинтов (list, my_tasks и т.п.) отдаём облегчённый

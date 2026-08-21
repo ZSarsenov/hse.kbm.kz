@@ -13,7 +13,7 @@ interface LoginProps {
 // Фото с другими именами можно вписать в EXTRA_PANEL_PHOTOS вручную.
 const PANEL_PHOTO_CANDIDATES = ['/main.jpg', '/main2.jpg', '/main3.jpg', '/main4.jpg', '/main5.jpg', '/main6.jpg'];
 const EXTRA_PANEL_PHOTOS: string[] = [];
-const SLIDE_INTERVAL_MS = 8000;
+const SLIDE_INTERVAL_MS = 180000; // смена фото раз в 3 минуты
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const { t } = useTranslation();

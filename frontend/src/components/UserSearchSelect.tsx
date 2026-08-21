@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, User as UserIcon, AlertCircle } from 'lucide-react';
+import { confirm as confirmDialog } from './ConfirmDialog';
 
 interface UserData {
   id: number;
@@ -93,14 +94,20 @@ export const UserSearchSelect: React.FC<UserSearchSelectProps> = ({
     return () => clearTimeout(timer);
   }, [query, isOpen, value]);
 
-  const handleSelect = (user: UserData) => {
+  const handleSelect = async (user: UserData) => {
     // 🛡 ВАЛИДАЦИЯ РОЛИ
     if (requiredRole && user.role !== requiredRole) {
        const requiredLabel = ROLE_LABELS[requiredRole] || requiredRole;
        const userLabel = ROLE_LABELS[user.role] || user.role || 'Без роли';
 
        // Можно сделать жесткий запрет (return) или просто предупреждение
-       if (!window.confirm(`Внимание! \nДля поля "${label}" требуется роль: "${requiredLabel}".\nУ сотрудника ${user.name} роль: "${userLabel}".\n\nВсё равно выбрать?`)) {
+       const ok = await confirmDialog({
+         title: 'Несовпадение роли',
+         message: `Внимание!\nДля поля "${label}" требуется роль: "${requiredLabel}".\nУ сотрудника ${user.name} роль: "${userLabel}".\n\nВсё равно выбрать?`,
+         confirmText: 'Всё равно выбрать',
+         danger: true,
+       });
+       if (!ok) {
            return;
        }
     }
@@ -119,7 +126,7 @@ export const UserSearchSelect: React.FC<UserSearchSelectProps> = ({
 
   return (
     <div className="relative" ref={wrapperRef}>
-      <label className="block text-sm font-bold text-gray-700 mb-1">
+      <label className="block text-sm font-semibold text-gray-700 mb-2">
         {label}
         {required && requiredRole && <span className="text-red-500 ml-1">*</span>}
       </label>
@@ -127,7 +134,7 @@ export const UserSearchSelect: React.FC<UserSearchSelectProps> = ({
       <div className="relative">
         <input
           type="text"
-          className={`w-full bg-[#f7f7f7] border border-gray-300 rounded-md pl-10 pr-10 py-3 text-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+          className={`w-full bg-[#f7f7f7] border border-gray-300 rounded-md pl-10 pr-10 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
           placeholder={placeholder}
           value={query}
           onChange={(e) => { setQuery(e.target.value); setIsOpen(true); }}
@@ -169,7 +176,7 @@ export const UserSearchSelect: React.FC<UserSearchSelectProps> = ({
                 key={user.id}
                 onClick={() => !isAlreadySelected && handleSelect(user)}
                 disabled={isAlreadySelected}
-                className={`w-full text-left px-4 py-3 border-b border-gray-50 last:border-0 transition-colors flex items-center gap-3 group ${
+                className={`w-full text-left px-3 py-2 border-b border-gray-50 last:border-0 transition-colors flex items-center gap-3 group ${
                   isAlreadySelected
                     ? 'opacity-50 cursor-not-allowed bg-gray-50'
                     : isRoleMismatch
@@ -177,18 +184,18 @@ export const UserSearchSelect: React.FC<UserSearchSelectProps> = ({
                       : 'hover:bg-blue-50'
                 }`}
               >
-                <div className={`p-2 rounded-full ${
+                <div className={`p-1.5 rounded-full ${
                   isAlreadySelected
                     ? 'bg-gray-200 text-gray-400'
                     : isRoleMismatch
                       ? 'bg-red-100 text-red-500'
                       : 'bg-blue-100 text-blue-600'
                 }`}>
-                  {isAlreadySelected ? <AlertCircle size={20} /> : isRoleMismatch ? <AlertCircle size={20} /> : <UserIcon size={20} />}
+                  {isAlreadySelected ? <AlertCircle size={16} /> : isRoleMismatch ? <AlertCircle size={16} /> : <UserIcon size={16} />}
                 </div>
                 <div>
-                  <p className={`font-medium ${isAlreadySelected ? 'text-gray-400' : 'text-gray-900'}`}>{user.name}</p>
-                  <div className="flex items-center gap-2 text-sm">
+                  <p className={`font-medium text-sm ${isAlreadySelected ? 'text-gray-400' : 'text-gray-900'}`}>{user.name}</p>
+                  <div className="flex items-center gap-2 text-xs">
                     <span className="text-gray-500">{user.position || 'Должность не указана'}</span>
                     <span className="text-gray-300">•</span>
                     {isAlreadySelected ? (
