@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, User as UserIcon, AlertCircle } from 'lucide-react';
+import { confirm as confirmDialog } from './ConfirmDialog';
 
 interface UserData {
   id: number;
@@ -93,14 +94,20 @@ export const UserSearchSelect: React.FC<UserSearchSelectProps> = ({
     return () => clearTimeout(timer);
   }, [query, isOpen, value]);
 
-  const handleSelect = (user: UserData) => {
+  const handleSelect = async (user: UserData) => {
     // 🛡 ВАЛИДАЦИЯ РОЛИ
     if (requiredRole && user.role !== requiredRole) {
        const requiredLabel = ROLE_LABELS[requiredRole] || requiredRole;
        const userLabel = ROLE_LABELS[user.role] || user.role || 'Без роли';
 
        // Можно сделать жесткий запрет (return) или просто предупреждение
-       if (!window.confirm(`Внимание! \nДля поля "${label}" требуется роль: "${requiredLabel}".\nУ сотрудника ${user.name} роль: "${userLabel}".\n\nВсё равно выбрать?`)) {
+       const ok = await confirmDialog({
+         title: 'Несовпадение роли',
+         message: `Внимание!\nДля поля "${label}" требуется роль: "${requiredLabel}".\nУ сотрудника ${user.name} роль: "${userLabel}".\n\nВсё равно выбрать?`,
+         confirmText: 'Всё равно выбрать',
+         danger: true,
+       });
+       if (!ok) {
            return;
        }
     }

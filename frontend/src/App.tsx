@@ -9,6 +9,7 @@ import { LotoReports } from './pages/LotoReports';
 import { AuditStatistics } from './pages/AuditStatistics';
 import { MyTasks } from './pages/MyTasks';
 import { PermitTypeSelector } from './components/PermitTypeSelector';
+import { ConfirmDialog, confirm as confirmDialog } from './components/ConfirmDialog';
 import { ModuleSelector } from './components/ModuleSelector';
 import { WorkPermit, PageView, PermitCategory } from './types';
 import { AIAssistant } from './components/AIAssistant';
@@ -307,7 +308,13 @@ function App() {
 
   // Удаление
   const handleDeletePermit = async (id: string) => {
-    if (!window.confirm(t('app.deleteConfirm'))) {
+    const ok = await confirmDialog({
+      title: 'Удаление наряда',
+      message: t('app.deleteConfirm'),
+      confirmText: 'Удалить',
+      danger: true,
+    });
+    if (!ok) {
       return;
     }
 
@@ -518,6 +525,9 @@ function App() {
       />
       {/* 👇 2. ВСТАВЛЯЕМ АССИСТЕНТА СЮДА (ПЕРЕД ЗАКРЫВАЮЩИМ ТЕГОМ) */}
       <AIAssistant />
+
+      {/* Стилизованные диалоги подтверждения (вместо window.confirm) */}
+      <ConfirmDialog />
     </>
   );
 }
