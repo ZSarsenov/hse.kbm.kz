@@ -92,12 +92,12 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   return (
     <div className="relative w-full" ref={wrapperRef}>
-      {label && <label className="block text-lg font-semibold text-gray-700 mb-2">{label}</label>}
+      {label && <label className="block text-sm font-semibold text-gray-700 mb-2">{label}</label>}
 
       <div className="relative">
         <input
           type="text"
-          className={`w-full bg-[#f7f7f7] border-gray-300 rounded-md pl-4 pr-10 py-3 text-lg text-gray-900 border focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+          className={`w-full bg-[#f7f7f7] border-gray-300 rounded-md pl-3 pr-10 py-2 text-sm text-gray-900 border focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
           placeholder={placeholder || "Выберите..."}
           value={searchTerm}
           onChange={(e) => {
@@ -108,8 +108,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           disabled={disabled}
         />
 
-        <div className="absolute right-3 top-3.5 text-gray-400 pointer-events-none">
-           {loading ? <Loader2 size={20} className="animate-spin"/> : <ChevronDown size={20} />}
+        <div className="absolute right-3 top-2.5 text-gray-400 pointer-events-none">
+           {loading ? <Loader2 size={18} className="animate-spin"/> : <ChevronDown size={18} />}
         </div>
       </div>
 
@@ -120,10 +120,10 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
               <button
                 key={opt.id}
                 onClick={() => handleSelect(opt)}
-                className="w-full text-left px-4 py-3 hover:bg-blue-50 flex flex-col group transition-colors border-b border-gray-50 last:border-0"
+                className="w-full text-left px-3 py-2 hover:bg-blue-50 flex flex-col group transition-colors border-b border-gray-50 last:border-0"
               >
                 {/* 👇 Выделяем "Подрядную организацию" жирным или цветом, если нужно */}
-                <span className={`text-base ${opt.id === 'CONTRACTOR' ? 'font-bold text-blue-600' : 'font-medium text-gray-900'}`}>
+                <span className={`text-sm ${opt.id === 'CONTRACTOR' ? 'font-bold text-blue-600' : 'font-medium text-gray-900'}`}>
                     {opt.label}
                 </span>
                 {opt.subLabel && <span className="text-xs text-gray-400">{opt.subLabel}</span>}
