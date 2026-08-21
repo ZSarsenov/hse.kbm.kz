@@ -718,7 +718,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
            {/* Section 1: Place and Character */}
            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-              <h3 className="font-bold text-gray-900 mb-4 uppercase text-sm tracking-wider border-b pb-2">{t('create.general.sectionTitle')}</h3>
+              <h3 className="font-bold text-gray-900 mb-4 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2">{t('create.general.sectionTitle')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div>
                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('create.general.organization')}</label>
@@ -841,7 +841,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
            {/* Section 2: Responsible Persons */}
            <div className={`bg-white p-6 rounded-xl border shadow-sm ${isApprovalEdit ? 'border-orange-200 bg-orange-50/30' : 'border-gray-200'}`}>
-              <h3 className="font-bold text-gray-900 mb-4 uppercase text-sm tracking-wider border-b pb-2 flex items-center gap-2">
+              <h3 className="font-bold text-gray-900 mb-4 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                 {t('create.roles.sectionTitle')}
                 {isApprovalEdit && <span className="text-sm normal-case text-orange-600 font-medium ml-2">🔒 {t('create.roles.readOnlyHint')}</span>}
               </h3>
@@ -1134,7 +1134,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
            {/* Section 3: Safety Measures */}
            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-             <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b pb-2 flex items-center gap-2">
+             <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                <ShieldAlert size={24} className="text-blue-600"/>
                {t('create.safety.sectionTitle')}
              </h3>
@@ -1226,7 +1226,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
             {/* Dates */}
             {/* Сроки выполнения — временно скрыт
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-               <h3 className="font-bold text-gray-900 mb-4 uppercase text-sm tracking-wider border-b pb-2">Сроки выполнения</h3>
+               <h3 className="font-bold text-gray-900 mb-4 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2">Сроки выполнения</h3>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                      <label className="block text-sm font-semibold text-gray-700 mb-2">Начало работ</label>
@@ -1386,7 +1386,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
             {/* 13. Работа окончена — дата заполняется при закрытии наряда Допускающим */}
              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-               <h3 className="font-bold text-gray-900 uppercase text-sm tracking-wider border-b pb-2 mb-4">{t('create.completion.sectionTitle')}</h3>
+               <h3 className="font-bold text-gray-900 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 mb-4">{t('create.completion.sectionTitle')}</h3>
                <p className="text-sm text-gray-500 mb-4">{t('create.completion.hint')}</p>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="md:col-span-2 flex items-end gap-2">
@@ -1435,7 +1435,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
             {/* General Info (Static) */}
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                <h3 className="font-bold text-gray-900 mb-4 uppercase text-sm tracking-wider border-b pb-2">{t('create.risk.generalInfo')}</h3>
+                <h3 className="font-bold text-gray-900 mb-4 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2">{t('create.risk.generalInfo')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 text-sm">
                     <div className="flex flex-col">
                         <span className="text-gray-500 font-semibold text-sm uppercase">{t('create.risk.workPlace')}</span>
@@ -1466,7 +1466,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
             {/* Participants */}
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b pb-2">{t('create.risk.participants')}</h3>
+                <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2">{t('create.risk.participants')}</h3>
 
                 <div className="mb-6">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">{t('create.risk.hazardsIdentified')}</label>

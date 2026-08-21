@@ -167,7 +167,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
          {/* Section 1: General Information */}
          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b pb-2 flex items-center gap-2">
+            <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                <FileText size={24} className="text-blue-600" />
                Общая информация
             </h3>
@@ -242,7 +242,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
          {/* Section 2: Responsible Persons */}
          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b pb-2 flex items-center gap-2">
+            <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                <Users size={24} className="text-blue-600" />
                Ответственные лица
             </h3>
@@ -414,7 +414,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
          {/* Section 3: Work Details */}
          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b pb-2 flex items-center gap-2">
+            <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                <Zap size={24} className="text-amber-500" />
                Содержание работ
             </h3>
@@ -449,7 +449,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
          {/* Section 4: Schedule */}
          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b pb-2 flex items-center gap-2">
+            <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                <Clock size={24} className="text-green-600" />
                Сроки выполнения
             </h3>
@@ -603,7 +603,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
           {/* Section: Отдельные указания и средства защиты */}
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-             <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b pb-2 flex items-center gap-2">
+             <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                 <ClipboardList size={24} className="text-blue-600" />
                 Жеке нұсқаулар / Отдельные указания
              </h3>
@@ -623,7 +623,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
           {/* Section: Наряд выдал */}
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-             <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b pb-2 flex items-center gap-2">
+             <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                 <PenTool size={24} className="text-blue-600" />
                 Нарядты бердім / Наряд выдал
              </h3>
@@ -777,7 +777,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
           {/* Section 6: Admission Permission - Жіберуге рұқсат беру / Разрешение на допуск */}
          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b pb-2 flex items-center gap-2">
+            <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                <FileCheck size={24} className="text-blue-600" />
                Жіберуге рұқсат беру / Разрешение на допуск
             </h3>
@@ -1136,7 +1136,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                <div className="space-y-6 animate-in fade-in duration-300">
                   {/* Voltage/Workplace Ready - first on reverse side */}
                   <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                     <h3 className="font-bold text-gray-900 mb-6 text-sm tracking-wider border-b pb-2 flex items-center gap-2">
+                     <h3 className="font-bold text-gray-900 mb-6 text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                         <Zap size={24} className="text-yellow-500" />
                         Жұмыс орындары әзірленді. Кернеу бар жері: / Рабочие места подготовлены. Под напряжением остались:
                      </h3>
@@ -1491,7 +1491,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
                   {/* Target Briefing Registration - Алғашқы рұқсаттама кезінде мақсатты нұсқаулықты тіркеу */}
                   <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                     <h3 className="font-bold text-gray-900 mb-1 text-sm tracking-wider border-b pb-2 flex items-center gap-2">
+                     <h3 className="font-bold text-gray-900 mb-1 text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                         <PenTool size={24} className="text-orange-500" />
                         Алғашқы рұқсаттама кезінде мақсатты нұсқаулықты тіркеу
                      </h3>
@@ -1597,7 +1597,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
                   {/* Work Completion - Жұмыс толық аяқталды */}
                   <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                     <h3 className="font-bold text-gray-900 mb-1 text-sm tracking-wider border-b pb-2 flex items-center gap-2">
+                     <h3 className="font-bold text-gray-900 mb-1 text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                         <CheckCircle2 size={24} className="text-green-600" />
                         Жұмыс толық аяқталды, бригада шығарылды, бригаданың орнатқан жер қосқыштары алынды
                      </h3>
