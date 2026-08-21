@@ -107,15 +107,23 @@ function App() {
 
       setIsBackgroundLoading(true);
       const restPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
-      const responses = await Promise.all(
-        restPages.map(page =>
-          fetch(`/api/v1/permits/?page=${page}&page_size=100`, {
-            headers: { 'Authorization': `Token ${currentToken}` },
-          })
-            .then(resp => (resp.ok ? resp.json() : null))
-            .catch(() => null)
-        )
-      );
+      const fetchPage = (page: number) =>
+        fetch(`/api/v1/permits/?page=${page}&page_size=100`, {
+          headers: { 'Authorization': `Token ${currentToken}` },
+        })
+          .then(resp => (resp.ok ? resp.json() : null))
+          .catch(() => null);
+
+      // Первая попытка — всей пачкой параллельно…
+      const responses = await Promise.all(restPages.map(fetchPage));
+      // …упавшие страницы (сеть/таймаут) переспрашиваем по одной
+      const failedIdx = responses.map((r, i) => (r === null ? i : -1)).filter(i => i >= 0);
+      for (const i of failedIdx) {
+        responses[i] = await fetchPage(restPages[i]);
+      }
+      if (responses.some(r => r === null)) {
+        console.warn('Часть страниц списка нарядов не загрузилась даже после повтора');
+      }
       const restItems = responses.flatMap(data => {
         if (!data) return [];
         const items: any[] = Array.isArray(data) ? data : (data.results || []);
