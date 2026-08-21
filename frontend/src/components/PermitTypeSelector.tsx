@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, AlertTriangle, Zap } from 'lucide-react';
+import { X, AlertTriangle, Zap, ArrowRight } from 'lucide-react';
 import { PermitCategory } from '../types';
 
 interface PermitTypeSelectorProps {
@@ -11,72 +11,111 @@ interface PermitTypeSelectorProps {
 
 export const PermitTypeSelector: React.FC<PermitTypeSelectorProps> = ({ isOpen, onClose, onSelect }) => {
   const { t } = useTranslation();
+
+  // Escape — закрыть окно
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+      <style>{`
+        @keyframes pts-pop { from { opacity: 0; transform: scale(.97) translateY(8px); } to { opacity: 1; transform: none; } }
+        .pts-pop { animation: pts-pop .18s cubic-bezier(.23, 1, .32, 1) both; }
+        @media (prefers-reduced-motion: reduce) { .pts-pop { animation: none; } }
+      `}</style>
+
       {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" 
+      <div
+        className="absolute inset-0 bg-slate-900/45 backdrop-blur-[2px]"
         onClick={onClose}
       />
-      
-      {/* Modal content */}
-      <div className="relative bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 bg-gray-50/50">
-          <h2 className="text-2xl font-bold text-gray-900">{t('permitType.title')}</h2>
-          <button 
+
+      {/* Modal */}
+      <div className="pts-pop relative bg-white w-full max-w-xl rounded-2xl border border-slate-200/80 shadow-[0_24px_64px_-16px_rgba(6,32,58,0.35)] overflow-hidden">
+
+        {/* Header — в стиле секций форм: капитель + графитовое подчёркивание */}
+        <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b-2 border-slate-900">
+          <div>
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.18em] mb-1">
+              {t('permitType.footer')}
+            </p>
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+              {t('permitType.title')}
+            </h2>
+          </div>
+          <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 -mt-1 -mr-1 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            aria-label={t('permitType.title')}
           >
-            <X size={24} />
+            <X size={20} />
           </button>
         </div>
 
-        {/* Selection Cards */}
-        <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-          
-          {/* Option A: Dangerous Work */}
-          <button 
+        {/* Варианты */}
+        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          {/* Наряд повышенной опасности */}
+          <button
             onClick={() => onSelect(PermitCategory.DANGEROUS)}
-            className="group flex flex-col items-center text-center p-8 bg-white border-2 border-gray-100 rounded-2xl hover:border-blue-500 hover:bg-blue-50/30 transition-all duration-300 shadow-sm hover:shadow-md"
+            className="group relative text-left p-5 bg-white border border-slate-200 rounded-xl transition-all duration-200 hover:border-[#0A3D62] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#0A3D62]/20"
           >
-            <div className="w-20 h-20 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-              <AlertTriangle size={40} />
+            <span className="absolute top-4 right-4 text-[11px] font-bold font-mono text-slate-300 group-hover:text-slate-400 transition-colors">01</span>
+            <div className="w-12 h-12 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center mb-4">
+              <AlertTriangle size={24} />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2 leading-snug">
+            <h3 className="text-base font-bold text-slate-900 leading-snug mb-1.5 pr-8">
               {t('permitType.dangerousTitle')}
             </h3>
-            <p className="text-sm text-gray-500 leading-relaxed">
+            <p className="text-xs text-slate-500 leading-relaxed mb-4">
               {t('permitType.dangerousDesc')}
             </p>
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0A3D62] opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200">
+              {t('permitType.select')} <ArrowRight size={14} />
+            </span>
           </button>
 
-          {/* Option B: Electrical Work */}
-          <button 
+          {/* Наряд для электроустановок */}
+          <button
             onClick={() => onSelect(PermitCategory.ELECTRICAL)}
-            className="group flex flex-col items-center text-center p-8 bg-white border-2 border-gray-100 rounded-2xl hover:border-blue-500 hover:bg-blue-50/30 transition-all duration-300 shadow-sm hover:shadow-md"
+            className="group relative text-left p-5 bg-white border border-slate-200 rounded-xl transition-all duration-200 hover:border-[#0A3D62] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#0A3D62]/20"
           >
-            <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-              <Zap size={40} />
+            <span className="absolute top-4 right-4 text-[11px] font-bold font-mono text-slate-300 group-hover:text-slate-400 transition-colors">02</span>
+            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
+              <Zap size={24} />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2 leading-snug">
-              Наряд для работы в электроустановках
+            <h3 className="text-base font-bold text-slate-900 leading-snug mb-1.5 pr-8">
+              {t('permitType.electricalTitle')}
             </h3>
-            <p className="text-sm text-gray-500 leading-relaxed">
-              Работы в действующих электроустановках под напряжением и со снятием напряжения.
+            <p className="text-xs text-slate-500 leading-relaxed mb-4">
+              {t('permitType.electricalDesc')}
             </p>
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0A3D62] opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200">
+              {t('permitType.select')} <ArrowRight size={14} />
+            </span>
           </button>
 
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-4 bg-gray-50 border-t border-gray-100 text-center">
-          <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">
+        <div className="px-6 py-3.5 border-t border-slate-100 flex items-center justify-between">
+          <p className="text-[11px] text-slate-400 uppercase tracking-[0.18em] font-semibold">
             {t('permitType.footer')}
           </p>
+          <button
+            onClick={onClose}
+            className="text-xs font-semibold text-slate-400 hover:text-slate-700 transition-colors"
+          >
+            {t('permitType.cancel')}
+          </button>
         </div>
 
       </div>
