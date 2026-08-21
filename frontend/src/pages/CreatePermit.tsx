@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Plus, Trash2, Save, FileText, AlertTriangle, Users, CheckCircle2, Lock, Zap, ShieldAlert, Building, Edit3, ClipboardCheck, Paperclip, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, FileText, AlertTriangle, Users, CheckCircle2, Check, Lock, Zap, ShieldAlert, Building, Edit3, ClipboardCheck, Paperclip, X } from 'lucide-react';
 import { TeamMember, RegulationFormData, UserRole, WORK_TYPES_LIST, RiskTableRow, RiskGroupMember, PermitExtension, PermitCategory, WorkPermit } from '../types';
 import { IsolationMatrixForm } from '../components/IsolationMatrixForm';
 import { ElectricalPermitFormNew } from '../components/ElectricalPermitFormNew';
@@ -674,22 +674,40 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
          </div>
       </div>
 
-       {/* Stepper (Sticky) */}
-       <div className="sticky top-0 z-50 grid grid-cols-4 gap-2 bg-white p-1.5 rounded-xl border border-gray-200 shadow-sm">
-         {STEPS.map((step) => (
-           <button
-             key={step.id}
-             onClick={() => setActiveStep(step.id)}
-             className={`flex items-center justify-center gap-2 p-3 rounded-lg border transition-all text-base ${
-               activeStep === step.id
-                 ? 'border-blue-200 bg-blue-50 text-blue-700 font-bold shadow-sm'
-                 : 'border-transparent bg-transparent text-gray-500 hover:bg-gray-50'
-             }`}
-           >
-             <step.icon size={22} />
-             <span className="hidden xl:inline">{step.label}</span>
-           </button>
-         ))}
+       {/* Stepper (Sticky) — круги с номерами и соединители */}
+       <div className="sticky top-0 z-50 bg-white px-4 py-3 rounded-xl border border-gray-200 shadow-sm">
+         <div className="flex items-start">
+           {STEPS.map((step, idx) => (
+             <React.Fragment key={step.id}>
+               {idx > 0 && (
+                 <div className={`flex-1 h-0.5 mt-[15px] mx-1 rounded-full transition-colors ${activeStep >= step.id ? 'bg-[#0A3D62]' : 'bg-slate-200'}`} />
+               )}
+               <button
+                 onClick={() => setActiveStep(step.id)}
+                 className="flex flex-col items-center gap-1.5 group min-w-[64px]"
+               >
+                 <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all ${
+                   activeStep > step.id
+                     ? 'bg-[#0A3D62] border-[#0A3D62] text-white'
+                     : step.id === activeStep
+                       ? 'bg-blue-600 border-blue-600 text-white ring-4 ring-blue-100'
+                       : 'bg-white border-slate-200 text-slate-400 group-hover:border-blue-300 group-hover:text-blue-500'
+                 }`}>
+                   {activeStep > step.id ? <Check size={16} strokeWidth={3} /> : step.id}
+                 </span>
+                 <span className={`text-[11px] font-semibold leading-tight text-center transition-colors ${
+                   step.id === activeStep
+                     ? 'text-blue-700'
+                     : activeStep > step.id
+                       ? 'text-slate-600'
+                       : 'text-slate-400 group-hover:text-blue-500'
+                 }`}>
+                   {step.label}
+                 </span>
+               </button>
+             </React.Fragment>
+           ))}
+         </div>
        </div>
 
        {/* Form Content */}

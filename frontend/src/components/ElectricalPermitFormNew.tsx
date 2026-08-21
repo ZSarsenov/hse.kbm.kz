@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import {
    Plus, Trash2, Zap, Clock, Users, ShieldAlert,
-   FileText, Calendar, ChevronDown, CheckCircle2,
+   FileText, Calendar, ChevronDown, CheckCircle2, Check,
    PenTool, Building, AlertTriangle, Lock, ShieldCheck,
    ArrowLeft, UserPlus, UserMinus, ClipboardList, FileCheck
 } from 'lucide-react';
@@ -31,19 +31,6 @@ interface Props {
 }
 
 type TabKey = 'main' | 'backside' | 'lifecycle' | 'risks' | 'loto';
-
-const TabButton: React.FC<{ id: TabKey, label: string, icon: any, active: boolean, onClick: (id: TabKey) => void }> = ({ id, label, icon: Icon, active, onClick }) => (
-   <button
-      onClick={() => onClick(id)}
-      className={`flex items-center justify-center gap-2 p-3 rounded-lg border transition-all text-base ${active
-         ? 'border-blue-200 bg-blue-50 text-blue-700 font-bold shadow-sm'
-         : 'border-transparent bg-transparent text-gray-500 hover:bg-gray-50'
-         }`}
-   >
-      <Icon size={22} />
-      <span className="hidden xl:inline">{label}</span>
-   </button>
-);
 
 export const ElectricalPermitFormNew: React.FC<Props> = ({
    mode,
@@ -1081,25 +1068,60 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
    return (
       <div className="w-full space-y-6 animate-in fade-in duration-300">
-         {/* FULL WIDTH TABS */}
-         {!isReadonly && (
-            <div className="sticky top-0 z-50 grid grid-cols-4 gap-2 bg-white p-1.5 rounded-xl border border-gray-200 shadow-sm">
-               <TabButton id="main" label="Лицевая сторона" icon={FileText} active={activeTab === 'main'} onClick={setActiveTab} />
-               <TabButton id="backside" label="Оборотная сторона" icon={ClipboardList} active={activeTab === 'backside'} onClick={setActiveTab} />
-               <TabButton id="risks" label="Оценка риска" icon={AlertTriangle} active={activeTab === 'risks'} onClick={setActiveTab} />
-               <TabButton id="loto" label="LOTO" icon={Lock} active={activeTab === 'loto'} onClick={setActiveTab} />
-            </div>
-         )}
-
-         {isReadonly && (
-            <div className="sticky top-0 z-50 grid grid-cols-5 gap-2 bg-white p-1.5 rounded-xl border border-gray-200 shadow-sm">
-               <TabButton id="main" label="Лицевая сторона" icon={FileText} active={activeTab === 'main'} onClick={setActiveTab} />
-               <TabButton id="backside" label="Оборотная" icon={ClipboardList} active={activeTab === 'backside'} onClick={setActiveTab} />
-               <TabButton id="lifecycle" label="Журнал допуска" icon={Calendar} active={activeTab === 'lifecycle'} onClick={setActiveTab} />
-               <TabButton id="risks" label="Оценка риска" icon={AlertTriangle} active={activeTab === 'risks'} onClick={setActiveTab} />
-               <TabButton id="loto" label="LOTO" icon={Lock} active={activeTab === 'loto'} onClick={setActiveTab} />
-            </div>
-         )}
+         {/* STEPPER — круги с номерами и соединители (единый стиль с нарядом повыш. опасности) */}
+         {(() => {
+            const tabs: { id: TabKey; label: string }[] = isReadonly
+              ? [
+                  { id: 'main', label: 'Лицевая сторона' },
+                  { id: 'backside', label: 'Оборотная сторона' },
+                  { id: 'lifecycle', label: 'Журнал допуска' },
+                  { id: 'risks', label: 'Оценка риска' },
+                  { id: 'loto', label: 'LOTO' },
+                ]
+              : [
+                  { id: 'main', label: 'Лицевая сторона' },
+                  { id: 'backside', label: 'Оборотная сторона' },
+                  { id: 'risks', label: 'Оценка риска' },
+                  { id: 'loto', label: 'LOTO' },
+                ];
+            const currentIdx = Math.max(0, tabs.findIndex(t => t.id === activeTab));
+            return (
+              <div className="sticky top-0 z-50 bg-white px-4 py-3 rounded-xl border border-gray-200 shadow-sm">
+                <div className="flex items-start">
+                  {tabs.map((tab, idx) => (
+                    <React.Fragment key={tab.id}>
+                      {idx > 0 && (
+                         <div className={`flex-1 h-0.5 mt-[15px] mx-1 rounded-full transition-colors ${currentIdx >= idx ? 'bg-[#0A3D62]' : 'bg-slate-200'}`} />
+                      )}
+                      <button
+                         onClick={() => setActiveTab(tab.id)}
+                         className="flex flex-col items-center gap-1.5 group min-w-[56px] sm:min-w-[64px]"
+                      >
+                         <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all ${
+                           idx < currentIdx
+                             ? 'bg-[#0A3D62] border-[#0A3D62] text-white'
+                             : idx === currentIdx
+                               ? 'bg-blue-600 border-blue-600 text-white ring-4 ring-blue-100'
+                               : 'bg-white border-slate-200 text-slate-400 group-hover:border-blue-300 group-hover:text-blue-500'
+                         }`}>
+                           {idx < currentIdx ? <Check size={16} strokeWidth={3} /> : idx + 1}
+                         </span>
+                         <span className={`text-[11px] font-semibold leading-tight text-center transition-colors ${
+                           idx === currentIdx
+                             ? 'text-blue-700'
+                             : idx < currentIdx
+                               ? 'text-slate-600'
+                               : 'text-slate-400 group-hover:text-blue-500'
+                         }`}>
+                           {tab.label}
+                         </span>
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            );
+         })()}
 
          {/* FORM CONTENT */}
          <div className="w-full">
