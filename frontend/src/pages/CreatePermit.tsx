@@ -650,7 +650,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
     onCancel();
   };
 
-  const commonInputClasses = "w-full bg-[#f7f7f7] border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 border transition-colors placeholder-gray-400 max-w-full";
+  const commonInputClasses = "w-full bg-[#f7f7f7] border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 border transition-colors placeholder-gray-400 max-w-full";
 
   return (
     <div className="w-full space-y-6 animate-in fade-in duration-300">
@@ -703,7 +703,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div>
                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('create.general.organization')}</label>
-                   <input type="text" value={formData.organization} readOnly className="w-full bg-gray-100 border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-500 cursor-not-allowed" />
+                   <input type="text" value={formData.organization} readOnly className="w-full bg-gray-100 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-500 cursor-not-allowed" />
                  </div>
 
                  <div>
@@ -1235,52 +1235,52 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                   <table className="w-full text-sm text-left border border-gray-200 rounded-lg">
                      <thead className="bg-gray-50 text-gray-500 font-semibold text-sm">
                         <tr>
-                           <th className="px-3 py-2 w-10">{t('create.brigade.colNo')}</th>
-                           <th className="px-3 py-2">{t('create.brigade.colName')}</th>
-                           <th className="px-3 py-2">{t('create.brigade.colPosition')}</th>
-                           <th className="px-3 py-2">{t('create.brigade.colSignature')}</th>
-                           <th className="px-3 py-2">{t('create.brigade.colInstructor')}</th>
-                           <th className="px-3 py-2">{t('create.brigade.colDate')}</th>
-                           <th className="px-3 py-2 w-10"></th>
+                           <th className="px-3 py-1.5 w-10">{t('create.brigade.colNo')}</th>
+                           <th className="px-3 py-1.5">{t('create.brigade.colName')}</th>
+                           <th className="px-3 py-1.5">{t('create.brigade.colPosition')}</th>
+                           <th className="px-3 py-1.5">{t('create.brigade.colSignature')}</th>
+                           <th className="px-3 py-1.5">{t('create.brigade.colInstructor')}</th>
+                           <th className="px-3 py-1.5">{t('create.brigade.colDate')}</th>
+                           <th className="px-3 py-1.5 w-10"></th>
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-gray-100">
                         {teamMembers.map((member, idx) => (
                           <tr key={member.id} className="group hover:bg-gray-50/50">
-                             <td className="px-3 py-2 text-center text-gray-400">{idx + 1}</td>
-                             <td className="px-3 py-2">
+                             <td className="px-3 py-1.5 text-center text-gray-400">{idx + 1}</td>
+                             <td className="px-3 py-1.5">
                                <input
                                  type="text"
                                  value={member.name}
                                  onChange={(e) => updateTeamMember(member.id, 'name', e.target.value)}
-                                 className="w-full bg-[#f7f7f7] border-gray-300 rounded px-2 py-2 text-sm text-gray-900 border focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
+                                 className="w-full bg-[#f7f7f7] border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 border focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
                                  placeholder={t('create.brigade.namePlaceholder')}
                                />
                              </td>
-                             <td className="px-3 py-2">
+                             <td className="px-3 py-1.5">
                                <input
                                  type="text"
                                  value={member.role}
                                  onChange={(e) => updateTeamMember(member.id, 'role', e.target.value)}
-                                 className="w-full bg-[#f7f7f7] border-gray-300 rounded px-2 py-2 text-sm text-gray-900 border focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
+                                 className="w-full bg-[#f7f7f7] border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 border focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
                                  placeholder={t('create.brigade.positionPlaceholder')}
                                />
                              </td>
-                             <td className="px-3 py-2 text-center">
-                               <div className="bg-gray-100 border border-gray-200 rounded px-2 py-2 text-sm text-gray-400 italic">
+                             <td className="px-3 py-1.5 text-center">
+                               <div className="bg-gray-100 border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-400 italic">
                                  {t('create.brigade.signaturePlaceholder')}
                                </div>
                              </td>
-                             <td className="px-3 py-2">
+                             <td className="px-3 py-1.5">
                                <input
                                  type="text"
                                  value={roles.admitting?.name || member.instructedBy || ''}
                                  readOnly
-                                 className="w-full bg-gray-100 border-gray-200 rounded px-2 py-2 text-sm text-gray-600 border cursor-not-allowed"
+                                 className="w-full bg-gray-100 border-gray-200 rounded px-2 py-1.5 text-sm text-gray-600 border cursor-not-allowed"
                                  placeholder={t('create.brigade.admittingPlaceholder')}
                                />
                              </td>
-                             <td className="px-3 py-2">
+                             <td className="px-3 py-1.5">
                                 <input
                                    type="text"
                                    value={member.instructedAt ? new Date(member.instructedAt).toLocaleString() : ''}
@@ -1288,10 +1288,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                                    disabled
                                    placeholder="Заполнится при подписи"
                                    title="Дата/время инструктажа фиксируется автоматически в момент подписи члена бригады"
-                                   className="w-full bg-gray-100 border-gray-200 rounded px-2 py-2 text-sm text-gray-500 border cursor-not-allowed placeholder-gray-400"
+                                   className="w-full bg-gray-100 border-gray-200 rounded px-2 py-1.5 text-sm text-gray-500 border cursor-not-allowed placeholder-gray-400"
                                 />
                              </td>
-                             <td className="px-3 py-2 text-center">
+                             <td className="px-3 py-1.5 text-center">
                                 <button onClick={() => removeTeamMember(member.id)} className="text-gray-300 hover:text-red-500">
                                   <Trash2 size={20} />
                                 </button>
@@ -1316,12 +1316,12 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                   <table className="w-full text-sm text-left border border-gray-200 rounded-lg">
                      <thead className="bg-gray-50 text-gray-500 font-semibold text-sm">
                         <tr>
-                           <th rowSpan={2} className="px-2 py-2 border-r border-gray-200 w-32">{t('create.extension.dateTime')}</th>
-                           <th colSpan={2} className="px-2 py-2 border-r border-gray-200 text-center border-b">{t('create.extension.handOver')}</th>
-                           <th rowSpan={2} className="px-2 py-2 border-r border-gray-200 w-32">{t('create.extension.teamCount')}</th>
-                           <th colSpan={2} className="px-2 py-2 border-r border-gray-200 text-center border-b">{t('create.extension.takeOver')}</th>
-                           <th colSpan={2} className="px-2 py-2 text-center border-b">{t('create.extension.admittingShift')}</th>
-                           <th rowSpan={2} className="px-2 py-2 w-10"></th>
+                           <th rowSpan={2} className="px-2 py-1.5 border-r border-gray-200 w-32">{t('create.extension.dateTime')}</th>
+                           <th colSpan={2} className="px-2 py-1.5 border-r border-gray-200 text-center border-b">{t('create.extension.handOver')}</th>
+                           <th rowSpan={2} className="px-2 py-1.5 border-r border-gray-200 w-32">{t('create.extension.teamCount')}</th>
+                           <th colSpan={2} className="px-2 py-1.5 border-r border-gray-200 text-center border-b">{t('create.extension.takeOver')}</th>
+                           <th colSpan={2} className="px-2 py-1.5 text-center border-b">{t('create.extension.admittingShift')}</th>
+                           <th rowSpan={2} className="px-2 py-1.5 w-10"></th>
                         </tr>
                         <tr>
                             <th className="px-2 py-1 border-r border-gray-200 text-xs text-center">{t('create.extension.colName')}</th>

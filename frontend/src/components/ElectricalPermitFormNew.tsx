@@ -167,7 +167,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
    };
 
    // Updated Input Classes: Filled Gray Background, White on Focus
-   const inputClasses = `w-full bg-[#F1F5F9] border-b-2 border-slate-300 px-3 py-2 text-3xl outline-none transition-all rounded-t-sm ${isReadonly
+   const inputClasses = `w-full bg-[#F1F5F9] border-b-2 border-slate-300 px-3 py-1.5 text-3xl outline-none transition-all rounded-t-sm ${isReadonly
       ? 'bg-transparent border-transparent font-bold px-0'
       : 'hover:bg-[#E2E8F0] focus:bg-white focus:border-blue-600 focus:shadow-md'
       }`;
@@ -186,7 +186,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Организация</label>
                   <div className="relative">
                      <select
-                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 appearance-none transition-all"
+                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 appearance-none transition-all"
                         value={isContractorOrg ? 'CONTRACTOR' : formData.organization}
                         onChange={(e) => {
                            if (e.target.value === 'CONTRACTOR') {
@@ -206,7 +206,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   </div>
                   {isContractorOrg && !isReadonly && (
                      <input
-                        className="mt-2 w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
+                        className="mt-2 w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
                         placeholder="Введите название организации..."
                         value={formData.organization}
                         onChange={e => updateField('organization', e.target.value)}
@@ -218,7 +218,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Подразделение</label>
                   <div className="relative">
                      <select
-                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 appearance-none transition-all"
+                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 appearance-none transition-all"
                         value={isContractorDept ? 'CONTRACTOR' : formData.department}
                         onChange={(e) => {
                            if (e.target.value === 'CONTRACTOR') {
@@ -239,7 +239,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   </div>
                   {isContractorDept && !isReadonly && (
                      <input
-                        className="mt-2 w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
+                        className="mt-2 w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
                         placeholder="Введите название подразделения..."
                         value={formData.department}
                         onChange={e => updateField('department', e.target.value)}
@@ -261,14 +261,14 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Жұмыс жетекшісі / Руководителю работ</label>
                   <div className="flex gap-2">
                      <input
-                        className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
+                        className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
                         placeholder="Ф.И.О."
                         value={formData.workManagerId}
                         onChange={e => updateField('workManagerId', e.target.value)}
                         disabled={isReadonly}
                      />
                      <select
-                        className="w-20 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        className="w-20 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         value={formData.workManagerGroup || ''}
                         onChange={e => updateField('workManagerGroup', e.target.value)}
                         disabled={isReadonly}
@@ -286,14 +286,14 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Рұқсат беруші / Допускающему</label>
                   <div className="flex gap-2">
                      <input
-                        className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
+                        className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
                         placeholder="Ф.И.О."
                         value={formData.admittingAuthorityId}
                         onChange={e => updateField('admittingAuthorityId', e.target.value)}
                         disabled={isReadonly}
                      />
                      <select
-                        className="w-20 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        className="w-20 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         value={formData.admittingAuthorityGroup || ''}
                         onChange={e => updateField('admittingAuthorityGroup', e.target.value)}
                         disabled={isReadonly}
@@ -311,14 +311,14 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Жұмыс жүргізуші / Производителю работ</label>
                   <div className="flex gap-2">
                      <input
-                        className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
+                        className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
                         placeholder="Ф.И.О."
                         value={formData.workProducerId}
                         onChange={e => updateField('workProducerId', e.target.value)}
                         disabled={isReadonly}
                      />
                      <select
-                        className="w-20 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        className="w-20 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         value={formData.workProducerGroup || ''}
                         onChange={e => updateField('workProducerGroup', e.target.value)}
                         disabled={isReadonly}
@@ -336,14 +336,14 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Бақылаушы / Наблюдающему</label>
                   <div className="flex gap-2">
                      <input
-                        className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
+                        className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
                         placeholder="Ф.И.О. (если требуется)"
                         value={formData.observerId}
                         onChange={e => updateField('observerId', e.target.value)}
                         disabled={isReadonly}
                      />
                      <select
-                        className="w-20 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        className="w-20 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         value={formData.observerGroup || ''}
                         onChange={e => updateField('observerGroup', e.target.value)}
                         disabled={isReadonly}
@@ -379,7 +379,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                            <div key={index} className="flex gap-2 items-center">
                               <span className="text-xs text-gray-400 w-6">{index + 1}.</span>
                               <input
-                                 className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
+                                 className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
                                  placeholder="Ф.И.О."
                                  value={memberObj.name || ''}
                                  onChange={e => {
@@ -390,7 +390,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                  disabled={isReadonly}
                               />
                               <input
-                                 className="w-72 bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
+                                 className="w-72 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
                                  placeholder="Группа по электробезопасности"
                                  value={memberObj.group || ''}
                                  onChange={e => {
@@ -433,7 +433,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Жұмыс санаты / Категория работ</label>
                   <div className="relative">
                      <select
-                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 appearance-none transition-all"
+                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 appearance-none transition-all"
                         value={formData.workCategory}
                         onChange={e => updateField('workCategory', e.target.value)}
                         disabled={isReadonly}
@@ -447,7 +447,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Тапсырма беріледі / Поручается</label>
                   <textarea
-                     className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all min-h-[120px] resize-none"
+                     className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all min-h-[120px] resize-none"
                      placeholder="Опишите объем и содержание работ..."
                      value={formData.assignment}
                      onChange={e => updateField('assignment', e.target.value)}
@@ -469,7 +469,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                      <label className="block text-sm font-semibold text-gray-700 mb-2">Жұмысты бастау: Күні / Работу начать: дата</label>
                      <input
                         type="date"
-                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
+                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
                         value={formData.startDate?.split('T')[0] || ''}
                         onChange={e => {
                            const time = formData.startDate?.split('T')[1] || '08:00';
@@ -482,7 +482,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                      <label className="block text-sm font-semibold text-gray-700 mb-2">уақыты / время</label>
                      <input
                         type="time"
-                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
+                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
                         value={formData.startDate?.split('T')[1] || ''}
                         onChange={e => {
                            const date = formData.startDate?.split('T')[0] || new Date().toISOString().split('T')[0];
@@ -497,7 +497,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                      <label className="block text-sm font-semibold text-gray-700 mb-2">Жұмысты аяқтау: Күні / Работу закончить: дата</label>
                      <input
                         type="date"
-                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
+                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
                         value={formData.endDate?.split('T')[0] || ''}
                         onChange={e => {
                            const time = formData.endDate?.split('T')[1] || '17:00';
@@ -510,7 +510,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                      <label className="block text-sm font-semibold text-gray-700 mb-2">уақыты / время</label>
                      <input
                         type="time"
-                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
+                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
                         value={formData.endDate?.split('T')[1] || ''}
                         onChange={e => {
                            const date = formData.endDate?.split('T')[0] || new Date().toISOString().split('T')[0];
@@ -523,7 +523,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Апат жағдайына дайындық уақыты / Время аварийной готовности</label>
                   <input
-                     className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
+                     className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
                      placeholder="Напр. 30 минут"
                      value={formData.emergencyReadinessTime}
                      onChange={e => updateField('emergencyReadinessTime', e.target.value)}
@@ -554,9 +554,9 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   <table className="w-full">
                      <thead className="bg-gray-50">
                         <tr>
-                           <th className="px-3 py-2 text-left text-gray-500 font-semibold text-sm border-b border-gray-200">Наименование электроустановки</th>
-                           <th className="px-3 py-2 text-left text-gray-500 font-semibold text-sm border-b border-gray-200">Что должно быть отключено/заземлено</th>
-                           {!isReadonly && <th className="px-3 py-2 w-12 border-b border-gray-200"></th>}
+                           <th className="px-3 py-1.5 text-left text-gray-500 font-semibold text-sm border-b border-gray-200">Наименование электроустановки</th>
+                           <th className="px-3 py-1.5 text-left text-gray-500 font-semibold text-sm border-b border-gray-200">Что должно быть отключено/заземлено</th>
+                           {!isReadonly && <th className="px-3 py-1.5 w-12 border-b border-gray-200"></th>}
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-gray-100">
@@ -564,7 +564,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                            <tr key={measure.id} className="hover:bg-gray-50/50">
                               <td className="p-3">
                                  <textarea
-                                    className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 min-h-[80px] resize-none"
+                                    className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 min-h-[80px] resize-none"
                                     value={measure.installationName}
                                     onChange={e => {
                                        const updated = (formData.safetyMeasures || []).map(m => m.id === measure.id ? { ...m, installationName: e.target.value } : m);
@@ -576,7 +576,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                               </td>
                               <td className="p-3">
                                  <textarea
-                                    className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 min-h-[80px] resize-none"
+                                    className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 min-h-[80px] resize-none"
                                     value={measure.actionRequired}
                                     onChange={e => {
                                        const updated = (formData.safetyMeasures || []).map(m => m.id === measure.id ? { ...m, actionRequired: e.target.value } : m);
@@ -620,7 +620,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
              <div className="space-y-4">
                 <div>
                    <textarea
-                      className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all min-h-[80px] resize-none"
+                      className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all min-h-[80px] resize-none"
                       placeholder="Введите отдельные указания..."
                       value={formData.separateInstructions || ''}
                       onChange={e => updateField('separateInstructions', e.target.value)}
@@ -643,7 +643,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Күні / Дата</label>
                       <input
                          type="date"
-                         className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
+                         className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
                          value={formData.issuerDate}
                          onChange={e => updateField('issuerDate', e.target.value)}
                          disabled={isReadonly}
@@ -653,7 +653,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Уақыты / Время</label>
                       <input
                          type="time"
-                         className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
+                         className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
                          value={formData.issuerTime || ''}
                          onChange={e => updateField('issuerTime', e.target.value)}
                          disabled={isReadonly}
@@ -664,7 +664,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                    <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Қолы / Подпись</label>
                       <input
-                         className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
+                         className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
                          placeholder="Подпись"
                          value={formData.issuerId || ''}
                          onChange={e => updateField('issuerId', e.target.value)}
@@ -674,7 +674,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                    <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Тегі / Фамилия</label>
                       <input
-                         className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
+                         className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
                          placeholder="Фамилия"
                          value={formData.issuerLastName || ''}
                          onChange={e => updateField('issuerLastName', e.target.value)}
@@ -725,7 +725,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                   <label className="block text-sm font-semibold text-gray-700 mb-2">Күні / Дата</label>
                                   <input
                                      type="date"
-                                     className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
+                                     className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
                                      value={ext.extensionDate}
                                      onChange={e => {
                                         const updated = [...(formData.extensions || [])];
@@ -739,7 +739,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                   <label className="block text-sm font-semibold text-gray-700 mb-2">Уақыты / Время</label>
                                   <input
                                      type="time"
-                                     className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
+                                     className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
                                      value={ext.extensionTime}
                                      onChange={e => {
                                         const updated = [...(formData.extensions || [])];
@@ -752,7 +752,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                <div>
                                   <label className="block text-sm font-semibold text-gray-700 mb-2">Қолы / Подпись</label>
                                   <input
-                                     className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
+                                     className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
                                      placeholder="Подпись"
                                      value={ext.extensionSignature}
                                      onChange={e => {
@@ -766,7 +766,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                <div>
                                   <label className="block text-sm font-semibold text-gray-700 mb-2">Тегі / Фамилия</label>
                                   <input
-                                     className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
+                                     className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
                                      placeholder="Фамилия"
                                      value={ext.extensionLastName}
                                      onChange={e => {
@@ -797,20 +797,20 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   <table className="w-full">
                      <thead className="bg-gray-50">
                         <tr>
-                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 border-b border-r border-gray-200">
+                           <th className="px-3 py-2 text-left text-sm font-medium text-gray-600 border-b border-r border-gray-200">
                               <div className="text-xs leading-relaxed">
                                  <strong>Жұмыс орындарын дайындауға және жұмысқа кірісуге рұқсат алдым</strong>
                                  <br />
                                  <span className="text-gray-500">Разрешение на подготовку рабочих мест и на допуск к работе получил</span>
                               </div>
                            </th>
-                           <th className="px-3 py-2 text-center text-gray-500 font-semibold text-sm border-b border-r border-gray-200 w-48">
+                           <th className="px-3 py-1.5 text-center text-gray-500 font-semibold text-sm border-b border-r border-gray-200 w-48">
                               <div>Күні, уақыты<br /><span className="text-[10px] text-gray-400 font-normal">Дата, время</span></div>
                            </th>
-                           <th className="px-3 py-2 text-center text-gray-500 font-semibold text-sm border-b border-r border-gray-200 w-48">
+                           <th className="px-3 py-1.5 text-center text-gray-500 font-semibold text-sm border-b border-r border-gray-200 w-48">
                               <div>Кімнен / От кого<br /><span className="text-[10px] text-gray-400 font-normal">дауазым, тегі / должность, фамилия</span></div>
                            </th>
-                           <th className="px-3 py-2 text-center text-gray-500 font-semibold text-sm border-b border-gray-200 w-32">
+                           <th className="px-3 py-1.5 text-center text-gray-500 font-semibold text-sm border-b border-gray-200 w-32">
                               <div>Рұқсат беруші<br /><span className="text-[10px] text-gray-400 font-normal">/Допускающий</span><br /><span className="text-[10px] text-gray-400 font-normal">(қолы/подпись)</span></div>
                            </th>
                         </tr>
@@ -821,7 +821,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                            <td className="p-3 border-r border-gray-200">
                               <input
                                  type="datetime-local"
-                                 className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
+                                 className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
                                  value={formData.admissionDateTime || ''}
                                  onChange={e => updateField('admissionDateTime', e.target.value)}
                                  disabled={isReadonly}
@@ -829,7 +829,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                            </td>
                            <td className="p-3 border-r border-gray-200">
                               <input
-                                 className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
+                                 className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
                                  placeholder="Должность, Ф.И.О."
                                  value={formData.admissionFromWhom || ''}
                                  onChange={e => updateField('admissionFromWhom', e.target.value)}
@@ -838,7 +838,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                            </td>
                            <td className="p-3 text-center">
                               <input
-                                 className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 text-center"
+                                 className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 text-center"
                                  placeholder="Подпись"
                                  value={formData.admissionSignature || ''}
                                  onChange={e => updateField('admissionSignature', e.target.value)}
@@ -857,7 +857,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                      <label className="block text-sm font-semibold text-gray-700 mb-2">Рұқсат беруші / Допускающий</label>
                      <div className="flex gap-2 items-center">
                         <input
-                           className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
+                           className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
                            placeholder="Ф.И.О."
                            value={formData.admissionPermitSigner || ''}
                            onChange={e => updateField('admissionPermitSigner', e.target.value)}
@@ -874,7 +874,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                      </label>
                      <div className="flex gap-2 items-center">
                         <input
-                           className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
+                           className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
                            placeholder="Ф.И.О."
                            value={formData.responsibleWorkManagerSigner || ''}
                            onChange={e => updateField('responsibleWorkManagerSigner', e.target.value)}
@@ -1115,7 +1115,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                      </h3>
                      <div>
                         <textarea
-                           className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-4 py-3 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 min-h-[100px] resize-none"
+                           className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 min-h-[100px] resize-none"
                            placeholder="Укажите места, оставшиеся под напряжением..."
                            value={formData.voltageRemainsAt || ''}
                            onChange={e => updateField('voltageRemainsAt', e.target.value)}
@@ -1160,23 +1160,23 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                            <table className="w-full text-sm">
                               <thead className="bg-gray-50">
                                  <tr>
-                                    <th rowSpan={2} className="px-3 py-2 text-left font-medium text-gray-600 border-b border-r border-gray-200 w-[15%]">
+                                    <th rowSpan={2} className="px-3 py-1.5 text-left font-medium text-gray-600 border-b border-r border-gray-200 w-[15%]">
                                        <div>Жұмыс орнының атауы</div>
                                        <div className="text-[10px] text-gray-400 font-normal">Наименование рабочего места</div>
                                     </th>
-                                    <th rowSpan={2} className="px-3 py-2 text-center font-medium text-gray-600 border-b border-r border-gray-200 w-[10%]">
+                                    <th rowSpan={2} className="px-3 py-1.5 text-center font-medium text-gray-600 border-b border-r border-gray-200 w-[10%]">
                                        <div>Күні, уақыты</div>
                                        <div className="text-[10px] text-gray-400 font-normal">Дата, время</div>
                                     </th>
-                                    <th colSpan={2} className="px-3 py-2 text-center font-medium text-gray-600 border-b border-r border-gray-200">
+                                    <th colSpan={2} className="px-3 py-1.5 text-center font-medium text-gray-600 border-b border-r border-gray-200">
                                        <div>Қойылатын қолдар</div>
                                        <div className="text-[10px] text-gray-400 font-normal">Подписи (тегі, аты-жөні / фамилия, инициалы)</div>
                                     </th>
-                                    <th rowSpan={2} className="px-3 py-2 text-center font-medium text-gray-600 border-b border-r border-gray-200 w-[10%]">
+                                    <th rowSpan={2} className="px-3 py-1.5 text-center font-medium text-gray-600 border-b border-r border-gray-200 w-[10%]">
                                        <div>Күні, уақыты</div>
                                        <div className="text-[10px] text-gray-400 font-normal">Дата, время</div>
                                     </th>
-                                    <th rowSpan={2} className="px-3 py-2 text-center font-medium text-gray-600 border-b border-gray-200 w-[18%]">
+                                    <th rowSpan={2} className="px-3 py-1.5 text-center font-medium text-gray-600 border-b border-gray-200 w-[18%]">
                                        <div>Жұмыс жүргізушінің (бақылаушының) қолы</div>
                                        <div className="text-[10px] text-gray-400 font-normal">Подпись производителя работ (наблюдающего)</div>
                                        <div className="text-[10px] text-gray-400 font-normal">(тегі, аты-жөні / фамилия, инициалы)</div>
@@ -1184,11 +1184,11 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                     {!isReadonly && <th rowSpan={2} className="w-10 border-b border-gray-200"></th>}
                                  </tr>
                                  <tr>
-                                    <th className="px-3 py-2 text-center font-medium text-gray-600 border-b border-r border-gray-200 w-[12%]">
+                                    <th className="px-3 py-1.5 text-center font-medium text-gray-600 border-b border-r border-gray-200 w-[12%]">
                                        <div>Рұқсат берушінің</div>
                                        <div className="text-[10px] text-gray-400 font-normal">Допускающего</div>
                                     </th>
-                                    <th className="px-3 py-2 text-center font-medium text-gray-600 border-b border-r border-gray-200 w-[15%]">
+                                    <th className="px-3 py-1.5 text-center font-medium text-gray-600 border-b border-r border-gray-200 w-[15%]">
                                        <div>Жұмыс жүргізушінің (бақылаушының)</div>
                                        <div className="text-[10px] text-gray-400 font-normal">Производителя работ (наблюдающего)</div>
                                     </th>
@@ -1199,7 +1199,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                     <tr key={admission.id} className="hover:bg-gray-50/50">
                                        <td className="p-2 border-r border-gray-200">
                                           <input
-                                             className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-2 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
+                                             className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                              placeholder="Рабочее место..."
                                              value={admission.workplaceName || ''}
                                              onChange={e => {
@@ -1213,7 +1213,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                        <td className="p-2 border-r border-gray-200">
                                           <input
                                              type="datetime-local"
-                                             className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-2 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
+                                             className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                              value={admission.admissionDateTime || ''}
                                              onChange={e => {
                                                 const updated = [...(formData.dailyAdmissions || [])];
@@ -1225,7 +1225,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                        </td>
                                        <td className="p-2 border-r border-gray-200">
                                           <input
-                                             className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-2 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
+                                             className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                              placeholder="Ф.И.О."
                                              value={admission.admitterSignature || ''}
                                              onChange={e => {
@@ -1238,7 +1238,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                        </td>
                                        <td className="p-2 border-r border-gray-200">
                                           <input
-                                             className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-2 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
+                                             className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                              placeholder="Ф.И.О."
                                              value={admission.producerSignature || ''}
                                              onChange={e => {
@@ -1252,7 +1252,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                        <td className="p-2 border-r border-gray-200">
                                           <input
                                              type="datetime-local"
-                                             className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-2 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
+                                             className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                              value={admission.endDateTime || ''}
                                              onChange={e => {
                                                 const updated = [...(formData.dailyAdmissions || [])];
@@ -1264,7 +1264,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                        </td>
                                        <td className="p-2">
                                           <input
-                                             className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-2 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
+                                             className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                              placeholder="Ф.И.О."
                                              value={admission.producerEndSignature || ''}
                                              onChange={e => {
@@ -1323,21 +1323,21 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                            <table className="w-full text-sm">
                               <thead className="bg-gray-50">
                                  <tr>
-                                    <th className="px-3 py-2 text-left font-medium text-gray-600 border-b border-r border-gray-200 w-[28%]">
+                                    <th className="px-3 py-1.5 text-left font-medium text-gray-600 border-b border-r border-gray-200 w-[28%]">
                                        <div>Бригада құрамына енгізілді</div>
                                        <div className="text-[10px] text-gray-400 font-normal">Введен в состав бригады</div>
                                        <div className="text-[10px] text-gray-400 font-normal">(тегі, аты-жөні, тобы / фамилия, инициалы, группа)</div>
                                     </th>
-                                    <th className="px-3 py-2 text-left font-medium text-gray-600 border-b border-r border-gray-200 w-[28%]">
+                                    <th className="px-3 py-1.5 text-left font-medium text-gray-600 border-b border-r border-gray-200 w-[28%]">
                                        <div>Бригада құрамынан шығарылды</div>
                                        <div className="text-[10px] text-gray-400 font-normal">Выведен из состава бригады</div>
                                        <div className="text-[10px] text-gray-400 font-normal">(тегі, аты-жөні, тобы / фамилия, инициалы, группа)</div>
                                     </th>
-                                    <th className="px-3 py-2 text-center font-medium text-gray-600 border-b border-r border-gray-200 w-[14%]">
+                                    <th className="px-3 py-1.5 text-center font-medium text-gray-600 border-b border-r border-gray-200 w-[14%]">
                                        <div>Күні, уақыты</div>
                                        <div className="text-[10px] text-gray-400 font-normal">Дата, время</div>
                                     </th>
-                                    <th className="px-3 py-2 text-center font-medium text-gray-600 border-b border-gray-200 w-[25%]">
+                                    <th className="px-3 py-1.5 text-center font-medium text-gray-600 border-b border-gray-200 w-[25%]">
                                        <div>Рұқсат бердім / Разрешил</div>
                                        <div className="text-[10px] text-gray-400 font-normal">(қолы/подпись) (тегі, аты-жөні / фамилия, инициалы)</div>
                                     </th>
@@ -1350,7 +1350,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                         <td className="p-2 border-r border-gray-200">
                                            <div className="flex gap-1">
                                               <input
-                                                 className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded px-2 py-2 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
+                                                 className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                                  placeholder="Ф.И.О."
                                                  value={change.introducedMember || ''}
                                                  onChange={e => {
@@ -1382,7 +1382,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                         <td className="p-2 border-r border-gray-200">
                                            <div className="flex gap-1">
                                               <input
-                                                 className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded px-2 py-2 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
+                                                 className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                                  placeholder="Ф.И.О."
                                                  value={change.removedMember || ''}
                                                  onChange={e => {
@@ -1414,7 +1414,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                        <td className="p-2 border-r border-gray-200">
                                           <input
                                              type="datetime-local"
-                                             className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-2 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
+                                             className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                              value={change.dateTime || ''}
                                              onChange={e => {
                                                 const updated = [...(formData.brigadeChanges || [])];
@@ -1426,7 +1426,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                        </td>
                                        <td className="p-2">
                                           <input
-                                             className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-2 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
+                                             className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                              placeholder="Ф.И.О."
                                              value={change.authorizedBy || ''}
                                              onChange={e => {
@@ -1483,7 +1483,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                  <div className="border border-gray-200 rounded-lg p-4">
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Наряд берген тұлға / Лицо, выдавшее наряд</label>
                                     <input
-                                       className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-2 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors mb-2"
+                                       className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors mb-2"
                                        placeholder="тегі, аты-жөні / фамилия, инициалы"
                                        value={formData.briefingConductedByIssuer || ''}
                                        onChange={e => updateField('briefingConductedByIssuer', e.target.value)}
@@ -1495,7 +1495,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                  <div className="border border-gray-200 rounded-lg p-4">
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Рұқсат беруші / Допускающий</label>
                                     <input
-                                       className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-2 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors mb-2"
+                                       className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors mb-2"
                                        placeholder="тегі, аты-жөні / фамилия, инициалы"
                                        value={formData.briefingConductedByAdmitter || ''}
                                        onChange={e => updateField('briefingConductedByAdmitter', e.target.value)}
@@ -1508,7 +1508,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Жауапты жұмыс жетекшісі / Жұмыс жүргізуші (бақылаушы)</label>
                                     <p className="text-[10px] text-gray-400 mb-2">Ответ. руководитель работ / производитель работ (наблюдающий)</p>
                                     <input
-                                       className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-2 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors mb-2"
+                                       className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors mb-2"
                                        placeholder="тегі, аты-жөні / фамилия, инициалы"
                                        value={formData.briefingConductedByManager || ''}
                                        onChange={e => updateField('briefingConductedByManager', e.target.value)}
@@ -1531,7 +1531,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Жауапты жұмыс жетекшісі (жұмыс жүргізуші, бақылаушы)</label>
                                     <p className="text-[10px] text-gray-400 mb-2">Ответ. руководитель работ / производитель работ (наблюдающий)</p>
                                     <input
-                                       className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-2 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors mb-2"
+                                       className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors mb-2"
                                        placeholder="тегі, аты-жөні / фамилия, инициалы"
                                        value={formData.briefingReceivedByManager || ''}
                                        onChange={e => updateField('briefingReceivedByManager', e.target.value)}
@@ -1543,7 +1543,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                  <div className="border border-gray-200 rounded-lg p-4">
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Жұмыс жүргізуші (бақылаушы) / Производитель работ (наблюдающий)</label>
                                     <input
-                                       className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-2 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors mb-2"
+                                       className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors mb-2"
                                        placeholder="тегі, аты-жөні / фамилия, инициалы"
                                        value={formData.briefingReceivedByProducer || ''}
                                        onChange={e => updateField('briefingReceivedByProducer', e.target.value)}
@@ -1555,7 +1555,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                  <div className="border border-gray-200 rounded-lg p-4">
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Бригада мүшелері / Члены бригады</label>
                                     <textarea
-                                       className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-2 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors min-h-[60px] resize-none"
+                                       className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors min-h-[60px] resize-none"
                                        placeholder="Список членов бригады..."
                                        value={formData.briefingReceivedByMembers || ''}
                                        onChange={e => updateField('briefingReceivedByMembers', e.target.value)}
@@ -1582,7 +1582,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                            <div className="md:col-span-1">
                               <label className="block text-sm font-semibold text-gray-700 mb-2">Хабарланды / Сообщено (кімге / кому)</label>
                               <input
-                                 className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-2 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
+                                 className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                  placeholder="тегі, аты-жөні / фамилия, инициалы"
                                  value={formData.completionNotifiedTo || ''}
                                  onChange={e => updateField('completionNotifiedTo', e.target.value)}
@@ -1593,7 +1593,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                               <label className="block text-sm font-semibold text-gray-700 mb-2">күні / дата</label>
                               <input
                                  type="date"
-                                 className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-2 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
+                                 className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                  value={formData.completionDate || ''}
                                  onChange={e => updateField('completionDate', e.target.value)}
                                  disabled={isReadonly}
@@ -1603,7 +1603,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                               <label className="block text-sm font-semibold text-gray-700 mb-2">уақыты / время</label>
                               <input
                                  type="time"
-                                 className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-2 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
+                                 className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                  value={formData.completionTime || ''}
                                  onChange={e => updateField('completionTime', e.target.value)}
                                  disabled={isReadonly}
@@ -1617,7 +1617,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                               <div>
                                  <label className="block text-sm font-semibold text-gray-700 mb-2">Жұмыс жүргізуші (бақылаушы) / Производитель работ (наблюдающий)</label>
                                  <input
-                                    className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-2 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
+                                    className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                     placeholder="(қолы / подпись) (тегі, аты-жөні / фамилия, инициалы)"
                                     value={formData.completionProducerSignature || ''}
                                     onChange={e => updateField('completionProducerSignature', e.target.value)}
@@ -1627,7 +1627,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                               <div>
                                  <label className="block text-sm font-semibold text-gray-700 mb-2">Жауапты жұмыс жетекшісі / Ответственный руководитель работ</label>
                                  <input
-                                    className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-2 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
+                                    className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                     placeholder="(қолы / подпись) (тегі, аты-жөні / фамилия, инициалы)"
                                     value={formData.completionManagerSignature || ''}
                                     onChange={e => updateField('completionManagerSignature', e.target.value)}
@@ -1639,7 +1639,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                               <div>
                                  <label className="block text-sm font-semibold text-gray-700 mb-2">Рұқсат беруші / Допускающий</label>
                                  <input
-                                    className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-2 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
+                                    className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                     placeholder="(қолы / подпись) (тегі, аты-жөні / фамилия, инициалы)"
                                     value={formData.completionAdmitterSignature || ''}
                                     onChange={e => updateField('completionAdmitterSignature', e.target.value)}
