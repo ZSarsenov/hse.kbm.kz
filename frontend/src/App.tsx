@@ -10,6 +10,7 @@ import { AuditStatistics } from './pages/AuditStatistics';
 import { MyTasks } from './pages/MyTasks';
 import { PermitTypeSelector } from './components/PermitTypeSelector';
 import { ConfirmDialog, confirm as confirmDialog } from './components/ConfirmDialog';
+import { Toasts, toast } from './components/Toasts';
 import { ModuleSelector } from './components/ModuleSelector';
 import { WorkPermit, PageView, PermitCategory } from './types';
 import { AIAssistant } from './components/AIAssistant';
@@ -200,7 +201,7 @@ function App() {
       })
       .catch(err => {
         console.error("Ошибка загрузки деталей наряда:", err);
-        alert(t('app.openPermitFail'));
+        toast({ message: t('app.openPermitFail'), type: 'error' });
         setCurrentView('MY_TASKS' as any);
       });
     }
@@ -330,13 +331,13 @@ function App() {
         setPermits(prev => prev.filter(p => String(p.id) !== String(id)));
         setSelectedPermitId(null);
         setCurrentView('DASHBOARD');
-        alert(t('app.deleteOk'));
+        toast({ message: t('app.deleteOk'), type: 'success' });
       } else {
-        alert(t('app.deleteFail'));
+        toast({ message: t('app.deleteFail'), type: 'error' });
       }
     } catch (error) {
       console.error(error);
-      alert(t('app.connectionError'));
+      toast({ message: t('app.connectionError'), type: 'error' });
     }
   };
 
@@ -528,6 +529,9 @@ function App() {
 
       {/* Стилизованные диалоги подтверждения (вместо window.confirm) */}
       <ConfirmDialog />
+
+      {/* Всплывающие уведомления (вместо window.alert) */}
+      <Toasts />
     </>
   );
 }
