@@ -1071,9 +1071,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
    return (
       <div className="w-full space-y-6 animate-in fade-in duration-300">
-         {/* Заголовок формы (передаётся снаружи) */}
-         {header}
-         {/* STEPPER — круги с номерами и соединители (единый стиль с нарядом повыш. опасности) */}
+         {/* STEPPER — закреплён под шапкой приложения, без начального смещения */}
          {(() => {
             const tabs: { id: TabKey; label: string }[] = isReadonly
               ? [
@@ -1127,6 +1125,9 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
               </div>
             );
          })()}
+
+         {/* Заголовок формы (передаётся снаружи) */}
+         {header}
 
          {/* FORM CONTENT */}
          <div className="w-full">
