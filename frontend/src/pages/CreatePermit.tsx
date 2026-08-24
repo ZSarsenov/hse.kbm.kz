@@ -44,7 +44,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
   // --- ELECTRICAL PERMIT MODE ---
   if (category === PermitCategory.ELECTRICAL) {
     return (
-      <div className="w-full space-y-6 animate-in fade-in duration-300">
+      <div className="w-full space-y-6 ">
         <ElectricalPermitFormNew
           mode="create"
           onCancel={onCancel}
@@ -654,7 +654,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
   const commonInputClasses = "w-full bg-[#f7f7f7] border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 border transition-colors placeholder-gray-400 max-w-full";
 
   return (
-    <div className="w-full space-y-6 animate-in fade-in duration-300">
+    <div className="w-full space-y-6 ">
 
       {/* Header */}
       <div className="flex items-center gap-4 mb-2">
@@ -715,7 +715,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
        {/* STEP 1: GENERAL INFO */}
        {activeStep === 1 && (
-         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+         <div className="space-y-6 ">
            {/* Section 1: Place and Character */}
            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
               <h3 className="font-bold text-gray-900 mb-4 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2">{t('create.general.sectionTitle')}</h3>
@@ -747,7 +747,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
                    {/* Conditional Contractor Input */}
                    {formData.department === 'Подрядная организация' && (
-                     <div className="mt-4 animate-in slide-in-from-top-2 duration-200">
+                     <div className="mt-4 ">
                        <label className="block text-sm font-bold text-blue-600 mb-1 flex items-center gap-1.5">
                          <Building size={14} /> {t('create.general.contractorLabel')}
                        </label>
@@ -1221,7 +1221,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
        {/* STEP 2: TEAM & DATES */}
        {activeStep === 2 && (
-         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+         <div className="space-y-6 ">
 
             {/* Dates */}
             {/* Сроки выполнения — временно скрыт
@@ -1431,7 +1431,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
        {/* STEP 3: RISK ASSESSMENT */}
        {activeStep === 3 && (
-         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+         <div className="space-y-6 ">
 
             {/* General Info (Static) */}
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
@@ -1612,7 +1612,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
        {/* STEP 4: LOTO with Isolation Matrix */}
        {activeStep === 4 && (
-         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm ">
             <div className="flex items-center justify-between border-b pb-2 mb-6">
                 <h3 className="font-bold text-gray-900 uppercase text-sm tracking-wider flex items-center gap-2">
                     <Lock size={24} className={formData.lotoEnabled ? "text-red-600" : "text-gray-400"}/>
@@ -1634,7 +1634,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
             </div>
 
             {formData.lotoEnabled ? (
-                <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-4">
+                <div className=" space-y-4">
                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
                       <div className="flex">
                         <div className="flex-shrink-0">

@@ -561,7 +561,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
   return (
     <>
-    <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
+    <div className="max-w-5xl mx-auto space-y-6  pb-24">
 
       <button onClick={onBack} className="flex items-center text-slate-500 hover:text-blue-600 transition-colors group mb-4">
         <div className="p-2 rounded-full bg-white border border-gray-200 group-hover:border-blue-200 mr-3 shadow-sm">
@@ -703,7 +703,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
         {/* CONTENT */}
         <div className="p-6 md:p-8 min-h-[300px]">
            {activeTab === 'info' && (
-             <div className="space-y-8 animate-in fade-in duration-300">
+             <div className="space-y-8 ">
                 <div>
                    <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2"><FileText size={20} className="text-slate-400"/> Описание и условия работ</h3>
 
@@ -840,7 +840,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
            )}
 
            {activeTab === 'safety' && (
-               <div className="space-y-6 animate-in fade-in duration-300">
+               <div className="space-y-6 ">
                   <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2"><Shield size={20} className="text-green-600"/> Мероприятия по обеспечению безопасности</h3>
                    <div className="space-y-4">
                        {safetyFields.map(field => {
@@ -870,7 +870,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
            )}
 
            {activeTab === 'team' && (
-               <div className="animate-in fade-in duration-300">
+               <div className="">
                    <div className="flex justify-between items-center mb-4">
                      <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Users size={20} className="text-blue-500"/> Состав бригады</h3>
                      <div className="flex items-center gap-2">
@@ -994,7 +994,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
            )}
 
            {activeTab === 'lab' && (
-                <div className="animate-in fade-in duration-300">
+                <div className="">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><FlaskConical size={20} className="text-purple-500"/> Лаборант ЦНИПР</h3>
                       <div className="flex items-center gap-2">
@@ -1121,7 +1121,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
             )}
 
             {activeTab === 'checklist' && (
-               <div className="animate-in fade-in duration-300">
+               <div className="">
                    {/* Таблица анализа рисков */}
                    <div className="flex items-center gap-2 mb-4">
                        <AlertTriangle size={20} className="text-orange-500"/>
@@ -1178,7 +1178,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
            )}
 
            {activeTab === 'loto' && data.lotoEnabled && (
-               <div className="animate-in fade-in duration-300">
+               <div className="">
                    <IsolationMatrixForm
                      data={data.isolationMatrix || {}}
                      onChange={() => {}}

@@ -163,7 +163,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
       }`;
 
    const renderMainTab = () => (
-      <div className="space-y-6 animate-in fade-in duration-300">
+      <div className="space-y-6 ">
 
          {/* Section 1: General Information */}
          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
@@ -882,7 +882,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
 
    const renderLifecycleTab = () => (
-      <div className="space-y-12 font-['PT_Sans'] animate-in fade-in duration-500 pb-20">
+      <div className="space-y-12 font-['PT_Sans']  pb-20">
 
          {/* Voltage/Workplace Ready - first on reverse side */}
          <section className="bg-white p-8 rounded-2xl border-2 border-slate-900 shadow-sm">
@@ -1070,7 +1070,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
    );
 
    return (
-      <div className="w-full space-y-6 animate-in fade-in duration-300">
+      <div className="w-full space-y-6 ">
          {/* Заголовок формы (передаётся снаружи) */}
          {header}
          {/* STEPPER — круги с номерами и соединители; живёт в шапке формы и уезжает при прокрутке */}
@@ -1133,7 +1133,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
             {activeTab === 'main' && renderMainTab()}
 
             {activeTab === 'backside' && (
-               <div className="space-y-6 animate-in fade-in duration-300">
+               <div className="space-y-6 ">
                   {/* Voltage/Workplace Ready - first on reverse side */}
                   <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                      <h3 className="font-bold text-gray-900 mb-6 text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
@@ -1708,7 +1708,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
             )}
 
             {activeTab === 'loto' && (
-               <div className="space-y-6 animate-in fade-in duration-300">
+               <div className="space-y-6 ">
                   {/* LOTO Card */}
                   <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                      <div className="flex justify-between items-center mb-4">

@@ -117,7 +117,7 @@ export const AuditStatistics: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 ">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">{t('auditStats.title')}</h1>

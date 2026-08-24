@@ -226,7 +226,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 <ChevronDown size={14} className="text-gray-300 hidden md:block" />
               </button>
               {isProfileOpen && (
-                <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-[100] animate-in fade-in zoom-in-95 duration-100 origin-top-right">
+                <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-[100]  origin-top-right">
                   <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
                     <p className="text-sm font-bold text-gray-900">{user?.name}</p>
                     <p className="text-xs text-blue-600 font-medium mb-3">{user?.position}</p>
