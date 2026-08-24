@@ -12,6 +12,7 @@ import { PermitTypeSelector } from './components/PermitTypeSelector';
 import { ConfirmDialog, confirm as confirmDialog } from './components/ConfirmDialog';
 import { Toasts, toast } from './components/Toasts';
 import { CardErrorBoundary } from './components/ErrorBoundary';
+import { formatPermit } from './utils/formatPermit';
 import { ModuleSelector } from './components/ModuleSelector';
 import { WorkPermit, PageView, PermitCategory } from './types';
 import { AIAssistant } from './components/AIAssistant';
@@ -50,30 +51,7 @@ function App() {
   const permitsDirtyRef = useRef(true);
   const loadedForTokenRef = useRef<string | null>(null);
 
-  // Приводит сырой объект наряда из API к нашему формату camelCase
-  const formatPermit = (p: any): WorkPermit => ({
-    id: p.id,
-    permitId: p.permit_id || 'Черновик',
-    templateType: p.templateType || 'Наряд повышенной опасности',
-    status: p.status,
-    scan_file: p.scan_file,
-    safety_document: p.safety_document,
-    loto_photo: p.loto_photo,
-    initiator: {
-      name: p.initiator?.name || [p.initiator?.last_name, p.initiator?.first_name].filter(Boolean).join(' ') || '—',
-      position: p.initiator?.position,
-      iin: p.initiator?.iin,
-      bin: p.initiator?.bin,
-      id: p.initiator?.id,
-    },
-    location: { name: p.location_name || 'Место не указано' },
-    createdAt: p.created_at,
-    validFrom: p.valid_from,
-    validTo: p.valid_to,
-    data: p.data,
-    approvalSteps: p.approval_steps,
-    producer_closed: p.producer_closed,
-  });
+  // Приводит сырой объект наряда из API к нашему формату — единая версия в utils/formatPermit
 
   // --- FETCHING DATA: первая страница крупным размером, остальные — параллельно ---
   // Бэкенд поддерживает ?page_size (до 200, см. DynamicPageSizePagination на бэке).
@@ -171,31 +149,7 @@ function App() {
         throw new Error('Не удалось загрузить наряд');
       })
       .then(p => {
-        const formattedPermit: WorkPermit = {
-          id: p.id,
-          permitId: p.permit_id || 'Черновик',
-          templateType: p.templateType || 'Наряд повышенной опасности',
-          status: p.status,
-          scan_file: p.scan_file,
-          safety_document: p.safety_document,
-          loto_photo: p.loto_photo,
-          initiator: {
-            name: p.initiator?.name || [p.initiator?.last_name, p.initiator?.first_name].filter(Boolean).join(' ') || '—',
-            position: p.initiator?.position,
-            iin: p.initiator?.iin,
-            bin: p.initiator?.bin,
-            id: p.initiator?.id,
-          },
-          location: {
-            name: p.location_name || 'Место не указано'
-          },
-          createdAt: p.created_at,
-          validFrom: p.valid_from,
-          validTo: p.valid_to,
-          data: p.data,
-          approvalSteps: p.approval_steps,
-          producer_closed: p.producer_closed,
-        };
+        const formattedPermit = formatPermit(p);
 
         // Заменяем облегчённую версию на полную или добавляем, если не было
         setPermits(prev => {
@@ -379,29 +333,7 @@ function App() {
     fetch(`/api/v1/permits/${selectedPermitId}/`, { headers: { 'Authorization': `Token ${token}` } })
       .then(res => res.ok ? res.json() : Promise.reject(new Error('Не удалось загрузить наряд')))
       .then(p => {
-        const formattedPermit: WorkPermit = {
-          id: p.id,
-          permitId: p.permit_id || 'Черновик',
-          templateType: p.templateType || 'Наряд повышенной опасности',
-          status: p.status,
-          scan_file: p.scan_file,
-          safety_document: p.safety_document,
-          loto_photo: p.loto_photo,
-          initiator: {
-            name: p.initiator?.name || [p.initiator?.last_name, p.initiator?.first_name, p.initiator?.surname].filter(Boolean).join(' ') || '—',
-            position: p.initiator?.position,
-            iin: p.initiator?.iin,
-            bin: p.initiator?.bin,
-            id: p.initiator?.id,
-          },
-          location: { name: p.location_name || 'Место не указано' },
-          createdAt: p.created_at,
-          validFrom: p.valid_from,
-          validTo: p.valid_to,
-          data: p.data,
-          approvalSteps: p.approval_steps,
-          producer_closed: p.producer_closed,
-        };
+        const formattedPermit = formatPermit(p);
         setPermits(prev => prev.map(permit => String(permit.id) === String(formattedPermit.id) ? formattedPermit : permit));
       })
       .catch(err => console.error('Ошибка обновления наряда:', err));
