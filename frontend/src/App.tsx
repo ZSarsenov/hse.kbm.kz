@@ -11,6 +11,7 @@ import { MyTasks } from './pages/MyTasks';
 import { PermitTypeSelector } from './components/PermitTypeSelector';
 import { ConfirmDialog, confirm as confirmDialog } from './components/ConfirmDialog';
 import { Toasts, toast } from './components/Toasts';
+import { CardErrorBoundary } from './components/ErrorBoundary';
 import { ModuleSelector } from './components/ModuleSelector';
 import { WorkPermit, PageView, PermitCategory } from './types';
 import { AIAssistant } from './components/AIAssistant';
@@ -456,6 +457,7 @@ function App() {
         {/* ГЛАВНАЯ СТРАНИЦА ИЛИ АРХИВ */}
         {(currentView === 'DASHBOARD' || currentView === 'ARCHIVE') && (
           selectedPermitId && getSelectedPermit() ? (
+              <CardErrorBoundary>
               <PermitDetail
                 permit={getSelectedPermit()!}
                 onBack={handleNavigateDashboard}
@@ -463,6 +465,7 @@ function App() {
                 onDelete={() => handleDeletePermit(selectedPermitId)}
                 onRefresh={refetchSelectedPermit}
               />
+              </CardErrorBoundary>
           ) : (
               isLoading ? (
                   <div className="flex flex-col justify-center items-center h-full min-h-[50vh] text-slate-500">
@@ -490,6 +493,7 @@ function App() {
         {currentView === 'DETAIL' && selectedPermitId && (
           // Если наряд найден — показываем его, иначе — спиннер загрузки
           getSelectedPermit() ? (
+              <CardErrorBoundary>
               <PermitDetail
                 permit={getSelectedPermit()!}
                 onBack={handleNavigateDashboard}
@@ -497,6 +501,7 @@ function App() {
                 onDelete={() => handleDeletePermit(selectedPermitId)}
                 onRefresh={refetchSelectedPermit}
               />
+              </CardErrorBoundary>
           ) : (
               <div className="flex flex-col justify-center items-center h-full min-h-[50vh] text-slate-500">
                   <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-blue-600 mb-4"></div>
