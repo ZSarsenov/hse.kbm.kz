@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Permission } from '../types';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { toast } from './Toasts';
 
 // Время уведомления: сегодня — только время, иначе дата + время
 const formatNotifTime = (iso: string): string => {
@@ -74,19 +75,43 @@ export const Layout: React.FC<LayoutProps> = ({
   const canCreatePermit = userRole === 'ISSUER' || userRole === 'ADMITTING' || userRole === 'ADMIN';
   const canViewStatistics = userRole === 'AUDITOR' || userRole === 'ADMIN';
 
+  // «Живые» уведомления: опрос раз в 30 с + мгновенная догрузка при возврате
+  // на вкладку + всплывающая плашка, если пришло новое (не молча менять бейдж)
+  const knownIdsRef = useRef<Set<number>>(new Set());
+  const firstLoadRef = useRef(true);
+
   const fetchNotifs = () => {
+      if (document.hidden) return; // фоновой вкладке не молотим
       const token = localStorage.getItem('auth_token');
       if (!token) return;
       fetch('api/v1/notifications/', { headers: { 'Authorization': `Token ${token}` } })
       .then(r => r.ok ? r.json() : [])
-      .then(data => setNotifications(Array.isArray(data) ? data.filter((n:any) => !n.is_read) : []))
+      .then(data => {
+          const items: any[] = Array.isArray(data) ? data.filter((n:any) => !n.is_read) : [];
+          if (firstLoadRef.current) {
+              firstLoadRef.current = false;
+          } else {
+              const fresh = items.filter(n => !knownIdsRef.current.has(n.id));
+              if (fresh.length > 0) {
+                  toast({ message: fresh[0].title || 'Новое уведомление', type: 'info' });
+              }
+          }
+          items.forEach((n: any) => knownIdsRef.current.add(n.id));
+          setNotifications(items);
+      })
       .catch(e => console.error("Ошибка уведомлений:", e));
   };
 
   useEffect(() => {
       fetchNotifs();
       const interval = setInterval(fetchNotifs, 30000);
-      return () => clearInterval(interval);
+      // Вернулись на вкладку — проверяем сразу, не ждём следующего тика
+      const onVisible = () => { if (!document.hidden) fetchNotifs(); };
+      document.addEventListener('visibilitychange', onVisible);
+      return () => {
+          clearInterval(interval);
+          document.removeEventListener('visibilitychange', onVisible);
+      };
   }, []);
 
   const handleMarkAsRead = async (id: number) => {
