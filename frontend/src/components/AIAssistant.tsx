@@ -67,7 +67,7 @@ export const AIAssistant: React.FC = () => {
 
       {/* ОКНО ЧАТА */}
       {isOpen && (
-        <div className="mb-4 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col animate-in slide-in-from-bottom-5 duration-300">
+        <div className="mb-4 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col ">
 
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-900 to-blue-800 p-4 flex justify-between items-center text-white">

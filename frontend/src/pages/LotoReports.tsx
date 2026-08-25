@@ -136,7 +136,7 @@ export const LotoReports: React.FC<LotoReportsProps> = ({ onNavigateToPermit }) 
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 relative">
+    <div className="space-y-6  relative">
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -233,7 +233,7 @@ export const LotoReports: React.FC<LotoReportsProps> = ({ onNavigateToPermit }) 
 
       {/* DETAIL VIEW MODAL */}
       {selectedReport && (
-         <div className="fixed inset-0 z-[110] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+         <div className="fixed inset-0 z-[110] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 ">
             <div className="bg-white w-full max-w-5xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
 
                {/* Modal Header */}

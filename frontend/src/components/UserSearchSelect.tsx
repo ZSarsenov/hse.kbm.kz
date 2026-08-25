@@ -158,7 +158,7 @@ export const UserSearchSelect: React.FC<UserSearchSelectProps> = ({
 
       {/* Выпадающий список */}
       {isOpen && !disabled && (
-        <div className="absolute z-50 w-full mt-1 bg-white shadow-xl rounded-md border border-gray-200 max-h-60 overflow-auto animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute z-50 w-full mt-1 bg-white shadow-xl rounded-md border border-gray-200 max-h-60 overflow-auto ">
           {loading && <div className="p-4 text-center text-gray-500">Поиск...</div>}
 
           {!loading && results.length === 0 && (

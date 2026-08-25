@@ -160,7 +160,7 @@ export const ElectricalPermitForm: React.FC<Props> = ({
                     )}
                 </div>
                 {!isReadonly && isContractorOrg && (
-                    <div className="flex items-center gap-2 mt-1 animate-in slide-in-from-top-1 duration-200 ml-32">
+                    <div className="flex items-center gap-2 mt-1  ml-32">
                         <Building size={14} className="text-blue-500" />
                         <input 
                             className={`${inputClasses} border-blue-200`} 
@@ -204,7 +204,7 @@ export const ElectricalPermitForm: React.FC<Props> = ({
                     )}
                 </div>
                 {!isReadonly && isContractorDept && (
-                    <div className="flex items-center gap-2 mt-1 animate-in slide-in-from-top-1 duration-200 ml-32">
+                    <div className="flex items-center gap-2 mt-1  ml-32">
                         <Building size={14} className="text-blue-500" />
                         <input 
                             className={`${inputClasses} border-blue-200`} 

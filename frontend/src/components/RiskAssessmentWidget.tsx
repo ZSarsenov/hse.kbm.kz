@@ -60,7 +60,7 @@ export const RiskAssessmentWidget: React.FC<RiskAssessmentWidgetProps> = ({
     const showParticipants = riskGroup !== undefined && onAddRiskGroupMember && onRemoveRiskGroupMember && onUpdateRiskGroupMember;
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="space-y-6 ">
 
             {/* General Info (Optional) */}
             {showGeneralInfo && (
