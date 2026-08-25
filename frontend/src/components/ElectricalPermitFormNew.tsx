@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
    Plus, Trash2, Zap, Clock, Users, ShieldAlert,
    FileText, Calendar, ChevronDown, CheckCircle2, Check,
@@ -43,6 +44,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
    onCancel,
    header
 }) => {
+   const { t } = useTranslation();
    const isReadonly = mode === 'execution';
    const [activeTab, setActiveTab] = useState<TabKey>(mode === 'execution' ? 'lifecycle' : 'main');
 
@@ -168,12 +170,10 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
          {/* Section 1: General Information */}
          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
-               <FileText size={24} className="text-blue-600" />
-               Общая информация
-            </h3>
+               <FileText size={24} className="text-blue-600" />{t('electrical.sec.general')}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Организация</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.org')}</label>
                   <div className="relative">
                      <select
                         className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 appearance-none transition-all"
@@ -190,7 +190,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                         disabled={isReadonly}
                      >
                         <option value="«КБМ» АҚ (АО «КБМ»)">АО «Каражанбасмунай»</option>
-                        <option value="CONTRACTOR">Подрядная организация</option>
+                        <option value="CONTRACTOR">{t('electrical.labels.contractorOrg')}</option>
                      </select>
                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                   </div>
@@ -205,7 +205,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   )}
                </div>
                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Подразделение</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.dept')}</label>
                   <div className="relative">
                      <select
                         className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 appearance-none transition-all"
@@ -223,7 +223,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                      >
                         <option value="Электр цехы (Электроцех)">Электроцех</option>
                         <option value="Мұнай өндіру цехы (ЦДН)">ЦДН</option>
-                        <option value="CONTRACTOR">Другое</option>
+                        <option value="CONTRACTOR">{t('electrical.labels.other')}</option>
                      </select>
                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                   </div>
@@ -243,16 +243,14 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
          {/* Section 2: Responsible Persons */}
          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
-               <Users size={24} className="text-blue-600" />
-               Ответственные лица
-            </h3>
+               <Users size={24} className="text-blue-600" />{t('electrical.sec.responsible')}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Жұмыс жетекшісі / Руководителю работ</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.workManager')}</label>
                   <div className="flex gap-2">
                      <input
                         className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
-                        placeholder="Ф.И.О."
+                        placeholder={t('electrical.ph.fio')}
                         value={formData.workManagerId}
                         onChange={e => updateField('workManagerId', e.target.value)}
                         disabled={isReadonly}
@@ -263,7 +261,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                         onChange={e => updateField('workManagerGroup', e.target.value)}
                         disabled={isReadonly}
                      >
-                        <option value="">Гр.</option>
+                        <option value="">{t('electrical.misc.group')}</option>
                         <option value="1">I</option>
                         <option value="2">II</option>
                         <option value="3">III</option>
@@ -273,11 +271,11 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   </div>
                </div>
                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Рұқсат беруші / Допускающему</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.admitting')}</label>
                   <div className="flex gap-2">
                      <input
                         className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
-                        placeholder="Ф.И.О."
+                        placeholder={t('electrical.ph.fio')}
                         value={formData.admittingAuthorityId}
                         onChange={e => updateField('admittingAuthorityId', e.target.value)}
                         disabled={isReadonly}
@@ -288,7 +286,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                         onChange={e => updateField('admittingAuthorityGroup', e.target.value)}
                         disabled={isReadonly}
                      >
-                        <option value="">Гр.</option>
+                        <option value="">{t('electrical.misc.group')}</option>
                         <option value="1">I</option>
                         <option value="2">II</option>
                         <option value="3">III</option>
@@ -298,11 +296,11 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   </div>
                </div>
                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Жұмыс жүргізуші / Производителю работ</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.producer')}</label>
                   <div className="flex gap-2">
                      <input
                         className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
-                        placeholder="Ф.И.О."
+                        placeholder={t('electrical.ph.fio')}
                         value={formData.workProducerId}
                         onChange={e => updateField('workProducerId', e.target.value)}
                         disabled={isReadonly}
@@ -313,7 +311,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                         onChange={e => updateField('workProducerGroup', e.target.value)}
                         disabled={isReadonly}
                      >
-                        <option value="">Гр.</option>
+                        <option value="">{t('electrical.misc.group')}</option>
                         <option value="1">I</option>
                         <option value="2">II</option>
                         <option value="3">III</option>
@@ -323,11 +321,11 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   </div>
                </div>
                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Бақылаушы / Наблюдающему</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.observer')}</label>
                   <div className="flex gap-2">
                      <input
                         className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
-                        placeholder="Ф.И.О. (если требуется)"
+                        placeholder={t('electrical.ph.fio')}
                         value={formData.observerId}
                         onChange={e => updateField('observerId', e.target.value)}
                         disabled={isReadonly}
@@ -338,7 +336,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                         onChange={e => updateField('observerGroup', e.target.value)}
                         disabled={isReadonly}
                      >
-                        <option value="">Гр.</option>
+                        <option value="">{t('electrical.misc.group')}</option>
                         <option value="1">I</option>
                         <option value="2">II</option>
                         <option value="3">III</option>
@@ -351,14 +349,13 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                {/* Brigade Members */}
                <div className="md:col-span-2 pt-4 border-t border-gray-100">
                   <div className="flex justify-between items-center mb-3">
-                     <label className="block text-sm font-semibold text-gray-700">Бригада мүшелері / С членами бригады</label>
+                     <label className="block text-sm font-semibold text-gray-700">{t('electrical.labels.brigadeMembers')}</label>
                      {!isReadonly && (
                         <button
                            onClick={() => updateField('brigadeMembers', [...(formData.brigadeMembers || []), { name: '', group: '' }])}
                            className="text-blue-600 font-semibold hover:bg-blue-50 px-3 py-1 rounded flex items-center gap-1"
                         >
-                           <Plus size={16} /> Добавить члена
-                        </button>
+                           <Plus size={16} />{t('electrical.btn.addMember')}</button>
                      )}
                   </div>
                   <div className="space-y-2">
@@ -370,7 +367,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                               <span className="text-xs text-gray-400 w-6">{index + 1}.</span>
                               <input
                                  className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
-                                 placeholder="Ф.И.О."
+                                 placeholder={t('electrical.ph.fio')}
                                  value={memberObj.name || ''}
                                  onChange={e => {
                                     const updated = [...(formData.brigadeMembers || [])];
@@ -381,7 +378,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                               />
                               <input
                                  className="w-72 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
-                                 placeholder="Группа по электробезопасности"
+                                 placeholder={t('electrical.ph.group')}
                                  value={memberObj.group || ''}
                                  onChange={e => {
                                     const updated = [...(formData.brigadeMembers || [])];
@@ -405,7 +402,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                         );
                      })}
                      {(formData.brigadeMembers || []).length === 0 && (
-                        <p className="text-gray-400 text-sm italic">Нажмите "Добавить члена" чтобы добавить членов бригады</p>
+                        <p className="text-gray-400 text-sm italic">{t('electrical.misc.brigadeHint')}</p>
                      )}
                   </div>
                </div>
@@ -415,12 +412,10 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
          {/* Section 3: Work Details */}
          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
-               <Zap size={24} className="text-amber-500" />
-               Содержание работ
-            </h3>
+               <Zap size={24} className="text-amber-500" />{t('electrical.sec.workDetails')}</h3>
             <div className="space-y-6">
                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Жұмыс санаты / Категория работ</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.category')}</label>
                   <div className="relative">
                      <select
                         className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 appearance-none transition-all"
@@ -428,17 +423,17 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                         onChange={e => updateField('workCategory', e.target.value)}
                         disabled={isReadonly}
                      >
-                        <option value="">Выберите категорию...</option>
+                        <option value="">{t('electrical.ph.category')}</option>
                         {ELECTRICAL_WORK_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                      </select>
                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                   </div>
                </div>
                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Тапсырма беріледі / Поручается</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.assignment')}</label>
                   <textarea
                      className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all min-h-[120px] resize-none"
-                     placeholder="Опишите объем и содержание работ..."
+                     placeholder={t('electrical.ph.assignment')}
                      value={formData.assignment}
                      onChange={e => updateField('assignment', e.target.value)}
                      disabled={isReadonly}
@@ -450,13 +445,11 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
          {/* Section 4: Schedule */}
          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
-               <Clock size={24} className="text-green-600" />
-               Сроки выполнения
-            </h3>
+               <Clock size={24} className="text-green-600" />{t('electrical.sec.schedule')}</h3>
             <div className="space-y-6">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                     <label className="block text-sm font-semibold text-gray-700 mb-2">Жұмысты бастау: Күні / Работу начать: дата</label>
+                     <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.startDate')}</label>
                      <input
                         type="date"
                         className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
@@ -469,7 +462,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                      />
                   </div>
                   <div>
-                     <label className="block text-sm font-semibold text-gray-700 mb-2">уақыты / время</label>
+                     <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.time')}</label>
                      <input
                         type="time"
                         className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
@@ -484,7 +477,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                </div>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                     <label className="block text-sm font-semibold text-gray-700 mb-2">Жұмысты аяқтау: Күні / Работу закончить: дата</label>
+                     <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.endDate')}</label>
                      <input
                         type="date"
                         className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
@@ -497,7 +490,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                      />
                   </div>
                   <div>
-                     <label className="block text-sm font-semibold text-gray-700 mb-2">уақыты / время</label>
+                     <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.time')}</label>
                      <input
                         type="time"
                         className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
@@ -511,10 +504,10 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   </div>
                </div>
                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Апат жағдайына дайындық уақыты / Время аварийной готовности</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.emergency')}</label>
                   <input
                      className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
-                     placeholder="Напр. 30 минут"
+                     placeholder={t('electrical.ph.emergency')}
                      value={formData.emergencyReadinessTime}
                      onChange={e => updateField('emergencyReadinessTime', e.target.value)}
                      disabled={isReadonly}
@@ -527,16 +520,13 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <div className="flex justify-between items-center mb-4">
                <h3 className="font-bold text-gray-900 uppercase text-sm tracking-wider flex items-center gap-2">
-                  <ShieldAlert size={24} className="text-red-600" />
-                  Меры по подготовке рабочих мест
-               </h3>
+                  <ShieldAlert size={24} className="text-red-600" />{t('electrical.sec.safety')}</h3>
                {!isReadonly && (
                   <button
                      onClick={() => updateField('safetyMeasures', [...(formData.safetyMeasures || []), { id: Date.now().toString(), installationName: '', actionRequired: '' }])}
                      className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-blue-700 transition-colors shadow-sm"
                   >
-                     <Plus size={18}/> Добавить
-                  </button>
+                     <Plus size={18}/>{t('electrical.btn.add')}</button>
                )}
             </div>
             <div>
@@ -544,8 +534,8 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   <table className="w-full">
                      <thead className="bg-gray-50">
                         <tr>
-                           <th className="px-3 py-1.5 text-left text-gray-500 font-semibold text-sm border-b border-gray-200">Наименование электроустановки</th>
-                           <th className="px-3 py-1.5 text-left text-gray-500 font-semibold text-sm border-b border-gray-200">Что должно быть отключено/заземлено</th>
+                           <th className="px-3 py-1.5 text-left text-gray-500 font-semibold text-sm border-b border-gray-200">{t('electrical.th.installation')}</th>
+                           <th className="px-3 py-1.5 text-left text-gray-500 font-semibold text-sm border-b border-gray-200">{t('electrical.th.action')}</th>
                            {!isReadonly && <th className="px-3 py-1.5 w-12 border-b border-gray-200"></th>}
                         </tr>
                      </thead>
@@ -561,7 +551,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                        updateField('safetyMeasures', updated);
                                     }}
                                     disabled={isReadonly}
-                                    placeholder="Укажите наименование..."
+                                    placeholder={t('electrical.ph.installation')}
                                  />
                               </td>
                               <td className="p-3">
@@ -573,7 +563,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                        updateField('safetyMeasures', updated);
                                     }}
                                     disabled={isReadonly}
-                                    placeholder="Укажите действия..."
+                                    placeholder={t('electrical.ph.action')}
                                  />
                               </td>
                               {!isReadonly && (
@@ -604,14 +594,12 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
           {/* Section: Отдельные указания и средства защиты */}
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
              <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
-                <ClipboardList size={24} className="text-blue-600" />
-                Жеке нұсқаулар / Отдельные указания
-             </h3>
+                <ClipboardList size={24} className="text-blue-600" />{t('electrical.sec.instructions')}</h3>
              <div className="space-y-4">
                 <div>
                    <textarea
                       className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all min-h-[80px] resize-none"
-                      placeholder="Введите отдельные указания..."
+                      placeholder={t('electrical.ph.instructions')}
                       value={formData.separateInstructions || ''}
                       onChange={e => updateField('separateInstructions', e.target.value)}
                       disabled={isReadonly}
@@ -624,13 +612,11 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
           {/* Section: Наряд выдал */}
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
              <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
-                <PenTool size={24} className="text-blue-600" />
-                Нарядты бердім / Наряд выдал
-             </h3>
+                <PenTool size={24} className="text-blue-600" />{t('electrical.sec.issuer')}</h3>
              <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Күні / Дата</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.date')}</label>
                       <input
                          type="date"
                          className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
@@ -640,7 +626,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                       />
                    </div>
                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Уақыты / Время</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.time')}</label>
                       <input
                          type="time"
                          className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
@@ -652,20 +638,20 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Қолы / Подпись</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.signature')}</label>
                       <input
                          className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
-                         placeholder="Подпись"
+                         placeholder={t('electrical.ph.signature')}
                          value={formData.issuerId || ''}
                          onChange={e => updateField('issuerId', e.target.value)}
                          disabled={isReadonly}
                       />
                    </div>
                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Тегі / Фамилия</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.lastName')}</label>
                       <input
                          className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
-                         placeholder="Фамилия"
+                         placeholder={t('electrical.ph.signature')}
                          value={formData.issuerLastName || ''}
                          onChange={e => updateField('issuerLastName', e.target.value)}
                          disabled={isReadonly}
@@ -679,21 +665,18 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
              <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-gray-900 uppercase text-sm tracking-wider flex items-center gap-2">
-                   <Clock size={24} className="text-orange-500" />
-                   Наряд уақытын создым / Наряд продлил
-                </h3>
+                   <Clock size={24} className="text-orange-500" />{t('electrical.sec.extensions')}</h3>
                 {!isReadonly && (
                    <button
                       onClick={() => updateField('extensions', [...(formData.extensions || []), { id: Date.now().toString(), extensionDate: '', extensionTime: '', extensionSignature: '', extensionLastName: '' }])}
                       className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-blue-700 transition-colors shadow-sm"
                    >
-                      <Plus size={18}/> Добавить продление
-                   </button>
+                      <Plus size={18}/>{t('electrical.btn.addExtension')}</button>
                 )}
              </div>
              <div>
                 {(formData.extensions || []).length === 0 ? (
-                   <p className="text-gray-400 text-sm italic text-center py-4">Нет записей о продлении наряда</p>
+                   <p className="text-gray-400 text-sm italic text-center py-4">{t('electrical.misc.noExtensions')}</p>
                 ) : (
                    <div className="space-y-4">
                       {(formData.extensions || []).map((ext, index) => (
@@ -709,10 +692,10 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                   <Trash2 size={16} />
                                </button>
                             )}
-                            <div className="text-xs font-medium text-gray-400 mb-3">Продление {index + 1}</div>
+                            <div className="text-xs font-medium text-gray-400 mb-3">{t('electrical.misc.extension')} {index + 1}</div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                <div>
-                                  <label className="block text-sm font-semibold text-gray-700 mb-2">Күні / Дата</label>
+                                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.date')}</label>
                                   <input
                                      type="date"
                                      className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
@@ -726,7 +709,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                   />
                                </div>
                                <div>
-                                  <label className="block text-sm font-semibold text-gray-700 mb-2">Уақыты / Время</label>
+                                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.time')}</label>
                                   <input
                                      type="time"
                                      className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
@@ -740,10 +723,10 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                   />
                                </div>
                                <div>
-                                  <label className="block text-sm font-semibold text-gray-700 mb-2">Қолы / Подпись</label>
+                                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.signature')}</label>
                                   <input
                                      className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
-                                     placeholder="Подпись"
+                                     placeholder={t('electrical.ph.signature')}
                                      value={ext.extensionSignature}
                                      onChange={e => {
                                         const updated = [...(formData.extensions || [])];
@@ -754,10 +737,10 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                   />
                                </div>
                                <div>
-                                  <label className="block text-sm font-semibold text-gray-700 mb-2">Тегі / Фамилия</label>
+                                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.lastName')}</label>
                                   <input
                                      className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
-                                     placeholder="Фамилия"
+                                     placeholder={t('electrical.ph.signature')}
                                      value={ext.extensionLastName}
                                      onChange={e => {
                                         const updated = [...(formData.extensions || [])];
@@ -778,9 +761,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
           {/* Section 6: Admission Permission - Жіберуге рұқсат беру / Разрешение на допуск */}
          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
-               <FileCheck size={24} className="text-blue-600" />
-               Жіберуге рұқсат беру / Разрешение на допуск
-            </h3>
+               <FileCheck size={24} className="text-blue-600" />{t('electrical.sec.admission')}</h3>
             <div className="space-y-6">
                {/* Permission Table */}
                <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -789,19 +770,17 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                         <tr>
                            <th className="px-3 py-2 text-left text-sm font-medium text-gray-600 border-b border-r border-gray-200">
                               <div className="text-xs leading-relaxed">
-                                 <strong>Жұмыс орындарын дайындауға және жұмысқа кірісуге рұқсат алдым</strong>
-                                 <br />
-                                 <span className="text-gray-500">Разрешение на подготовку рабочих мест и на допуск к работе получил</span>
+                                 {t('electrical.th.gotPermission')}
                               </div>
                            </th>
                            <th className="px-3 py-1.5 text-center text-gray-500 font-semibold text-sm border-b border-r border-gray-200 w-48">
-                              <div>Күні, уақыты<br /><span className="text-[10px] text-gray-400 font-normal">Дата, время</span></div>
+                              <div>{t('electrical.th.dateTime')}</div>
                            </th>
                            <th className="px-3 py-1.5 text-center text-gray-500 font-semibold text-sm border-b border-r border-gray-200 w-48">
-                              <div>Кімнен / От кого<br /><span className="text-[10px] text-gray-400 font-normal">дауазым, тегі / должность, фамилия</span></div>
+                              <div>{t('electrical.th.fromWhom')}</div>
                            </th>
                            <th className="px-3 py-1.5 text-center text-gray-500 font-semibold text-sm border-b border-gray-200 w-32">
-                              <div>Рұқсат беруші<br /><span className="text-[10px] text-gray-400 font-normal">/Допускающий</span><br /><span className="text-[10px] text-gray-400 font-normal">(қолы/подпись)</span></div>
+                              <div>{t('electrical.labels.admittingPerson')}<br /><span className="text-[10px] text-gray-400 font-normal">{t('electrical.misc.signatureNote')}</span></div>
                            </th>
                         </tr>
                      </thead>
@@ -820,7 +799,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                            <td className="p-3 border-r border-gray-200">
                               <input
                                  className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
-                                 placeholder="Должность, Ф.И.О."
+                                 placeholder={t('electrical.ph.position')}
                                  value={formData.admissionFromWhom || ''}
                                  onChange={e => updateField('admissionFromWhom', e.target.value)}
                                  disabled={isReadonly}
@@ -829,7 +808,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                            <td className="p-3 text-center">
                               <input
                                  className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 text-center"
-                                 placeholder="Подпись"
+                                 placeholder={t('electrical.ph.signature')}
                                  value={formData.admissionSignature || ''}
                                  onChange={e => updateField('admissionSignature', e.target.value)}
                                  disabled={isReadonly}
@@ -844,33 +823,33 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                {/* Signatures */}
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
                   <div>
-                     <label className="block text-sm font-semibold text-gray-700 mb-2">Рұқсат беруші / Допускающий</label>
+                     <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.admittingPerson')}</label>
                      <div className="flex gap-2 items-center">
                         <input
                            className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
-                           placeholder="Ф.И.О."
+                           placeholder={t('electrical.ph.fio')}
                            value={formData.admissionPermitSigner || ''}
                            onChange={e => updateField('admissionPermitSigner', e.target.value)}
                            disabled={isReadonly}
                         />
-                        <span className="text-xs text-gray-400">(қолы)</span>
+                        <span className="text-xs text-gray-400">{t('electrical.misc.signatureNote')}</span>
                      </div>
                   </div>
                   <div>
                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        <span className="text-xs">Жауапты жұмыс жетекшісі (жұмыс жүргізуші немесе бақылаушы)</span>
+                        <span className="text-xs">{t('electrical.labels.respManagerProducer')}</span>
                         <br />
-                        <span className="text-xs text-gray-500">Отв. руководитель работ (производитель работ или наблюдающий)</span>
+                        <span className="text-xs text-gray-500">{t('electrical.labels.respManagerProducer')}</span>
                      </label>
                      <div className="flex gap-2 items-center">
                         <input
                            className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400"
-                           placeholder="Ф.И.О."
+                           placeholder={t('electrical.ph.fio')}
                            value={formData.responsibleWorkManagerSigner || ''}
                            onChange={e => updateField('responsibleWorkManagerSigner', e.target.value)}
                            disabled={isReadonly}
                         />
-                        <span className="text-xs text-gray-400">(қолы)</span>
+                        <span className="text-xs text-gray-400">{t('electrical.misc.signatureNote')}</span>
                      </div>
                   </div>
                </div>
@@ -887,9 +866,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
          {/* Voltage/Workplace Ready - first on reverse side */}
          <section className="bg-white p-8 rounded-2xl border-2 border-slate-900 shadow-sm">
             <h3 className="text-sm font-black uppercase text-slate-800 mb-6 flex items-center gap-3">
-               <Zap size={20} className="text-blue-600" />
-               Жұмыс орындары әзірленді. Кернеу бар жері: / Рабочие места подготовлены. Под напряжением остались:
-            </h3>
+               <Zap size={20} className="text-blue-600" />{t('electrical.sec.voltage')}</h3>
             <textarea
                className="w-full border-b-2 border-slate-200 py-4 text-base font-bold outline-none focus:border-blue-600 resize-none min-h-[100px] leading-relaxed"
                placeholder="Укажите токопроводящие части под напряжением..."
@@ -900,14 +877,14 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
             <div className="grid grid-cols-2 gap-12 mt-8 pt-8 border-t border-slate-100">
                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black uppercase text-slate-400">Рұқсат беруші / Допускающий</span>
+                  <span className="text-[10px] font-black uppercase text-slate-400">{t('electrical.labels.admittingPerson')}</span>
                   <div className="flex items-end gap-3">
                      <div className="flex-1 border-b border-slate-900 text-sm font-bold pb-1">{formData.admittingAuthorityId}</div>
                      <div className="text-[10px] italic text-blue-600 font-bold">ПОДПИСАНО ЭЦП</div>
                   </div>
                </div>
                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black uppercase text-slate-400">Жауапты жұмыс жетекшісі / Ответ. руководитель работ</span>
+                  <span className="text-[10px] font-black uppercase text-slate-400">{t('electrical.labels.respManager')}</span>
                   <div className="flex items-end gap-3">
                      <div className="flex-1 border-b border-slate-900 text-sm font-bold pb-1">{formData.workManagerId}</div>
                      <div className="text-[10px] italic text-blue-600 font-bold">ПОДПИСАНО ЭЦП</div>
@@ -1026,16 +1003,16 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-px bg-slate-200 border border-slate-200 overflow-hidden rounded-xl">
                {/* Column 1: Who gave briefing */}
                <div className="bg-white p-8 space-y-8">
-                  <h4 className="text-sm font-black uppercase text-slate-400 border-b pb-2">Нұсқаулық өткіздім / Инструктаж провел</h4>
+                  <h4 className="text-sm font-black uppercase text-slate-400 border-b pb-2">{t('electrical.labels.instructed')}</h4>
 
                   <div className="space-y-6">
                      <div className="pb-6 border-b border-slate-100">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Наряд берген тұлға / Лицо, выдавшее наряд</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">{t('electrical.th.issuerPerson')}</span>
                         <div className="text-base font-black mt-2">{formData.issuerId}</div>
                         <div className="mt-2 text-[10px] font-black italic text-emerald-600">ПОДПИСАНО ЭЦП</div>
                      </div>
                      <div className="pb-6 border-b border-slate-100">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Рұқсат беруші / Допускающий</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">{t('electrical.labels.admittingPerson')}</span>
                         <div className="text-base font-black mt-2">{formData.admittingAuthorityId}</div>
                         <div className="mt-2 text-[10px] font-black italic text-emerald-600">ПОДПИСАНО ЭЦП</div>
                      </div>
@@ -1044,15 +1021,15 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
                {/* Column 2: Who received briefing */}
                <div className="bg-white p-8 space-y-8">
-                  <h4 className="text-sm font-black uppercase text-slate-400 border-b pb-2">Нұсқаулық алдым / Инструктаж получил</h4>
+                  <h4 className="text-sm font-black uppercase text-slate-400 border-b pb-2">{t('electrical.labels.receivedBrief')}</h4>
                   <div className="space-y-6">
                      <div className="pb-6 border-b border-slate-100">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Ответ. руководитель работ (производитель, наблюдающий)</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">{t('electrical.labels.respManagerProducer')}</span>
                         <div className="text-base font-black mt-2">{formData.workManagerId}</div>
                         <div className="mt-2 text-[10px] font-black italic text-emerald-600">ПОДПИСАНО ЭЦП</div>
                      </div>
                      <div className="pb-6 border-b border-slate-100">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Бригада мүшелері / Члены бригады</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">{t('electrical.labels.brigadeList')}</span>
                         <ul className="mt-2 space-y-2">
                            {(formData.brigadeMembers || []).map((m, i) => m && (
                               <li key={i} className="flex items-center justify-between text-sm font-bold border-l-4 border-blue-500 pl-3 py-1 bg-slate-50">
@@ -1077,17 +1054,17 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
          {(() => {
             const tabs: { id: TabKey; label: string }[] = isReadonly
               ? [
-                  { id: 'main', label: 'Лицевая сторона' },
-                  { id: 'backside', label: 'Оборотная сторона' },
-                  { id: 'lifecycle', label: 'Журнал допуска' },
-                  { id: 'risks', label: 'Оценка риска' },
-                  { id: 'loto', label: 'LOTO' },
+                  { id: 'main', label: t('electrical.tabs.main') },
+                  { id: 'backside', label: t('electrical.tabs.backside') },
+                  { id: 'lifecycle', label: t('electrical.tabs.lifecycle') },
+                  { id: 'risks', label: t('electrical.tabs.risks') },
+                  { id: 'loto', label: t('electrical.tabs.loto') },
                 ]
               : [
-                  { id: 'main', label: 'Лицевая сторона' },
-                  { id: 'backside', label: 'Оборотная сторона' },
-                  { id: 'risks', label: 'Оценка риска' },
-                  { id: 'loto', label: 'LOTO' },
+                  { id: 'main', label: t('electrical.tabs.main') },
+                  { id: 'backside', label: t('electrical.tabs.backside') },
+                  { id: 'risks', label: t('electrical.tabs.risks') },
+                  { id: 'loto', label: t('electrical.tabs.loto') },
                 ];
             const currentIdx = Math.max(0, tabs.findIndex(t => t.id === activeTab));
             return (
@@ -1137,13 +1114,11 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   {/* Voltage/Workplace Ready - first on reverse side */}
                   <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                      <h3 className="font-bold text-gray-900 mb-6 text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
-                        <Zap size={24} className="text-yellow-500" />
-                        Жұмыс орындары әзірленді. Кернеу бар жері: / Рабочие места подготовлены. Под напряжением остались:
-                     </h3>
+                        <Zap size={24} className="text-yellow-500" />{t('electrical.sec.voltage')}</h3>
                      <div>
                         <textarea
                            className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 min-h-[100px] resize-none"
-                           placeholder="Укажите места, оставшиеся под напряжением..."
+                           placeholder={t('electrical.ph.voltage')}
                            value={formData.voltageRemainsAt || ''}
                            onChange={e => updateField('voltageRemainsAt', e.target.value)}
                            disabled={isReadonly}
@@ -1153,32 +1128,28 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
                   {/* Daily Admission Section */}
                   <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                     <div className="flex justify-between items-center mb-1">
+                     <div className="flex justify-between items-center mb-4">
                         <h3 className="font-bold text-gray-900 uppercase text-sm tracking-wider flex items-center gap-2">
                            <Calendar size={24} className="text-blue-600" />
-                           Күн сайынғы жұмысқа рұқсаттама және оның аяқталу уақыты
+                           {t('electrical.sec.daily')}
                         </h3>
                         {!isReadonly && (
                            <button
                               onClick={() => updateField('dailyAdmissions', [...(formData.dailyAdmissions || []), { id: Date.now().toString(), workplaceName: '', admissionDateTime: '', admitterSignature: '', producerSignature: '', endDateTime: '', producerEndSignature: '' }])}
                               className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-blue-700 transition-colors shadow-sm"
                            >
-                              <Plus size={18}/> Добавить запись
-                           </button>
+                              <Plus size={18}/>{t('electrical.btn.addRecord')}</button>
                         )}
                      </div>
-                     <p className="text-sm text-gray-500 mb-4">Ежедневный допуск к работе и время ее окончания</p>
 
                      <div>
                         {/* Column Headers */}
                         <div className="grid grid-cols-2 gap-4 mb-4">
                            <div className="bg-blue-50 rounded-lg p-3 text-center">
-                              <p className="text-xs font-semibold text-blue-800">Бригада мақсатты нұсқаулық алды және әзірленген жұмыс орнына баруға рұқсаттама берілді</p>
-                              <p className="text-[10px] text-blue-600 mt-1">Бригада получила целевой инструктаж и допущена на подготовленное рабочее место</p>
+                              <p className="text-xs font-semibold text-blue-800">{t('electrical.th.brigadeAdmitted')}</p>
                            </div>
                            <div className="bg-green-50 rounded-lg p-3 text-center">
-                              <p className="text-xs font-semibold text-green-800">Жұмыс аяқталды, бригада шығарылды</p>
-                              <p className="text-[10px] text-green-600 mt-1">Работа закончена, бригада удалена</p>
+                              <p className="text-xs font-semibold text-green-800">{t('electrical.th.workFinished')}</p>
                            </div>
                         </div>
 
@@ -1188,36 +1159,28 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                               <thead className="bg-gray-50">
                                  <tr>
                                     <th rowSpan={2} className="px-3 py-1.5 text-left font-medium text-gray-600 border-b border-r border-gray-200 w-[15%]">
-                                       <div>Жұмыс орнының атауы</div>
-                                       <div className="text-[10px] text-gray-400 font-normal">Наименование рабочего места</div>
+                                       <div>{t('electrical.th.workplace')}</div>
                                     </th>
                                     <th rowSpan={2} className="px-3 py-1.5 text-center font-medium text-gray-600 border-b border-r border-gray-200 w-[10%]">
-                                       <div>Күні, уақыты</div>
-                                       <div className="text-[10px] text-gray-400 font-normal">Дата, время</div>
+                                       <div>{t('electrical.th.dateTime')}</div>
                                     </th>
                                     <th colSpan={2} className="px-3 py-1.5 text-center font-medium text-gray-600 border-b border-r border-gray-200">
-                                       <div>Қойылатын қолдар</div>
-                                       <div className="text-[10px] text-gray-400 font-normal">Подписи (тегі, аты-жөні / фамилия, инициалы)</div>
+                                       <div>{t('electrical.th.signatures')}</div>
                                     </th>
                                     <th rowSpan={2} className="px-3 py-1.5 text-center font-medium text-gray-600 border-b border-r border-gray-200 w-[10%]">
-                                       <div>Күні, уақыты</div>
-                                       <div className="text-[10px] text-gray-400 font-normal">Дата, время</div>
+                                       <div>{t('electrical.th.dateTime')}</div>
                                     </th>
-                                    <th rowSpan={2} className="px-3 py-1.5 text-center font-medium text-gray-600 border-b border-gray-200 w-[18%]">
-                                       <div>Жұмыс жүргізушінің (бақылаушының) қолы</div>
-                                       <div className="text-[10px] text-gray-400 font-normal">Подпись производителя работ (наблюдающего)</div>
-                                       <div className="text-[10px] text-gray-400 font-normal">(тегі, аты-жөні / фамилия, инициалы)</div>
+                                    <th rowSpan={2} className="px-3 py-1.5 text-center font-medium text-gray-600 border-b border-r border-gray-200 w-[18%]">
+                                       <div>{t('electrical.th.producerSig')}</div>
                                     </th>
                                     {!isReadonly && <th rowSpan={2} className="w-10 border-b border-gray-200"></th>}
                                  </tr>
                                  <tr>
                                     <th className="px-3 py-1.5 text-center font-medium text-gray-600 border-b border-r border-gray-200 w-[12%]">
-                                       <div>Рұқсат берушінің</div>
-                                       <div className="text-[10px] text-gray-400 font-normal">Допускающего</div>
+                                       <div>{t('electrical.th.admitterSig')}</div>
                                     </th>
                                     <th className="px-3 py-1.5 text-center font-medium text-gray-600 border-b border-r border-gray-200 w-[15%]">
-                                       <div>Жұмыс жүргізушінің (бақылаушының)</div>
-                                       <div className="text-[10px] text-gray-400 font-normal">Производителя работ (наблюдающего)</div>
+                                       <div>{t('electrical.th.producerSig')}</div>
                                     </th>
                                  </tr>
                               </thead>
@@ -1253,7 +1216,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                        <td className="p-2 border-r border-gray-200">
                                           <input
                                              className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
-                                             placeholder="Ф.И.О."
+                                             placeholder={t('electrical.ph.fio')}
                                              value={admission.admitterSignature || ''}
                                              onChange={e => {
                                                 const updated = [...(formData.dailyAdmissions || [])];
@@ -1266,7 +1229,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                        <td className="p-2 border-r border-gray-200">
                                           <input
                                              className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
-                                             placeholder="Ф.И.О."
+                                             placeholder={t('electrical.ph.fio')}
                                              value={admission.producerSignature || ''}
                                              onChange={e => {
                                                 const updated = [...(formData.dailyAdmissions || [])];
@@ -1292,7 +1255,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                        <td className="p-2">
                                           <input
                                              className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
-                                             placeholder="Ф.И.О."
+                                             placeholder={t('electrical.ph.fio')}
                                              value={admission.producerEndSignature || ''}
                                              onChange={e => {
                                                 const updated = [...(formData.dailyAdmissions || [])];
@@ -1329,21 +1292,19 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
 
                   {/* Brigade Changes Section - Бригада құрамындағы өзгерістер */}
                   <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                     <div className="flex justify-between items-center mb-1">
+                     <div className="flex justify-between items-center mb-4">
                         <h3 className="font-bold text-gray-900 uppercase text-sm tracking-wider flex items-center gap-2">
                            <Users size={24} className="text-blue-600" />
-                           Бригада құрамындағы өзгерістер
+                           {t('electrical.sec.brigadeChanges')}
                         </h3>
                         {!isReadonly && (
                            <button
                                onClick={() => updateField('brigadeChanges', [...(formData.brigadeChanges || []), { id: Date.now().toString(), introducedMember: '', introducedMemberGroup: '', removedMember: '', removedMemberGroup: '', dateTime: '', authorizedBy: '' }])}
                               className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-blue-700 transition-colors shadow-sm"
                            >
-                              <Plus size={18}/> Добавить изменение
-                           </button>
+                              <Plus size={18}/>{t('electrical.btn.addChange')}</button>
                         )}
                      </div>
-                     <p className="text-sm text-gray-500 mb-4">Изменения в составе бригады</p>
 
                      <div>
                         <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -1351,22 +1312,16 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                               <thead className="bg-gray-50">
                                  <tr>
                                     <th className="px-3 py-1.5 text-left font-medium text-gray-600 border-b border-r border-gray-200 w-[28%]">
-                                       <div>Бригада құрамына енгізілді</div>
-                                       <div className="text-[10px] text-gray-400 font-normal">Введен в состав бригады</div>
-                                       <div className="text-[10px] text-gray-400 font-normal">(тегі, аты-жөні, тобы / фамилия, инициалы, группа)</div>
+                                       <div>{t('electrical.th.introduced')}</div>
                                     </th>
                                     <th className="px-3 py-1.5 text-left font-medium text-gray-600 border-b border-r border-gray-200 w-[28%]">
-                                       <div>Бригада құрамынан шығарылды</div>
-                                       <div className="text-[10px] text-gray-400 font-normal">Выведен из состава бригады</div>
-                                       <div className="text-[10px] text-gray-400 font-normal">(тегі, аты-жөні, тобы / фамилия, инициалы, группа)</div>
+                                       <div>{t('electrical.th.removed')}</div>
                                     </th>
                                     <th className="px-3 py-1.5 text-center font-medium text-gray-600 border-b border-r border-gray-200 w-[14%]">
-                                       <div>Күні, уақыты</div>
-                                       <div className="text-[10px] text-gray-400 font-normal">Дата, время</div>
+                                       <div>{t('electrical.th.dateTime')}</div>
                                     </th>
                                     <th className="px-3 py-1.5 text-center font-medium text-gray-600 border-b border-gray-200 w-[25%]">
-                                       <div>Рұқсат бердім / Разрешил</div>
-                                       <div className="text-[10px] text-gray-400 font-normal">(қолы/подпись) (тегі, аты-жөні / фамилия, инициалы)</div>
+                                       <div>{t('electrical.th.allowed')}</div>
                                     </th>
                                     {!isReadonly && <th className="w-10 border-b border-gray-200"></th>}
                                  </tr>
@@ -1378,7 +1333,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                            <div className="flex gap-1">
                                               <input
                                                  className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
-                                                 placeholder="Ф.И.О."
+                                                 placeholder={t('electrical.ph.fio')}
                                                  value={change.introducedMember || ''}
                                                  onChange={e => {
                                                     const updated = [...(formData.brigadeChanges || [])];
@@ -1397,7 +1352,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                                  }}
                                                  disabled={isReadonly}
                                               >
-                                                 <option value="">Гр.</option>
+                                                 <option value="">{t('electrical.misc.group')}</option>
                                                  <option value="1">I</option>
                                                  <option value="2">II</option>
                                                  <option value="3">III</option>
@@ -1410,7 +1365,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                            <div className="flex gap-1">
                                               <input
                                                  className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
-                                                 placeholder="Ф.И.О."
+                                                 placeholder={t('electrical.ph.fio')}
                                                  value={change.removedMember || ''}
                                                  onChange={e => {
                                                     const updated = [...(formData.brigadeChanges || [])];
@@ -1429,7 +1384,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                                  }}
                                                  disabled={isReadonly}
                                               >
-                                                 <option value="">Гр.</option>
+                                                 <option value="">{t('electrical.misc.group')}</option>
                                                  <option value="1">I</option>
                                                  <option value="2">II</option>
                                                  <option value="3">III</option>
@@ -1454,7 +1409,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                        <td className="p-2">
                                           <input
                                              className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
-                                             placeholder="Ф.И.О."
+                                             placeholder={t('electrical.ph.fio')}
                                              value={change.authorizedBy || ''}
                                              onChange={e => {
                                                 const updated = [...(formData.brigadeChanges || [])];
@@ -1495,20 +1450,20 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                         <PenTool size={24} className="text-orange-500" />
                         Алғашқы рұқсаттама кезінде мақсатты нұсқаулықты тіркеу
                      </h3>
-                     <p className="text-sm text-gray-500 mb-6">Регистрация целевого инструктажа при первичном допуске</p>
+                     <p className="text-sm text-gray-500 mb-6">{t('electrical.sec.briefing')}</p>
 
                      <div>
                         <div className="grid grid-cols-2 gap-6">
                            {/* Left Column - Инструктаж провел */}
                            <div className="space-y-4">
                               <div className="bg-blue-50 rounded-lg p-3 text-center">
-                                 <p className="text-xs font-semibold text-blue-800">Нұсқаулық өткіздім</p>
-                                 <p className="text-[10px] text-blue-600">Инструктаж провел</p>
+                                 <p className="text-xs font-semibold text-blue-800">{t('electrical.labels.instructed')}</p>
+                                 <p className="text-[10px] text-blue-600">{t('electrical.labels.instructed')}</p>
                               </div>
 
                               <div className="space-y-4">
                                  <div className="border border-gray-200 rounded-lg p-4">
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Наряд берген тұлға / Лицо, выдавшее наряд</label>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.th.issuerPerson')}</label>
                                     <input
                                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors mb-2"
                                        placeholder="тегі, аты-жөні / фамилия, инициалы"
@@ -1520,7 +1475,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                  </div>
 
                                  <div className="border border-gray-200 rounded-lg p-4">
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Рұқсат беруші / Допускающий</label>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.admittingPerson')}</label>
                                     <input
                                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors mb-2"
                                        placeholder="тегі, аты-жөні / фамилия, инициалы"
@@ -1532,8 +1487,8 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                  </div>
 
                                  <div className="border border-gray-200 rounded-lg p-4">
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Жауапты жұмыс жетекшісі / Жұмыс жүргізуші (бақылаушы)</label>
-                                    <p className="text-[10px] text-gray-400 mb-2">Ответ. руководитель работ / производитель работ (наблюдающий)</p>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.respManagerProducer')}</label>
+                                    <p className="text-[10px] text-gray-400 mb-2">{t('electrical.labels.respManagerProducer')}</p>
                                     <input
                                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors mb-2"
                                        placeholder="тегі, аты-жөні / фамилия, инициалы"
@@ -1549,14 +1504,14 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                            {/* Right Column - Инструктаж получил */}
                            <div className="space-y-4">
                               <div className="bg-green-50 rounded-lg p-3 text-center">
-                                 <p className="text-xs font-semibold text-green-800">Нұсқаулық алдым</p>
-                                 <p className="text-[10px] text-green-600">Инструктаж получил</p>
+                                 <p className="text-xs font-semibold text-green-800">{t('electrical.labels.receivedBrief')}</p>
+                                 <p className="text-[10px] text-green-600">{t('electrical.labels.receivedBrief')}</p>
                               </div>
 
                               <div className="space-y-4">
                                  <div className="border border-gray-200 rounded-lg p-4">
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Жауапты жұмыс жетекшісі (жұмыс жүргізуші, бақылаушы)</label>
-                                    <p className="text-[10px] text-gray-400 mb-2">Ответ. руководитель работ / производитель работ (наблюдающий)</p>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.respManagerProducer')}</label>
+                                    <p className="text-[10px] text-gray-400 mb-2">{t('electrical.labels.respManagerProducer')}</p>
                                     <input
                                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors mb-2"
                                        placeholder="тегі, аты-жөні / фамилия, инициалы"
@@ -1568,7 +1523,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                  </div>
 
                                  <div className="border border-gray-200 rounded-lg p-4">
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Жұмыс жүргізуші (бақылаушы) / Производитель работ (наблюдающий)</label>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.producerObserver')}</label>
                                     <input
                                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors mb-2"
                                        placeholder="тегі, аты-жөні / фамилия, инициалы"
@@ -1580,7 +1535,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                  </div>
 
                                  <div className="border border-gray-200 rounded-lg p-4">
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Бригада мүшелері / Члены бригады</label>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.brigadeList')}</label>
                                     <textarea
                                        className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors min-h-[60px] resize-none"
                                        placeholder="Список членов бригады..."
@@ -1598,16 +1553,14 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                   {/* Work Completion - Жұмыс толық аяқталды */}
                   <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                      <h3 className="font-bold text-gray-900 mb-1 text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
-                        <CheckCircle2 size={24} className="text-green-600" />
-                        Жұмыс толық аяқталды, бригада шығарылды, бригаданың орнатқан жер қосқыштары алынды
-                     </h3>
-                     <p className="text-sm text-gray-500 mb-6">Работа полностью закончена, бригада удалена, заземления, установленные бригадой, сняты</p>
+                        <CheckCircle2 size={24} className="text-green-600" />{t('electrical.sec.completion')}</h3>
+                     <p className="text-sm text-gray-500 mb-6">{t('electrical.sec.completion')}</p>
 
                      <div className="space-y-6">
                         {/* Notification */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                            <div className="md:col-span-1">
-                              <label className="block text-sm font-semibold text-gray-700 mb-2">Хабарланды / Сообщено (кімге / кому)</label>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.th.notifiedTo')}</label>
                               <input
                                  className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                  placeholder="тегі, аты-жөні / фамилия, инициалы"
@@ -1617,7 +1570,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                               />
                            </div>
                            <div>
-                              <label className="block text-sm font-semibold text-gray-700 mb-2">күні / дата</label>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.dateLower')}</label>
                               <input
                                  type="date"
                                  className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
@@ -1627,7 +1580,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                               />
                            </div>
                            <div>
-                              <label className="block text-sm font-semibold text-gray-700 mb-2">уақыты / время</label>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.time')}</label>
                               <input
                                  type="time"
                                  className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
@@ -1642,7 +1595,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                         <div className="space-y-4 pt-4 border-t border-gray-100">
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
-                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Жұмыс жүргізуші (бақылаушы) / Производитель работ (наблюдающий)</label>
+                                 <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.producerObserver')}</label>
                                  <input
                                     className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                     placeholder="(қолы / подпись) (тегі, аты-жөні / фамилия, инициалы)"
@@ -1652,7 +1605,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                                  />
                               </div>
                               <div>
-                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Жауапты жұмыс жетекшісі / Ответственный руководитель работ</label>
+                                 <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.respManager')}</label>
                                  <input
                                     className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                     placeholder="(қолы / подпись) (тегі, аты-жөні / фамилия, инициалы)"
@@ -1664,7 +1617,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                            </div>
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
-                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Рұқсат беруші / Допускающий</label>
+                                 <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.admittingPerson')}</label>
                                  <input
                                     className="w-full bg-[#f7f7f7] border border-gray-300 rounded px-3 py-1.5 text-base text-gray-900 focus:ring-1 focus:ring-blue-500 placeholder-gray-400 transition-colors"
                                     placeholder="(қолы / подпись) (тегі, аты-жөні / фамилия, инициалы)"
@@ -1721,7 +1674,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                               <input type="checkbox" className="sr-only peer" checked={formData.lotoEnabled} onChange={e => updateField('lotoEnabled', e.target.checked)} disabled={isReadonly} />
                               <div className="w-11 h-6 bg-gray-200 rounded-full peer-checked:bg-blue-600 transition-all after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                            </div>
-                           <span className="text-sm text-gray-500">{formData.lotoEnabled ? 'Включено' : 'Выключено'}</span>
+                           <span className="text-sm text-gray-500">{formData.lotoEnabled ? t('electrical.misc.on') : t('electrical.misc.off')}</span>
                         </label>
                      </div>
                      <div>
@@ -1730,9 +1683,9 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                         ) : (
                            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
                               <Lock size={48} className="mx-auto text-gray-300 mb-4" />
-                              <p className="text-gray-700 font-semibold mb-2">Процедура LOTO не применяется</p>
+                              <p className="text-gray-700 font-semibold mb-2">{t('electrical.misc.lotoOff')}</p>
                               <p className="text-gray-400 text-sm max-w-md mx-auto">
-                                 Если для выполнения работ требуется блокировка источников энергии, включите опцию выше.
+                                 {t('electrical.misc.lotoOffHint')}
                               </p>
                            </div>
                         )}
@@ -1748,17 +1701,17 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 mt-8 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10">
                   <div className="w-full flex justify-between items-center">
                      <div className="hidden sm:block text-base text-gray-400">
-                        Шаг {currentStep} из {totalSteps}
+                        {t('electrical.btn.step', { current: currentStep, total: totalSteps })}
                      </div>
                      <div className="flex gap-3 w-full sm:w-auto">
                         {currentStep > 1 && (
                            <button onClick={goToPrevStep} className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-base font-medium">
-                              Назад
+                              {t('electrical.btn.back')}
                            </button>
                         )}
                         {currentStep < totalSteps ? (
                            <button onClick={goToNextStep} className="flex-1 sm:flex-none px-8 py-3 bg-slate-800 text-white rounded-lg hover:bg-slate-700 text-base font-medium ml-auto">
-                              Далее
+                              {t('electrical.btn.next')}
                            </button>
                         ) : (
                            <button
@@ -1766,7 +1719,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                               className="flex-1 sm:flex-none px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-base font-medium shadow-lg shadow-blue-200 flex items-center justify-center gap-2 transition-all transform active:scale-95"
                            >
                               <CheckCircle2 size={20}/>
-                              <span className="ml-2">Создать наряд</span>
+                              <span className="ml-2">{t('electrical.btn.create')}</span>
                            </button>
                         )}
                      </div>

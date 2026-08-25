@@ -56,13 +56,13 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                </button>
                <div>
                    <h1 className="text-3xl font-bold text-slate-900 leading-tight">
-                       {isEditing ? `Редактирование: ${initialData?.permitId}` : 'Создание Наряда-Допуска'}
+                       {isEditing ? t('electrical.header.editing', { id: initialData?.permitId }) : t('electrical.header.title')}
                    </h1>
                    <div className="flex items-center gap-2 mt-1">
                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-blue-100 text-blue-700 border-blue-200">
-                        <Zap size={12}/> Электроустановки
+                        <Zap size={12}/> {t('electrical.header.badge')}
                      </span>
-                     <span className="text-slate-400 text-sm font-mono">Стандарт РК</span>
+                     <span className="text-slate-400 text-sm font-mono">{t('electrical.header.ref')}</span>
                    </div>
                </div>
             </div>
