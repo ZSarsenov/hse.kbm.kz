@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, AlertTriangle, Zap, ArrowRight } from 'lucide-react';
 import { PermitCategory } from '../types';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface PermitTypeSelectorProps {
   isOpen: boolean;
@@ -11,6 +12,8 @@ interface PermitTypeSelectorProps {
 
 export const PermitTypeSelector: React.FC<PermitTypeSelectorProps> = ({ isOpen, onClose, onSelect }) => {
   const { t } = useTranslation();
+  const cardRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(cardRef, isOpen);
 
   // Escape — закрыть окно
   useEffect(() => {
@@ -39,7 +42,7 @@ export const PermitTypeSelector: React.FC<PermitTypeSelectorProps> = ({ isOpen, 
       />
 
       {/* Modal */}
-      <div className="pts-pop relative bg-white w-full max-w-xl rounded-2xl border border-slate-200/80 shadow-[0_24px_64px_-16px_rgba(6,32,58,0.35)] overflow-hidden">
+      <div ref={cardRef} role="dialog" aria-modal="true" aria-label={t('permitType.title')} className="pts-pop relative bg-white w-full max-w-xl rounded-2xl border border-slate-200/80 shadow-[0_24px_64px_-16px_rgba(6,32,58,0.35)] overflow-hidden">
 
         {/* Header — в стиле секций форм: капитель + графитовое подчёркивание */}
         <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b-2 border-slate-900">

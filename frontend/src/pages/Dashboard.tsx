@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Calendar, MapPin, Search, Download, Plus, ChevronRight, Building2, SlidersHorizontal, User, ChevronLeft, Filter } from 'lucide-react';
 import { WorkPermit, PermitStatus } from '../types';
@@ -26,40 +26,43 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
   const user = JSON.parse(localStorage.getItem('user_data') || '{}');
   const canCreatePermit = user.role === 'ISSUER' || user.role === 'ADMITTING' || user.role === 'ADMIN';
 
-  // 🔥 НОВАЯ ЛОГИКА ФИЛЬТРАЦИИ
-  let filteredPermits = permits.filter(p => {
-    // Является ли наряд архивным? (Закрыт или Отклонен)
-    const isArchived = p.status === 'CLOSED' || p.status === 'REJECTED';
+  // 🔥 НОВАЯ ЛОГИКА ФИЛЬТРАЦИИ (мемоизирована — не пересчитывается на каждый рендер)
+  const filteredPermits = useMemo(() => {
+    let result = permits.filter(p => {
+      // Является ли наряд архивным? (Закрыт или Отклонен)
+      const isArchived = p.status === 'CLOSED' || p.status === 'REJECTED';
 
-    // Если режим АРХИВА -> показываем только архивные
-    // Если режим ГЛАВНОЙ -> показываем только активные
-    if (isArchiveView) {
-        if (!isArchived) return false;
-    } else {
-        if (isArchived) return false;
-    }
+      // Если режим АРХИВА -> показываем только архивные
+      // Если режим ГЛАВНОЙ -> показываем только активные
+      if (isArchiveView) {
+          if (!isArchived) return false;
+      } else {
+          if (isArchived) return false;
+      }
 
-    const matchesStatus = filterStatus === 'ALL' || p.status === filterStatus;
-    const query = searchQuery.toLowerCase();
-    const matchesSearch = 
-      (p.permitId?.toLowerCase() || '').includes(query) ||
-      (p.initiator?.name?.toLowerCase() || '').includes(query) ||
-      (p.location?.name?.toLowerCase() || '').includes(query) ||
-      (p.data?.workName?.toLowerCase() || '').includes(query);
-    return matchesStatus && matchesSearch;
-  });
-
-  // В Журнале: дополнительный фильтр по периоду (С / По)
-  if (isArchiveView && (dateFrom || dateTo)) {
-    filteredPermits = filteredPermits.filter(p => {
-      const d = p.validFrom ? new Date(p.validFrom) : null;
-      if (!d) return false;
-      const day = d.toISOString().slice(0, 10);
-      if (dateFrom && day < dateFrom) return false;
-      if (dateTo && day > dateTo) return false;
-      return true;
+      const matchesStatus = filterStatus === 'ALL' || p.status === filterStatus;
+      const query = searchQuery.toLowerCase();
+      const matchesSearch =
+        (p.permitId?.toLowerCase() || '').includes(query) ||
+        (p.initiator?.name?.toLowerCase() || '').includes(query) ||
+        (p.location?.name?.toLowerCase() || '').includes(query) ||
+        (p.data?.workName?.toLowerCase() || '').includes(query);
+      return matchesStatus && matchesSearch;
     });
-  }
+
+    // В Журнале: дополнительный фильтр по периоду (С / По)
+    if (isArchiveView && (dateFrom || dateTo)) {
+      result = result.filter(p => {
+        const d = p.validFrom ? new Date(p.validFrom) : null;
+        if (!d) return false;
+        const day = d.toISOString().slice(0, 10);
+        if (dateFrom && day < dateFrom) return false;
+        if (dateTo && day > dateTo) return false;
+        return true;
+      });
+    }
+    return result;
+  }, [permits, isArchiveView, filterStatus, searchQuery, dateFrom, dateTo]);
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredPermits.length / ITEMS_PER_PAGE);

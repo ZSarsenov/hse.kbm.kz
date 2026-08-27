@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Plus, Trash2, Save, FileText, AlertTriangle, Users, CheckCircle2, Check, Lock, Zap, ShieldAlert, Building, Edit3, ClipboardCheck, Paperclip, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, FileText, AlertTriangle, Users, CheckCircle2, Lock, Zap, ShieldAlert, Building, Edit3, ClipboardCheck, Paperclip, X } from 'lucide-react';
+import { Stepper } from '../components/Stepper';
 import { TeamMember, RegulationFormData, UserRole, WORK_TYPES_LIST, RiskTableRow, RiskGroupMember, PermitExtension, PermitCategory, WorkPermit } from '../types';
 import { IsolationMatrixForm } from '../components/IsolationMatrixForm';
 import { ElectricalPermitFormNew } from '../components/ElectricalPermitFormNew';
 import { UserSearchSelect } from '../components/UserSearchSelect';
 import { SearchableSelect } from  "../components/SearchableSelect"
 import ChecklistSection, { ChecklistData, validateRequiredChecklists } from '../components/ChecklistSection';
-import { WellMap } from '../components/WellMap';
+// Карта тяжёлая (maplibre-gl) — грузим лениво, отдельным чанком, только при показе
+const WellMap = React.lazy(() => import('../components/WellMap').then(m => ({ default: m.WellMap })));
 
 
 // Интерфейс для объекта пользователя в роли
@@ -675,41 +677,12 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
          </div>
       </div>
 
-       {/* Stepper — круги с номерами и соединители */}
-       <div className="bg-white px-4 py-3 rounded-xl border border-gray-200 shadow-sm">
-         <div className="flex items-start">
-           {STEPS.map((step, idx) => (
-             <React.Fragment key={step.id}>
-               {idx > 0 && (
-                 <div className={`flex-1 h-0.5 mt-[15px] mx-1 rounded-full transition-colors ${activeStep >= step.id ? 'bg-[#0A3D62]' : 'bg-slate-200'}`} />
-               )}
-               <button
-                 onClick={() => setActiveStep(step.id)}
-                 className="flex flex-col items-center gap-1.5 group min-w-[64px]"
-               >
-                 <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all ${
-                   activeStep > step.id
-                     ? 'bg-[#0A3D62] border-[#0A3D62] text-white'
-                     : step.id === activeStep
-                       ? 'bg-blue-600 border-blue-600 text-white ring-4 ring-blue-100'
-                       : 'bg-white border-slate-200 text-slate-400 group-hover:border-blue-300 group-hover:text-blue-500'
-                 }`}>
-                   {activeStep > step.id ? <Check size={16} strokeWidth={3} /> : step.id}
-                 </span>
-                 <span className={`text-[11px] font-semibold leading-tight text-center transition-colors ${
-                   step.id === activeStep
-                     ? 'text-blue-700'
-                     : activeStep > step.id
-                       ? 'text-slate-600'
-                       : 'text-slate-400 group-hover:text-blue-500'
-                 }`}>
-                   {step.label}
-                 </span>
-               </button>
-             </React.Fragment>
-           ))}
-         </div>
-       </div>
+       {/* Stepper — общий компонент форм нарядов */}
+       <Stepper
+         steps={STEPS}
+         currentIdx={activeStep - 1}
+         onSelect={(id) => setActiveStep(Number(id))}
+       />
 
        {/* Form Content */}
 
@@ -783,10 +756,12 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <WellMap
-                      onSelectWell={handleSelectWell}
-                      selectedWell={formData.workPlace || undefined}
-                    />
+                    <React.Suspense fallback={<div className="h-[400px] rounded-xl border border-slate-200 bg-slate-100 animate-pulse" />}>
+                      <WellMap
+                        onSelectWell={handleSelectWell}
+                        selectedWell={formData.workPlace || undefined}
+                      />
+                    </React.Suspense>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">{t('create.general.workContent')}</label>

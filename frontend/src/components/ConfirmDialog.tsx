@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { AlertTriangle, HelpCircle } from 'lucide-react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 /**
  * Стилизованный диалог подтверждения взамен window.confirm().
@@ -39,6 +40,8 @@ export const ConfirmDialog: React.FC = () => {
   const [state, setState] = useState<State | null>(null);
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
   const cancelBtnRef = useRef<HTMLButtonElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(cardRef, !!state);
 
   const handle = useCallback((opts: ConfirmOptions) => {
     return new Promise<boolean>((resolve) => {
@@ -88,6 +91,7 @@ export const ConfirmDialog: React.FC = () => {
       `}</style>
 
       <div
+        ref={cardRef}
         role="alertdialog"
         aria-modal="true"
         aria-label={state.title || state.message}
