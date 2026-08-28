@@ -1,21 +1,27 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
-import { PermitDetail } from './pages/PermitDetail';
-import { CreatePermit } from './pages/CreatePermit';
 import { Login } from './pages/Login';
-import { LotoReports } from './pages/LotoReports';
-import { AuditStatistics } from './pages/AuditStatistics';
-import { MyTasks } from './pages/MyTasks';
 import { PermitTypeSelector } from './components/PermitTypeSelector';
 import { ConfirmDialog, confirm as confirmDialog } from './components/ConfirmDialog';
 import { Toasts, toast } from './components/Toasts';
 import { CardErrorBoundary } from './components/ErrorBoundary';
 import { formatPermit } from './utils/formatPermit';
 import { ModuleSelector } from './components/ModuleSelector';
+import { ListSkeleton } from './components/Skeleton';
 import { WorkPermit, PageView, PermitCategory } from './types';
-import { AIAssistant } from './components/AIAssistant';
+
+// Тяжёлые экраны подгружаются лениво — стартовый чанк меньше, первый вход быстрее.
+// Карта (maplibre) уезжает в отдельный чанк внутри CreatePermit/WellMap.
+const PermitDetail = lazy(() => import('./pages/PermitDetail').then(m => ({ default: m.PermitDetail })));
+const CreatePermit = lazy(() => import('./pages/CreatePermit').then(m => ({ default: m.CreatePermit })));
+const LotoReports = lazy(() => import('./pages/LotoReports').then(m => ({ default: m.LotoReports })));
+const AuditStatistics = lazy(() => import('./pages/AuditStatistics').then(m => ({ default: m.AuditStatistics })));
+const MyTasks = lazy(() => import('./pages/MyTasks').then(m => ({ default: m.MyTasks })));
+const AIAssistant = lazy(() => import('./components/AIAssistant').then(m => ({ default: m.AIAssistant })));
+
+const PageFallback = () => <div className="p-2 md:p-4"><ListSkeleton rows={6} /></div>;
 
 function App() {
   const { t } = useTranslation();
@@ -390,6 +396,7 @@ function App() {
         {(currentView === 'DASHBOARD' || currentView === 'ARCHIVE') && (
           selectedPermitId && getSelectedPermit() ? (
               <CardErrorBoundary>
+              <Suspense fallback={<PageFallback />}>
               <PermitDetail
                 permit={getSelectedPermit()!}
                 onBack={handleNavigateDashboard}
@@ -397,13 +404,11 @@ function App() {
                 onDelete={() => handleDeletePermit(selectedPermitId)}
                 onRefresh={refetchSelectedPermit}
               />
+              </Suspense>
               </CardErrorBoundary>
           ) : (
               isLoading ? (
-                  <div className="flex flex-col justify-center items-center h-full min-h-[50vh] text-slate-500">
-                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-blue-600 mb-4"></div>
-                      <p>Загрузка данных...</p>
-                  </div>
+                  <ListSkeleton rows={8} />
               ) : (
                   <Dashboard
                     permits={permits}
@@ -418,14 +423,17 @@ function App() {
 
         {/* СТРАНИЦА "МОИ ЗАДАЧИ" */}
         {currentView === 'MY_TASKS' && (
+            <Suspense fallback={<PageFallback />}>
             <MyTasks onSelectPermit={handleSelectPermit} />
+            </Suspense>
         )}
 
         {/* ПРОСМОТР НАРЯДА С ИНДИКАТОРОМ ЗАГРУЗКИ */}
         {currentView === 'DETAIL' && selectedPermitId && (
-          // Если наряд найден — показываем его, иначе — спиннер загрузки
+          // Если наряд найден — показываем его, иначе — скелетон загрузки
           getSelectedPermit() ? (
               <CardErrorBoundary>
+              <Suspense fallback={<PageFallback />}>
               <PermitDetail
                 permit={getSelectedPermit()!}
                 onBack={handleNavigateDashboard}
@@ -433,34 +441,38 @@ function App() {
                 onDelete={() => handleDeletePermit(selectedPermitId)}
                 onRefresh={refetchSelectedPermit}
               />
+              </Suspense>
               </CardErrorBoundary>
           ) : (
-              <div className="flex flex-col justify-center items-center h-full min-h-[50vh] text-slate-500">
-                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-blue-600 mb-4"></div>
-                  <p>Загрузка данных наряда...</p>
-              </div>
+              <ListSkeleton rows={6} />
           )
         )}
 
         {/* СОЗДАНИЕ / РЕДАКТИРОВАНИЕ */}
         {currentView === 'CREATE' && (
+          <Suspense fallback={<PageFallback />}>
           <CreatePermit
             category={selectedCategory}
             onCancel={handleCloseCreate}
             onSubmit={handleSubmitNew}
             initialData={editingPermit}
           />
+          </Suspense>
         )}
 
         {/* ОТЧЕТЫ LOTO */}
         {currentView === 'LOTO_REPORTS' && (
+          <Suspense fallback={<PageFallback />}>
           <LotoReports
              onNavigateToPermit={handleSelectPermit}
           />
+          </Suspense>
         )}
 
         {currentView === 'AUDIT_STATS' && (
+          <Suspense fallback={<PageFallback />}>
           <AuditStatistics />
+          </Suspense>
         )}
       </Layout>
 
@@ -470,7 +482,9 @@ function App() {
         onSelect={handleSelectCategory}
       />
       {/* 👇 2. ВСТАВЛЯЕМ АССИСТЕНТА СЮДА (ПЕРЕД ЗАКРЫВАЮЩИМ ТЕГОМ) */}
-      <AIAssistant />
+      <Suspense fallback={null}>
+        <AIAssistant />
+      </Suspense>
 
       {/* Стилизованные диалоги подтверждения (вместо window.confirm) */}
       <ConfirmDialog />

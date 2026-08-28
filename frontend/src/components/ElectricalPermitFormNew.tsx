@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
    Plus, Trash2, Zap, Clock, Users, ShieldAlert,
-   FileText, Calendar, ChevronDown, CheckCircle2, Check,
+   FileText, Calendar, ChevronDown, CheckCircle2,
    PenTool, Building, AlertTriangle, Lock, ShieldCheck,
    ArrowLeft, UserPlus, UserMinus, ClipboardList, FileCheck
 } from 'lucide-react';
@@ -20,6 +20,7 @@ import {
 } from '../types';
 import { IsolationMatrixForm } from './IsolationMatrixForm';
 import { RiskAssessmentWidget } from './RiskAssessmentWidget';
+import { Stepper } from './Stepper';
 
 
 interface Props {
@@ -1046,64 +1047,25 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
       </div>
    );
 
+   // Вкладки степпера (в режиме просмотра добавляется «Журнал допуска»)
+   const TABS: { id: TabKey; label: string }[] = [
+     { id: 'main', label: t('electrical.tabs.main') },
+     { id: 'backside', label: t('electrical.tabs.backside') },
+     ...(isReadonly ? [{ id: 'lifecycle' as TabKey, label: t('electrical.tabs.lifecycle') }] : []),
+     { id: 'risks', label: t('electrical.tabs.risks') },
+     { id: 'loto', label: t('electrical.tabs.loto') },
+   ];
+
    return (
       <div className="w-full space-y-6 ">
          {/* Заголовок формы (передаётся снаружи) */}
          {header}
-         {/* STEPPER — круги с номерами и соединители; живёт в шапке формы и уезжает при прокрутке */}
-         {(() => {
-            const tabs: { id: TabKey; label: string }[] = isReadonly
-              ? [
-                  { id: 'main', label: t('electrical.tabs.main') },
-                  { id: 'backside', label: t('electrical.tabs.backside') },
-                  { id: 'lifecycle', label: t('electrical.tabs.lifecycle') },
-                  { id: 'risks', label: t('electrical.tabs.risks') },
-                  { id: 'loto', label: t('electrical.tabs.loto') },
-                ]
-              : [
-                  { id: 'main', label: t('electrical.tabs.main') },
-                  { id: 'backside', label: t('electrical.tabs.backside') },
-                  { id: 'risks', label: t('electrical.tabs.risks') },
-                  { id: 'loto', label: t('electrical.tabs.loto') },
-                ];
-            const currentIdx = Math.max(0, tabs.findIndex(t => t.id === activeTab));
-            return (
-              <div className="bg-white px-4 py-3 rounded-xl border border-gray-200 shadow-sm">
-                <div className="flex items-start">
-                  {tabs.map((tab, idx) => (
-                    <React.Fragment key={tab.id}>
-                      {idx > 0 && (
-                         <div className={`flex-1 h-0.5 mt-[15px] mx-1 rounded-full transition-colors ${currentIdx >= idx ? 'bg-[#0A3D62]' : 'bg-slate-200'}`} />
-                      )}
-                      <button
-                         onClick={() => setActiveTab(tab.id)}
-                         className="flex flex-col items-center gap-1.5 group min-w-[56px] sm:min-w-[64px]"
-                      >
-                         <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all ${
-                           idx < currentIdx
-                             ? 'bg-[#0A3D62] border-[#0A3D62] text-white'
-                             : idx === currentIdx
-                               ? 'bg-blue-600 border-blue-600 text-white ring-4 ring-blue-100'
-                               : 'bg-white border-slate-200 text-slate-400 group-hover:border-blue-300 group-hover:text-blue-500'
-                         }`}>
-                           {idx < currentIdx ? <Check size={16} strokeWidth={3} /> : idx + 1}
-                         </span>
-                         <span className={`text-[11px] font-semibold leading-tight text-center transition-colors ${
-                           idx === currentIdx
-                             ? 'text-blue-700'
-                             : idx < currentIdx
-                               ? 'text-slate-600'
-                               : 'text-slate-400 group-hover:text-blue-500'
-                         }`}>
-                           {tab.label}
-                         </span>
-                      </button>
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-            );
-         })()}
+         {/* STEPPER — общий компонент форм нарядов */}
+         <Stepper
+            steps={TABS}
+            currentIdx={Math.max(0, TABS.findIndex(x => x.id === activeTab))}
+            onSelect={(id) => setActiveTab(id as TabKey)}
+         />
 
          {/* FORM CONTENT */}
          <div className="w-full">

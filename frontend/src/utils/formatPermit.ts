@@ -1,11 +1,39 @@
 import { WorkPermit } from '../types';
 
+/** Сырой наряд в формате API (snake_case) — как его отдаёт бэкенд */
+export interface RawPermit {
+  id: string | number;
+  permit_id?: string | null;
+  templateType?: string | null;
+  status?: string;
+  scan_file?: string | null;
+  safety_document?: string | null;
+  loto_photo?: string | null;
+  initiator?: {
+    name?: string | null;
+    last_name?: string | null;
+    first_name?: string | null;
+    surname?: string | null;
+    position?: string | null;
+    iin?: string | null;
+    bin?: string | null;
+    id?: number;
+  } | null;
+  location_name?: string | null;
+  created_at?: string;
+  valid_from?: string | null;
+  valid_to?: string | null;
+  data?: Record<string, any>;
+  approval_steps?: any[];
+  producer_closed?: boolean;
+}
+
 /**
  * Единственное место приведения сырого объекта наряда из API
  * к формату фронтенда (camelCase + подстраховка пустых полей).
  * Раньше логика была скопирована в трёх местах App.tsx и могла расходиться.
  */
-export const formatPermit = (p: any): WorkPermit => ({
+export const formatPermit = (p: RawPermit): WorkPermit => ({
   id: p.id,
   permitId: p.permit_id || 'Черновик',
   templateType: p.templateType || 'Наряд повышенной опасности',
