@@ -1126,12 +1126,16 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                      <div className="pb-6 border-b border-slate-100">
                         <span className="text-[10px] font-bold text-slate-400 uppercase">{t('electrical.labels.brigadeList')}</span>
                         <ul className="mt-2 space-y-2">
-                           {(formData.brigadeMembers || []).map((m, i) => m && (
-                              <li key={i} className="flex items-center justify-between text-sm font-bold border-l-4 border-blue-500 pl-3 py-1 bg-slate-50">
-                                 {m}
-                                 <span className="text-[9px] text-emerald-600">ЭЦП OK</span>
-                              </li>
-                           ))}
+                           {(formData.brigadeMembers || []).map((m, i) => {
+                              const name = typeof m === 'string' ? m : (m as any)?.name || '';
+                              if (!name) return null;
+                              return (
+                                 <li key={i} className="flex items-center justify-between text-sm font-bold border-l-4 border-blue-500 pl-3 py-1 bg-slate-50">
+                                    {name}
+                                    <span className="text-[9px] text-emerald-600">ЭЦП OK</span>
+                                 </li>
+                              );
+                           })}
                         </ul>
                      </div>
                   </div>

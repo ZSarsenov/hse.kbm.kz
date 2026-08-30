@@ -277,13 +277,13 @@ export const ElectricalPermitForm: React.FC<Props> = ({
            </div>
            <div className="md:col-span-2">
               <label className={labelClasses}>Бригада мүшелері / С членами бригады:</label>
-              <textarea 
-                className={`${inputClasses} h-20 resize-none`} 
-                placeholder="Перечислите членов бригады (ФИО, группа по электробезопасности)"
-                value={formData.brigadeMembers.join(', ')}
-                onChange={e => updateField('brigadeMembers', e.target.value.split(', '))}
-                disabled={isReadonly}
-              />
+               <textarea 
+                 className={`${inputClasses} h-20 resize-none`} 
+                 placeholder="Перечислите членов бригады (ФИО, группа по электробезопасности)"
+                 value={(formData.brigadeMembers || []).map((m: any) => typeof m === 'string' ? m : (m?.name || '')).join(', ')}
+                 onChange={e => updateField('brigadeMembers', e.target.value.split(', '))}
+                 disabled={isReadonly}
+               />
            </div>
         </div>
 
@@ -752,11 +752,14 @@ export const ElectricalPermitForm: React.FC<Props> = ({
                           <div className="font-bold mb-1">Жұмыс жүргізуші / Производитель работ</div>
                           <div className="border-b border-gray-300 h-6 mb-1"></div>
                           <div className="font-bold mb-1 mt-2">Бригада мүшелері / Члены бригады</div>
-                          <ul className="list-disc pl-4 space-y-1">
-                             {formData.brigadeMembers.map((m, i) => (
-                                <li key={i}>{m} <span className="text-gray-400 italic text-[9px] ml-2">(ЭЦП)</span></li>
-                             ))}
-                          </ul>
+                           <ul className="list-disc pl-4 space-y-1">
+                              {(formData.brigadeMembers || []).map((m: any, i: number) => {
+                                 const name = typeof m === 'string' ? m : (m?.name || '');
+                                 return (
+                                    <li key={i}>{name} <span className="text-gray-400 italic text-[9px] ml-2">(ЭЦП)</span></li>
+                                 );
+                              })}
+                           </ul>
                        </td>
                     </tr>
                  </tbody>
