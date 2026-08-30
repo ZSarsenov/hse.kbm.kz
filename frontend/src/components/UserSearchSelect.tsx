@@ -19,6 +19,7 @@ interface UserSearchSelectProps {
   requiredRole?: string; // 👇 Новая фишка: Требуемая роль
   required?: boolean; // Показывать звёздочку (*) как обязательное поле (по умолчанию true)
   excludeIds?: number[]; // ID пользователей, уже выбранных в других ролях
+  hideLabel?: boolean; // Не рендерить label (для компактного использования в списках)
 }
 
 // Словарь для красивого отображения ролей (можно вынести в types)
@@ -40,7 +41,8 @@ export const UserSearchSelect: React.FC<UserSearchSelectProps> = ({
   disabled = false,
   requiredRole,
   required = true,
-  excludeIds = []
+  excludeIds = [],
+  hideLabel = false
 }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UserData[]>([]);
@@ -126,10 +128,12 @@ export const UserSearchSelect: React.FC<UserSearchSelectProps> = ({
 
   return (
     <div className="relative" ref={wrapperRef}>
-      <label className="block text-sm font-semibold text-gray-700 mb-2">
-        {label}
-        {required && requiredRole && <span className="text-red-500 ml-1">*</span>}
-      </label>
+      {!hideLabel && (
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          {label}
+          {required && requiredRole && <span className="text-red-500 ml-1">*</span>}
+        </label>
+      )}
 
       <div className="relative">
         <input

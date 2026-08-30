@@ -21,6 +21,7 @@ import {
 import { IsolationMatrixForm } from './IsolationMatrixForm';
 import { RiskAssessmentWidget } from './RiskAssessmentWidget';
 import { Stepper } from './Stepper';
+import { UserSearchSelect } from './UserSearchSelect';
 
 
 interface Props {
@@ -245,170 +246,168 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                <Users size={24} className="text-blue-600" />{t('electrical.sec.responsible')}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.workManager')}</label>
-                  <div className="flex gap-2">
-                     <input
-                        className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
-                        placeholder={t('electrical.ph.fio')}
-                        value={formData.workManagerId}
-                        onChange={e => updateField('workManagerId', e.target.value)}
-                        disabled={isReadonly}
-                     />
-                     <select
-                        className="w-20 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        value={formData.workManagerGroup || ''}
-                        onChange={e => updateField('workManagerGroup', e.target.value)}
-                        disabled={isReadonly}
-                     >
-                        <option value="">{t('electrical.misc.group')}</option>
-                        <option value="1">I</option>
-                        <option value="2">II</option>
-                        <option value="3">III</option>
-                        <option value="4">IV</option>
-                        <option value="5">V</option>
-                     </select>
-                  </div>
-               </div>
-               <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.admitting')}</label>
-                  <div className="flex gap-2">
-                     <input
-                        className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
-                        placeholder={t('electrical.ph.fio')}
-                        value={formData.admittingAuthorityId}
-                        onChange={e => updateField('admittingAuthorityId', e.target.value)}
-                        disabled={isReadonly}
-                     />
-                     <select
-                        className="w-20 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        value={formData.admittingAuthorityGroup || ''}
-                        onChange={e => updateField('admittingAuthorityGroup', e.target.value)}
-                        disabled={isReadonly}
-                     >
-                        <option value="">{t('electrical.misc.group')}</option>
-                        <option value="1">I</option>
-                        <option value="2">II</option>
-                        <option value="3">III</option>
-                        <option value="4">IV</option>
-                        <option value="5">V</option>
-                     </select>
-                  </div>
-               </div>
-               <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.producer')}</label>
-                  <div className="flex gap-2">
-                     <input
-                        className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
-                        placeholder={t('electrical.ph.fio')}
-                        value={formData.workProducerId}
-                        onChange={e => updateField('workProducerId', e.target.value)}
-                        disabled={isReadonly}
-                     />
-                     <select
-                        className="w-20 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        value={formData.workProducerGroup || ''}
-                        onChange={e => updateField('workProducerGroup', e.target.value)}
-                        disabled={isReadonly}
-                     >
-                        <option value="">{t('electrical.misc.group')}</option>
-                        <option value="1">I</option>
-                        <option value="2">II</option>
-                        <option value="3">III</option>
-                        <option value="4">IV</option>
-                        <option value="5">V</option>
-                     </select>
-                  </div>
-               </div>
-               <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.observer')}</label>
-                  <div className="flex gap-2">
-                     <input
-                        className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
-                        placeholder={t('electrical.ph.fio')}
-                        value={formData.observerId}
-                        onChange={e => updateField('observerId', e.target.value)}
-                        disabled={isReadonly}
-                     />
-                     <select
-                        className="w-20 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        value={formData.observerGroup || ''}
-                        onChange={e => updateField('observerGroup', e.target.value)}
-                        disabled={isReadonly}
-                     >
-                        <option value="">{t('electrical.misc.group')}</option>
-                        <option value="1">I</option>
-                        <option value="2">II</option>
-                        <option value="3">III</option>
-                        <option value="4">IV</option>
-                        <option value="5">V</option>
-                     </select>
-                  </div>
-               </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                   <UserSearchSelect
+                      label={t('electrical.labels.workManager')}
+                      value={formData.workManagerId}
+                      required={false}
+                      onChange={(user) => updateField('workManagerId', user ? user.name : '')}
+                      placeholder={t('electrical.ph.fio')}
+                      disabled={isReadonly}
+                   />
+                   <select
+                      className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors mt-2"
+                      value={formData.workManagerGroup || ''}
+                      onChange={e => updateField('workManagerGroup', e.target.value)}
+                      disabled={isReadonly}
+                   >
+                      <option value="">{t('electrical.misc.group')}</option>
+                      <option value="1">I</option>
+                      <option value="2">II</option>
+                      <option value="3">III</option>
+                      <option value="4">IV</option>
+                      <option value="5">V</option>
+                   </select>
+                </div>
+                <div>
+                   <UserSearchSelect
+                      label={t('electrical.labels.admitting')}
+                      value={formData.admittingAuthorityId}
+                      required={false}
+                      onChange={(user) => updateField('admittingAuthorityId', user ? user.name : '')}
+                      placeholder={t('electrical.ph.fio')}
+                      disabled={isReadonly}
+                   />
+                   <select
+                      className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors mt-2"
+                      value={formData.admittingAuthorityGroup || ''}
+                      onChange={e => updateField('admittingAuthorityGroup', e.target.value)}
+                      disabled={isReadonly}
+                   >
+                      <option value="">{t('electrical.misc.group')}</option>
+                      <option value="1">I</option>
+                      <option value="2">II</option>
+                      <option value="3">III</option>
+                      <option value="4">IV</option>
+                      <option value="5">V</option>
+                   </select>
+                </div>
+                <div>
+                   <UserSearchSelect
+                      label={t('electrical.labels.producer')}
+                      value={formData.workProducerId}
+                      required={false}
+                      onChange={(user) => updateField('workProducerId', user ? user.name : '')}
+                      placeholder={t('electrical.ph.fio')}
+                      disabled={isReadonly}
+                   />
+                   <select
+                      className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors mt-2"
+                      value={formData.workProducerGroup || ''}
+                      onChange={e => updateField('workProducerGroup', e.target.value)}
+                      disabled={isReadonly}
+                   >
+                      <option value="">{t('electrical.misc.group')}</option>
+                      <option value="1">I</option>
+                      <option value="2">II</option>
+                      <option value="3">III</option>
+                      <option value="4">IV</option>
+                      <option value="5">V</option>
+                   </select>
+                </div>
+                <div>
+                   <UserSearchSelect
+                      label={t('electrical.labels.observer')}
+                      value={formData.observerId || ''}
+                      required={false}
+                      onChange={(user) => updateField('observerId', user ? user.name : '')}
+                      placeholder={t('electrical.ph.fio')}
+                      disabled={isReadonly}
+                   />
+                   <select
+                      className="w-full bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors mt-2"
+                      value={formData.observerGroup || ''}
+                      onChange={e => updateField('observerGroup', e.target.value)}
+                      disabled={isReadonly}
+                   >
+                      <option value="">{t('electrical.misc.group')}</option>
+                      <option value="1">I</option>
+                      <option value="2">II</option>
+                      <option value="3">III</option>
+                      <option value="4">IV</option>
+                      <option value="5">V</option>
+                   </select>
+                </div>
 
-               {/* Brigade Members */}
-               <div className="md:col-span-2 pt-4 border-t border-gray-100">
-                  <div className="flex justify-between items-center mb-3">
-                     <label className="block text-sm font-semibold text-gray-700">{t('electrical.labels.brigadeMembers')}</label>
-                     {!isReadonly && (
-                        <button
-                           onClick={() => updateField('brigadeMembers', [...(formData.brigadeMembers || []), { name: '', group: '' }])}
-                           className="text-blue-600 font-semibold hover:bg-blue-50 px-3 py-1 rounded flex items-center gap-1"
-                        >
-                           <Plus size={16} />{t('electrical.btn.addMember')}</button>
-                     )}
-                  </div>
-                  <div className="space-y-2">
-                     {(formData.brigadeMembers || []).map((member, index) => {
-                        // Support both old string format and new object format
-                        const memberObj = typeof member === 'string' ? { name: member, group: '' } : member;
-                        return (
-                           <div key={index} className="flex gap-2 items-center">
-                              <span className="text-xs text-gray-400 w-6">{index + 1}.</span>
-                              <input
-                                 className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
-                                 placeholder={t('electrical.ph.fio')}
-                                 value={memberObj.name || ''}
-                                 onChange={e => {
-                                    const updated = [...(formData.brigadeMembers || [])];
-                                    updated[index] = { ...memberObj, name: e.target.value };
-                                    updateField('brigadeMembers', updated);
-                                 }}
-                                 disabled={isReadonly}
-                              />
-                              <input
-                                 className="w-72 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
-                                 placeholder={t('electrical.ph.group')}
-                                 value={memberObj.group || ''}
-                                 onChange={e => {
-                                    const updated = [...(formData.brigadeMembers || [])];
-                                    updated[index] = { ...memberObj, group: e.target.value };
-                                    updateField('brigadeMembers', updated);
-                                 }}
-                                 disabled={isReadonly}
-                              />
-                              {!isReadonly && (
-                                 <button
-                                    onClick={() => {
-                                       const updated = (formData.brigadeMembers || []).filter((_, i) => i !== index);
-                                       updateField('brigadeMembers', updated);
-                                    }}
-                                    className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                                 >
-                                    <Trash2 size={16} />
-                                 </button>
-                              )}
-                           </div>
-                        );
-                     })}
-                     {(formData.brigadeMembers || []).length === 0 && (
-                        <p className="text-gray-400 text-sm italic">{t('electrical.misc.brigadeHint')}</p>
-                     )}
-                  </div>
-               </div>
-            </div>
-         </div>
+                {/* Brigade Members */}
+                <div className="md:col-span-2 pt-4 border-t border-gray-100">
+                   <div className="flex justify-between items-center mb-3">
+                      <label className="block text-sm font-semibold text-gray-700">{t('electrical.labels.brigadeMembers')}</label>
+                      {!isReadonly && (
+                         <button
+                            onClick={() => updateField('brigadeMembers', [...(formData.brigadeMembers || []), { name: '', group: '' }])}
+                            disabled={(formData.brigadeMembers || []).length >= 10}
+                            className={`flex items-center gap-1 px-3 py-1 rounded font-semibold ${(formData.brigadeMembers || []).length >= 10 ? 'text-gray-300 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50'}`}
+                         >
+                            <Plus size={16} />{t('electrical.btn.addMember')}
+                         </button>
+                      )}
+                   </div>
+                   <div className="space-y-2">
+                      {(formData.brigadeMembers || []).map((member, index) => {
+                         // Support both old string format and new object format
+                         const memberObj = typeof member === 'string' ? { name: member, group: '' } : member;
+                         return (
+                            <div key={index} className="flex gap-2 items-start">
+                               <span className="text-xs text-gray-400 w-6 pt-2">{index + 1}.</span>
+                               <div className="flex-1">
+                                  <UserSearchSelect
+                                     label=""
+                                     hideLabel
+                                     value={memberObj.name || ''}
+                                     required={false}
+                                     onChange={(user) => {
+                                        const updated = [...(formData.brigadeMembers || [])];
+                                        updated[index] = { ...memberObj, name: user ? user.name : '' };
+                                        updateField('brigadeMembers', updated);
+                                     }}
+                                     placeholder={t('electrical.ph.fio')}
+                                     disabled={isReadonly}
+                                  />
+                               </div>
+                               <input
+                                  className="w-40 bg-[#f7f7f7] border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder-gray-400 transition-all"
+                                  placeholder={t('electrical.ph.group')}
+                                  value={memberObj.group || ''}
+                                  onChange={e => {
+                                     const updated = [...(formData.brigadeMembers || [])];
+                                     updated[index] = { ...memberObj, group: e.target.value };
+                                     updateField('brigadeMembers', updated);
+                                  }}
+                                  disabled={isReadonly}
+                               />
+                               {!isReadonly && (
+                                  <button
+                                     onClick={() => {
+                                        const updated = (formData.brigadeMembers || []).filter((_, i) => i !== index);
+                                        updateField('brigadeMembers', updated);
+                                     }}
+                                     className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                  >
+                                     <Trash2 size={16} />
+                                  </button>
+                               )}
+                            </div>
+                         );
+                      })}
+                      {(formData.brigadeMembers || []).length === 0 && (
+                         <p className="text-gray-400 text-sm italic">{t('electrical.misc.brigadeHint')}</p>
+                      )}
+                   </div>
+                </div>
+             </div>
+          </div>
 
          {/* Section 3: Work Details */}
          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
