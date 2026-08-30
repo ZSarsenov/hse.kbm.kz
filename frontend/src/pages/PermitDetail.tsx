@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import {
-  ArrowLeft, MapPin, User, Clock, FileText, CheckCircle2, AlertTriangle, FileSignature, XCircle, Download, Shield, Users, Edit3, Trash2, Copy, FlaskConical
+  ArrowLeft, MapPin, User, Clock, FileText, CheckCircle2, AlertTriangle, FileSignature, XCircle, Download, Shield, Users, Edit3, Trash2, Copy, FlaskConical, Zap
 } from 'lucide-react';
 import { WorkPermit, PermitCategory, ElectricalLifecycle } from '../types';
 import { confirm as confirmDialog } from '../components/ConfirmDialog';
 import { StatusBadge } from '../components/StatusBadge';
-import { ElectricalPermitForm } from '../components/ElectricalPermitForm';
+import { ElectricalPermitFormNew } from '../components/ElectricalPermitFormNew';
 import { useNCALayer } from '../hooks/useNCALayer';
 import { ApprovalTracker } from '../components/ApprovalTracker';
 import { FileCheck, ClipboardList } from 'lucide-react';
@@ -188,15 +188,62 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
   if (permit.category === PermitCategory.ELECTRICAL) {
     return (
-      <div className="space-y-6">
+      <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
         <button onClick={onBack} className="flex items-center text-gray-500 hover:text-gray-900 transition-colors w-fit text-lg font-medium">
           <ArrowLeft size={24} className="mr-2" /> Назад к списку
         </button>
-        <ElectricalPermitForm
+        <ElectricalPermitFormNew
           mode="execution"
           initialData={data}
           initialLifecycle={lifecycle}
           onUpdateLifecycle={(updated) => setLifecycle(updated)}
+          header={
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-6 md:p-8 border-b border-gray-100 bg-gradient-to-r from-white to-slate-50/50">
+                <div className="flex items-center gap-3 mb-2">
+                  <StatusBadge status={permit.status} />
+                  <span className="text-sm font-mono text-slate-400">#{permit.permitId}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-3xl font-bold text-slate-900 leading-tight">Наряд на электроустановках</h1>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-blue-100 text-blue-700 border-blue-200">
+                    <Zap size={12}/> Электроустановки
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-600 mt-2">
+                  <MapPin size={18} className="text-blue-500" />
+                  <span className="font-medium">{data.department || 'Электроустановка'}</span>
+                </div>
+              </div>
+
+              <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-white rounded-lg shadow-sm text-blue-600"><User size={20} /></div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Инициатор</p>
+                    <p className="font-semibold text-slate-700">{initiator?.name || 'Неизвестно'}</p>
+                    <p className="text-xs text-slate-500">{initiator?.position || 'Сотрудник'}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-white rounded-lg shadow-sm text-amber-500 shrink-0"><Clock size={20} /></div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Период работ</p>
+                    <p className="font-semibold text-slate-700 leading-snug">
+                      {data.startDate ? data.startDate : '—'}{data.endDate ? ` — ${data.endDate}` : ''}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-white rounded-lg shadow-sm text-rose-500"><AlertTriangle size={20} /></div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Категория работ</p>
+                    <p className="font-semibold text-slate-700">{data.workCategory || '—'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
         />
       </div>
     );
