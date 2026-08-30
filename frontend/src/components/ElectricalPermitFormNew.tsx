@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
    Plus, Trash2, Zap, Clock, Users, ShieldAlert,
@@ -33,6 +33,8 @@ interface Props {
    onCancel?: () => void;
    /** Заголовок формы — рендерится в закреплённой группе над степпером */
    header?: React.ReactNode;
+   /** ID существующего черновика наряда (для PATCH при автосохранении) */
+   permitId?: string | number | null;
 }
 
 type TabKey = 'main' | 'backside' | 'lifecycle' | 'risks' | 'loto';
@@ -44,7 +46,8 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
    onSubmit,
    onUpdateLifecycle,
    onCancel,
-   header
+   header,
+   permitId
 }) => {
    const { t } = useTranslation();
    const isReadonly = mode === 'execution';
@@ -153,6 +156,98 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
       if (isReadonly) return;
       setFormData(prev => ({ ...prev, [field]: value }));
    };
+
+   // --- АВТОСОХРАНЕНИЕ ЧЕРНОВИКА (только в режиме create) ---
+   const [draftPermitId, setDraftPermitId] = useState<string | number | null>(permitId || null);
+   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   const autoSaveInProgressRef = useRef(false);
+
+   const hasMeaningfulData = (): boolean => {
+      return Boolean(
+         formData.workManagerId ||
+         formData.admittingAuthorityId ||
+         formData.workProducerId ||
+         formData.workCategory ||
+         formData.assignment ||
+         formData.department ||
+         formData.organization ||
+         (formData.brigadeMembers && formData.brigadeMembers.length > 0 && formData.brigadeMembers.some((m: any) => (typeof m === 'string' ? m : m?.name)?.trim()))
+      );
+   };
+
+   const buildDraftPayload = () => {
+      const fullData = {
+         ...formData,
+         category: 'ELECTRICAL',
+         templateType: 'Наряд на электроустановках',
+      };
+      return {
+         location_name: formData.department || 'Электроустановка',
+         valid_from: formData.startDate || null,
+         valid_to: formData.endDate || null,
+         data: fullData,
+      };
+   };
+
+   const persistDraft = async () => {
+      if (isReadonly || !hasMeaningfulData() || autoSaveInProgressRef.current) return;
+      autoSaveInProgressRef.current = true;
+      try {
+         const token = localStorage.getItem('auth_token');
+         const url = draftPermitId ? `/api/v1/permits/${draftPermitId}/` : '/api/v1/permits/';
+         const method = draftPermitId ? 'PATCH' : 'POST';
+         const response = await fetch(url, {
+            method,
+            headers: {
+               'Content-Type': 'application/json',
+               'Authorization': `Token ${token}`
+            },
+            body: JSON.stringify(buildDraftPayload())
+         });
+         if (response.ok) {
+            const result = await response.json();
+            if (result?.id) setDraftPermitId(result.id);
+         }
+      } catch (e) {
+         console.error('Ошибка автосохранения электро-наряда:', e);
+      } finally {
+         autoSaveInProgressRef.current = false;
+      }
+   };
+
+   // Автосохранение при изменении данных (debounce 1200мс)
+   useEffect(() => {
+      if (isReadonly || mode !== 'create') return;
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = setTimeout(() => {
+         void persistDraft();
+      }, 1200);
+      return () => {
+         if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      };
+   }, [formData, draftPermitId, mode, isReadonly]);
+
+   // Попытка финального сохранения при закрытии вкладки
+   useEffect(() => {
+      if (isReadonly || mode !== 'create') return;
+      const handleBeforeUnload = () => {
+         if (!hasMeaningfulData()) return;
+         const token = localStorage.getItem('auth_token');
+         const url = draftPermitId ? `/api/v1/permits/${draftPermitId}/` : '/api/v1/permits/';
+         const method = draftPermitId ? 'PATCH' : 'POST';
+         void fetch(url, {
+            method,
+            keepalive: true,
+            headers: {
+               'Content-Type': 'application/json',
+               'Authorization': `Token ${token}`
+            },
+            body: JSON.stringify(buildDraftPayload())
+         });
+      };
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+   }, [formData, draftPermitId, mode, isReadonly]);
 
    const updateLifecycle = (updater: (prev: ElectricalLifecycle) => ElectricalLifecycle) => {
       const next = updater(lifecycle);

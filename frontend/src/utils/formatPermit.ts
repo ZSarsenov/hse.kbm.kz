@@ -1,4 +1,4 @@
-import { WorkPermit } from '../types';
+import { WorkPermit, PermitCategory } from '../types';
 
 /** Сырой наряд в формате API (snake_case) — как его отдаёт бэкенд */
 export interface RawPermit {
@@ -53,6 +53,7 @@ export const formatPermit = (p: RawPermit): WorkPermit => ({
   validFrom: p.valid_from,
   validTo: p.valid_to,
   data: p.data,
+  category: p.data?.category === PermitCategory.ELECTRICAL ? PermitCategory.ELECTRICAL : PermitCategory.DANGEROUS,
   approvalSteps: p.approval_steps,
   producer_closed: p.producer_closed,
 });

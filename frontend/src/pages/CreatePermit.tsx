@@ -51,6 +51,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
           mode="create"
           onCancel={onCancel}
           onSubmit={() => onSubmit()}
+          permitId={isEditing ? initialData?.id : null}
+          initialData={initialData?.data as any}
           header={
             <div className="flex items-center gap-4">
                <button onClick={onCancel} className="p-2 -ml-2 hover:bg-gray-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
