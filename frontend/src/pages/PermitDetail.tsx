@@ -181,6 +181,12 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
   if (permit.category === PermitCategory.ELECTRICAL) {
     const brigadeMembers = Array.isArray(data.brigadeMembers) ? data.brigadeMembers : [];
+    const electricalHasRequiredFields = !!(
+      data.workManagerId &&
+      data.admittingAuthorityId &&
+      data.workProducerId &&
+      brigadeMembers.some((m: any) => (typeof m === 'string' ? m : m?.name)?.trim())
+    );
     return (
       <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
         <button onClick={onBack} className="flex items-center text-gray-500 hover:text-gray-900 transition-colors w-fit text-lg font-medium">
@@ -190,29 +196,19 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           {/* HEADER */}
           <div className="p-6 md:p-8 border-b border-gray-100 bg-gradient-to-r from-white to-slate-50/50">
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <StatusBadge status={permit.status} />
-                  <span className="text-sm font-mono text-slate-400">#{permit.permitId}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <h1 className="text-3xl font-bold text-slate-900 leading-tight">Наряд на электроустановках</h1>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-blue-100 text-blue-700 border-blue-200">
-                    <Zap size={12}/> Электроустановки
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-600 mt-2">
-                  <MapPin size={18} className="text-blue-500" />
-                  <span className="font-medium">{data.department || 'Электроустановка'}</span>
-                </div>
-              </div>
-
-              {!isAuditor && (((permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator) || canEditAsManager) && (
-                <button onClick={onEdit} className="shrink-0 px-6 py-2.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium flex items-center gap-2">
-                  <Edit3 size={18} /> Редактировать
-                </button>
-              )}
+            <div className="flex items-center gap-3 mb-2">
+              <StatusBadge status={permit.status} />
+              <span className="text-sm font-mono text-slate-400">#{permit.permitId}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-slate-900 leading-tight">Наряд на электроустановках</h1>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-blue-100 text-blue-700 border-blue-200">
+                <Zap size={12}/> Электроустановки
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-slate-600 mt-2">
+              <MapPin size={18} className="text-blue-500" />
+              <span className="font-medium">{data.department || 'Электроустановка'}</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50 p-5 rounded-xl border border-slate-100 mt-6">
@@ -326,6 +322,30 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 ) : (
                   <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">Состав бригады не указан</div>
                 )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* FOOTER: КНОПКИ ДЕЙСТВИЙ */}
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-lg md:relative md:bg-transparent md:border-0 md:shadow-none md:p-0 z-20">
+          <div className="max-w-5xl mx-auto flex flex-col sm:flex-row gap-3 justify-end">
+            {!isAuditor && (((permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator) || canEditAsManager) && (
+              <>
+                {permit.status === 'DRAFT' && isInitiator && (
+                  <button onClick={onDelete} className="px-4 py-2.5 border border-red-200 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 font-medium flex items-center justify-center gap-2">
+                    <Trash2 size={18} /><span className="sm:hidden">Удалить</span>
+                  </button>
+                )}
+                <button onClick={onEdit} className="flex-1 sm:flex-none px-6 py-2.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium flex items-center justify-center gap-2">
+                  <Edit3 size={18} /> Редактировать
+                </button>
+              </>
+            )}
+            {!isAuditor && (permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator && !electricalHasRequiredFields && (
+              <div className="flex items-center text-amber-700 text-sm px-4 bg-amber-50 rounded-lg border border-amber-200 py-2.5 gap-2">
+                <AlertTriangle size={16} />
+                Наряд не заполнен полностью. Откройте редактирование и заполните обязательные поля.
               </div>
             )}
           </div>
