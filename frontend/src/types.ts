@@ -78,12 +78,16 @@ export interface ElectricalFormData {
   organization: string;
   department: string;
   workManagerId: string; // Руководитель работ
+  workManagerPosition?: string; // Должность руководителя работ
   workManagerGroup?: string; // Группа по электробезопасности руководителя работ
   admittingAuthorityId: string; // Допускающий
+  admittingPosition?: string; // Должность допускающего
   admittingAuthorityGroup?: string; // Группа по электробезопасности допускающего
   workProducerId: string; // Производитель работ
+  workProducerPosition?: string; // Должность производителя работ
   workProducerGroup?: string; // Группа по электробезопасности производителя работ
   observerId?: string; // Наблюдающий (опционально)
+  observerPosition?: string; // Должность наблюдающего
   observerGroup?: string; // Группа по электробезопасности наблюдающего
   brigadeMembers: (string | BrigadeMember)[]; // Члены бригады — поддерживает старый строковый и новый объектный формат
   workCategory: string; // Категория работ

@@ -347,7 +347,10 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                       label={t('electrical.labels.workManager')}
                       value={formData.workManagerId}
                       required={false}
-                      onChange={(user) => updateField('workManagerId', user ? user.name : '')}
+                      onChange={(user) => {
+                         updateField('workManagerId', user ? user.name : '');
+                         updateField('workManagerPosition', user ? user.position : '');
+                      }}
                       placeholder={t('electrical.ph.fio')}
                       disabled={isReadonly}
                    />
@@ -370,7 +373,10 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                       label={t('electrical.labels.admitting')}
                       value={formData.admittingAuthorityId}
                       required={false}
-                      onChange={(user) => updateField('admittingAuthorityId', user ? user.name : '')}
+                      onChange={(user) => {
+                         updateField('admittingAuthorityId', user ? user.name : '');
+                         updateField('admittingPosition', user ? user.position : '');
+                      }}
                       placeholder={t('electrical.ph.fio')}
                       disabled={isReadonly}
                    />
@@ -393,7 +399,10 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                       label={t('electrical.labels.producer')}
                       value={formData.workProducerId}
                       required={false}
-                      onChange={(user) => updateField('workProducerId', user ? user.name : '')}
+                      onChange={(user) => {
+                         updateField('workProducerId', user ? user.name : '');
+                         updateField('workProducerPosition', user ? user.position : '');
+                      }}
                       placeholder={t('electrical.ph.fio')}
                       disabled={isReadonly}
                    />
@@ -416,7 +425,10 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                       label={t('electrical.labels.observer')}
                       value={formData.observerId || ''}
                       required={false}
-                      onChange={(user) => updateField('observerId', user ? user.name : '')}
+                      onChange={(user) => {
+                         updateField('observerId', user ? user.name : '');
+                         updateField('observerPosition', user ? user.position : '');
+                      }}
                       placeholder={t('electrical.ph.fio')}
                       disabled={isReadonly}
                    />

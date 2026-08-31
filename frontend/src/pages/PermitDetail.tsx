@@ -37,6 +37,12 @@ const formatPermitCompact = (iso?: string | null) => {
   return `${fmt.date}, ${fmt.time}`;
 };
 
+const ELEC_GROUPS: Record<string, string> = { '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V' };
+const groupLabel = (g?: string | null) => {
+  if (!g) return null;
+  return ELEC_GROUPS[g] || g;
+};
+
 export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEdit, onDelete, onRefresh }) => {
   // Распаковка данных (безопасный доступ)
   const data: any = permit.data || (permit as any).formData || {};
@@ -279,10 +285,30 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                   <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><User size={20} className="text-slate-400"/> Ответственные лица</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Выдающий наряд</span><p className="font-medium text-gray-900">{data.issuerId || '—'}</p></div>
-                    <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Руководитель работ</span><p className="font-medium text-gray-900">{data.workManagerId || '—'}</p></div>
-                    <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Допускающий</span><p className="font-medium text-gray-900">{data.admittingAuthorityId || '—'}</p></div>
-                    <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Производитель работ</span><p className="font-medium text-gray-900">{data.workProducerId || '—'}</p></div>
-                    <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Наблюдающий</span><p className="font-medium text-gray-900">{data.observerId || '—'}</p></div>
+                    <div className="p-4 border border-gray-200 rounded-lg">
+                      <span className="text-xs text-gray-400 uppercase font-bold">Руководитель работ</span>
+                      <p className="font-medium text-gray-900">{data.workManagerId || '—'}</p>
+                      {data.workManagerPosition && <p className="text-sm text-gray-500">{data.workManagerPosition}</p>}
+                      {groupLabel(data.workManagerGroup) && <p className="text-xs text-blue-600 mt-1">Группа ЭБ: {groupLabel(data.workManagerGroup)}</p>}
+                    </div>
+                    <div className="p-4 border border-gray-200 rounded-lg">
+                      <span className="text-xs text-gray-400 uppercase font-bold">Допускающий</span>
+                      <p className="font-medium text-gray-900">{data.admittingAuthorityId || '—'}</p>
+                      {data.admittingPosition && <p className="text-sm text-gray-500">{data.admittingPosition}</p>}
+                      {groupLabel(data.admittingAuthorityGroup) && <p className="text-xs text-blue-600 mt-1">Группа ЭБ: {groupLabel(data.admittingAuthorityGroup)}</p>}
+                    </div>
+                    <div className="p-4 border border-gray-200 rounded-lg">
+                      <span className="text-xs text-gray-400 uppercase font-bold">Производитель работ</span>
+                      <p className="font-medium text-gray-900">{data.workProducerId || '—'}</p>
+                      {data.workProducerPosition && <p className="text-sm text-gray-500">{data.workProducerPosition}</p>}
+                      {groupLabel(data.workProducerGroup) && <p className="text-xs text-blue-600 mt-1">Группа ЭБ: {groupLabel(data.workProducerGroup)}</p>}
+                    </div>
+                    <div className="p-4 border border-gray-200 rounded-lg">
+                      <span className="text-xs text-gray-400 uppercase font-bold">Наблюдающий</span>
+                      <p className="font-medium text-gray-900">{data.observerId || '—'}</p>
+                      {data.observerPosition && <p className="text-sm text-gray-500">{data.observerPosition}</p>}
+                      {groupLabel(data.observerGroup) && <p className="text-xs text-blue-600 mt-1">Группа ЭБ: {groupLabel(data.observerGroup)}</p>}
+                    </div>
                   </div>
                 </div>
               </div>
