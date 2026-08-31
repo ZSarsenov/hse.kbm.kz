@@ -190,19 +190,29 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           {/* HEADER */}
           <div className="p-6 md:p-8 border-b border-gray-100 bg-gradient-to-r from-white to-slate-50/50">
-            <div className="flex items-center gap-3 mb-2">
-              <StatusBadge status={permit.status} />
-              <span className="text-sm font-mono text-slate-400">#{permit.permitId}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-slate-900 leading-tight">Наряд на электроустановках</h1>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-blue-100 text-blue-700 border-blue-200">
-                <Zap size={12}/> Электроустановки
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-slate-600 mt-2">
-              <MapPin size={18} className="text-blue-500" />
-              <span className="font-medium">{data.department || 'Электроустановка'}</span>
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <StatusBadge status={permit.status} />
+                  <span className="text-sm font-mono text-slate-400">#{permit.permitId}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-3xl font-bold text-slate-900 leading-tight">Наряд на электроустановках</h1>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-blue-100 text-blue-700 border-blue-200">
+                    <Zap size={12}/> Электроустановки
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-600 mt-2">
+                  <MapPin size={18} className="text-blue-500" />
+                  <span className="font-medium">{data.department || 'Электроустановка'}</span>
+                </div>
+              </div>
+
+              {!isAuditor && (((permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator) || canEditAsManager) && (
+                <button onClick={onEdit} className="shrink-0 px-6 py-2.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium flex items-center gap-2">
+                  <Edit3 size={18} /> Редактировать
+                </button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50 p-5 rounded-xl border border-slate-100 mt-6">
