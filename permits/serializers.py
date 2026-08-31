@@ -173,6 +173,7 @@ class PermitListSerializer(serializers.ModelSerializer):
 
     # Ключи, которые сохраняются в data при выдаче списка.
     LIST_DATA_KEYS = (
+        'category',          # тип наряда: DANGEROUS / ELECTRICAL (для маршрутизации)
         'workName',          # колонка "Характер выполняемых работ"
         'department',        # колонка "Цех"
         'workPlace',         # поиск по месту работ
