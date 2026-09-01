@@ -2588,11 +2588,11 @@ def verify_permit_public(request, token):
         <div class="card">
             <div class="header">
                 <h1>Наряд-допуск {permit.permit_id}</h1>
-                <p>Система HSE — Caspian Bitum</p>
+                <p>Система HSE — Каражанбасмунай</p>
                 <div class="badge">{status_label}</div>
             </div>
             <div class="body">
-                <div class="verified">&#9989; Документ зарегистрирован в системе HSE Caspian Bitum</div>
+                <div class="verified">&#9989; Документ зарегистрирован в системе HSE Каражанбасмунай</div>
 
                 <div class="section">
                     <div class="section-title">Основная информация</div>
