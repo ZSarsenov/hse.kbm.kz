@@ -2107,7 +2107,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         from io import BytesIO
 
         permit = self.get_object()
-        base = getattr(settings, 'HSE_BASE_URL', 'https://hse.cb.kz')
+        base = getattr(settings, 'HSE_BASE_URL', 'https://hse.kbm.kz')
         qr_url = f"{base}/api/v1/verify/{permit.verify_token}/"
         try:
             doc = self._get_rendered_doc(permit, qr_url)
@@ -2619,7 +2619,7 @@ def verify_permit_public(request, token):
                     </div>
                 </div>
             </div>
-            <div class="footer">Система HSE Caspian Bitum &bull; hse.cb.kz</div>
+            <div class="footer">Система HSE Каражанбасмунай &bull; hse.kbm.kz</div>
         </div>
     </div>
 </body>

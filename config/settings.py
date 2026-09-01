@@ -23,6 +23,9 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+# Базовый URL системы для генерации QR-кодов верификации нарядов
+HSE_BASE_URL = 'https://hse.kbm.kz'
+
 
 # Application definition
 INSTALLED_APPS = [
