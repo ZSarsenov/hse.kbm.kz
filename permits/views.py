@@ -2454,7 +2454,637 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
         return Response({'ok': True, 'status': 'Наряд успешно закрыт'})
 
+    @action(detail=True, methods=['post'], url_path='admission_signature')
+    def admission_signature(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
 
+        if permit.status not in ('PENDING_APPROVAL', 'APPROVED'):
+            return Response({'error': 'Подпись доступна только на этапе согласования или после.'}, status=400)
+
+        admit_step = permit.approval_steps.filter(
+            role='ADMITTING', status='APPROVED', approver=user,
+        ).first()
+        if not admit_step:
+            return Response({'error': 'Только Допускающий может подписать Разрешение на допуск.'}, status=403)
+
+        image_file = request.FILES.get('signature')
+        if not image_file:
+            return Response({'error': 'Приложите файл подписи (signature).'}, status=400)
+        ct = (image_file.content_type or '').lower()
+        if ct and not ct.startswith('image/'):
+            return Response({'error': f'Разрешены только изображения (получен {image_file.content_type}).'}, status=400)
+        if image_file.size > 2 * 1024 * 1024:
+            return Response({'error': 'Размер файла не более 2 МБ.'}, status=400)
+
+        try:
+            rel_dir = os.path.join('brigade_signatures', str(permit.pk))
+            dest_dir = os.path.join(settings.MEDIA_ROOT, rel_dir)
+            os.makedirs(dest_dir, exist_ok=True)
+            fname = 'admission_signature.png'
+            rel_path = os.path.join(rel_dir, fname).replace('\\', '/')
+            full_path = os.path.join(settings.MEDIA_ROOT, rel_dir, fname)
+            with open(full_path, 'wb') as f:
+                for chunk in image_file.chunks():
+                    f.write(chunk)
+
+            data = dict(permit.data) if permit.data else {}
+            data['admissionSignature'] = rel_path
+            data['admissionDateTime'] = timezone.now().isoformat()
+            permit.data = data
+            permit.save(update_fields=['data'])
+
+            return Response({'ok': True, 'signature_path': rel_path})
+        except Exception as e:
+            return Response({'error': f'Ошибка сохранения подписи: {str(e)}'}, status=500)
+
+    @action(detail=True, methods=['post'], url_path='admission_row_update')
+    def admission_row_update(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+
+        admit_step = permit.approval_steps.filter(
+            role='ADMITTING', approver=user, status='APPROVED',
+        ).first()
+        if not admit_step:
+            return Response({'error': 'Только Допускающий может редактировать.'}, status=403)
+
+        data = dict(permit.data) if permit.data else {}
+
+        if 'admissionVoltageNote' in request.data:
+            data['admissionVoltageNote'] = request.data.get('admissionVoltageNote', '')
+
+        if 'fromWhom' in request.data or 'agreementUser' in request.data or 'index' in request.data:
+            index = request.data.get('index', 0)
+            fromWhom = request.data.get('fromWhom', '')
+            agreement_user = request.data.get('agreementUser')
+            rows = data.get('admissionRows') or [{}]
+            if not isinstance(rows, list):
+                rows = [{}]
+            while len(rows) <= index:
+                rows.append({})
+            row_update = {**rows[index]}
+            if 'fromWhom' in request.data:
+                row_update['fromWhom'] = fromWhom
+            if agreement_user is not None:
+                row_update['agreementUser'] = agreement_user
+            rows[index] = row_update
+            data['admissionRows'] = rows
+
+        permit.data = data
+        permit.save(update_fields=['data'])
+
+        return Response({'ok': True})
+
+    @action(detail=True, methods=['post'], url_path='responsible_admission_signature')
+    def responsible_admission_signature(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+
+        if permit.status not in ('PENDING_APPROVAL', 'APPROVED'):
+            return Response({'error': 'Подпись доступна только на этапе согласования или после.'}, status=400)
+
+        resp_step = permit.approval_steps.filter(
+            role='RESPONSIBLE', status='APPROVED', approver=user,
+        ).first()
+        if not resp_step:
+            return Response({'error': 'Только Ответственный руководитель работ может подписать.'}, status=403)
+
+        image_file = request.FILES.get('signature')
+        if not image_file:
+            return Response({'error': 'Приложите подпись.'}, status=400)
+        if image_file.size > 2 * 1024 * 1024:
+            return Response({'error': 'Размер файла не более 2 МБ.'}, status=400)
+
+        try:
+            rel_dir = os.path.join('admission_signatures', str(permit.pk))
+            dest_dir = os.path.join(settings.MEDIA_ROOT, rel_dir)
+            os.makedirs(dest_dir, exist_ok=True)
+            fname = 'responsible_signature.png'
+            rel_path = os.path.join(rel_dir, fname).replace('\\', '/')
+            full_path = os.path.join(settings.MEDIA_ROOT, rel_dir, fname)
+            with open(full_path, 'wb') as f:
+                for chunk in image_file.chunks():
+                    f.write(chunk)
+
+            data = dict(permit.data) if permit.data else {}
+            data['responsibleSignature'] = rel_path
+            data['responsibleSignatureDateTime'] = timezone.now().isoformat()
+            permit.data = data
+            permit.save(update_fields=['data'])
+
+            return Response({'ok': True, 'signature_path': rel_path})
+        except Exception as e:
+            return Response({'error': f'Ошибка: {str(e)}'}, status=500)
+
+    @action(detail=True, methods=['post'], url_path='add_brigade_change')
+    def add_brigade_change(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+
+        if not (user.is_admin or permit.approval_steps.filter(role='ISSUER', approver=user).exists()):
+            return Response({'error': 'Только Выдающий наряд может добавлять изменения.'}, status=403)
+
+        data = dict(permit.data) if permit.data else {}
+        changes = data.get('brigadeChanges') or []
+        if len(changes) >= 10:
+            return Response({'error': 'Максимум 10 строк.'}, status=400)
+
+        changes.append({'added': '', 'removed': ''})
+        data['brigadeChanges'] = changes
+        permit.data = data
+        permit.save(update_fields=['data'])
+        return Response({'ok': True, 'total': len(changes)})
+
+    @action(detail=True, methods=['post'], url_path='update_brigade_change')
+    def update_brigade_change(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+
+        if not (user.is_admin or permit.approval_steps.filter(role='ISSUER', approver=user).exists()):
+            return Response({'error': 'Только Выдающий наряд может редактировать.'}, status=403)
+
+        index = int(request.data.get('index', 0))
+        added = request.data.get('added')
+        removed = request.data.get('removed')
+
+        data = dict(permit.data) if permit.data else {}
+        changes = data.get('brigadeChanges') or []
+        if index >= len(changes):
+            return Response({'error': 'Строка не найдена.'}, status=400)
+
+        if added is not None:
+            changes[index]['addedUser'] = added
+        elif 'added' in request.data:
+            changes[index].pop('addedUser', None)
+        if removed is not None:
+            changes[index]['removedUser'] = removed
+        elif 'removed' in request.data:
+            changes[index].pop('removedUser', None)
+        data['brigadeChanges'] = changes
+        permit.data = data
+        permit.save(update_fields=['data'])
+        return Response({'ok': True})
+
+    @action(detail=True, methods=['post'], url_path='delete_brigade_change')
+    def delete_brigade_change(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+
+        if not (user.is_admin or permit.approval_steps.filter(role='ISSUER', approver=user).exists()):
+            return Response({'error': 'Только Выдающий наряд может удалять.'}, status=403)
+
+        index = int(request.data.get('index', 0))
+        data = dict(permit.data) if permit.data else {}
+        changes = data.get('brigadeChanges') or []
+        if index >= len(changes):
+            return Response({'error': 'Строка не найдена.'}, status=400)
+
+        changes.pop(index)
+        data['brigadeChanges'] = changes
+        permit.data = data
+        permit.save(update_fields=['data'])
+        return Response({'ok': True})
+
+    @action(detail=True, methods=['post'], url_path='sign_brigade_change')
+    def sign_brigade_change(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+        signed_xml = request.data.get('signed_xml')
+        index = request.data.get('index', 0)
+
+        if not signed_xml:
+            return Response({'error': 'Нет данных подписи.'}, status=400)
+
+        if not (user.is_admin or permit.approval_steps.filter(role='ISSUER', approver=user).exists()):
+            return Response({'error': 'Только Выдающий наряд может подписывать.'}, status=403)
+
+        try:
+            cert_info = parse_xml_signature_info(signed_xml)
+        except Exception as e:
+            return Response({'error': f'Ошибка чтения ЭЦП: {str(e)}'}, status=400)
+
+        sign_iin = cert_info.get('iin')
+        if not sign_iin or sign_iin != user.iin:
+            return Response({'error': f'ИИН в ЭЦП ({sign_iin}) не совпадает с вашим ({user.iin}).'}, status=400)
+
+        try:
+            rel_dir = os.path.join('brigade_change_signatures', str(permit.pk))
+            dest_dir = os.path.join(settings.MEDIA_ROOT, rel_dir)
+            os.makedirs(dest_dir, exist_ok=True)
+            fname = f'change_{index}.xml'
+            rel_path = os.path.join(rel_dir, fname).replace('\\', '/')
+            full_path = os.path.join(settings.MEDIA_ROOT, rel_dir, fname)
+            with open(full_path, 'wb') as f:
+                f.write(signed_xml.encode('utf-8'))
+
+            data = dict(permit.data) if permit.data else {}
+            changes = data.get('brigadeChanges') or []
+            if index >= len(changes):
+                return Response({'error': 'Строка не найдена.'}, status=400)
+
+            changes[index]['signature'] = rel_path
+            changes[index]['dateTime'] = timezone.now().isoformat()
+            changes[index]['signedBy'] = user.get_full_name()
+            data['brigadeChanges'] = changes
+
+            added_user = changes[index].get('addedUser') or {}
+            if added_user.get('userId'):
+                team = data.get('teamMembers') or []
+                already_in = any(m.get('userId') == added_user.get('userId') for m in team)
+                if not already_in:
+                    team.append({
+                        'name': added_user.get('name', ''),
+                        'role': added_user.get('position', ''),
+                        'userId': added_user.get('userId'),
+                        'instructedBy': '',
+                        'instructedAt': '',
+                    })
+                    data['teamMembers'] = team
+                    from django.contrib.auth import get_user_model
+                    User = get_user_model()
+                    try:
+                        new_member = User.objects.get(pk=added_user.get('userId'))
+                        if new_member != permit.initiator:
+                            Notification.objects.create(
+                                user=new_member,
+                                permit_id=permit.id,
+                                title="Вы добавлены в состав бригады",
+                                message=f"Вы включены в состав бригады по наряду №{permit.permit_id} (изменение состава). Подпишите наряд графической подписью.",
+                            )
+                    except (User.DoesNotExist, ValueError, TypeError):
+                        pass
+
+            permit.data = data
+            permit.save(update_fields=['data'])
+            return Response({'ok': True, 'signature_path': rel_path})
+        except Exception as e:
+            return Response({'error': f'Ошибка: {str(e)}'}, status=500)
+
+    @action(detail=True, methods=['post'], url_path='work_completion_update')
+    def work_completion_update(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+
+        prod_step = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).first()
+        if not prod_step and not user.is_admin:
+            return Response({'error': 'Только Производитель работ может редактировать.'}, status=403)
+
+        data = dict(permit.data) if permit.data else {}
+        wc = data.get('workCompletion') or {}
+
+        notified_user = request.data.get('notifiedUser')
+        if notified_user is not None:
+            wc['notifiedUser'] = notified_user
+
+        data['workCompletion'] = wc
+        permit.data = data
+        permit.save(update_fields=['data'])
+        return Response({'ok': True})
+
+    @action(detail=True, methods=['post'], url_path='work_completion_signature')
+    def work_completion_signature(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+
+        if permit.status not in ('PENDING_APPROVAL', 'APPROVED'):
+            return Response({'error': 'Подпись доступна только на этапе согласования или после.'}, status=400)
+
+        field = request.data.get('field', '')
+        if field not in ('producerSignature', 'responsibleSignature', 'admittingSignature'):
+            return Response({'error': 'Неверный параметр field.'}, status=400)
+
+        if field == 'producerSignature':
+            step = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).first()
+            if not step and not user.is_admin:
+                return Response({'error': 'Только Производитель работ может подписать.'}, status=403)
+        elif field == 'responsibleSignature':
+            step = permit.approval_steps.filter(role='RESPONSIBLE', approver=user).first()
+            if not step and not user.is_admin:
+                return Response({'error': 'Только Ответственный руководитель может подписать.'}, status=403)
+        elif field == 'admittingSignature':
+            step = permit.approval_steps.filter(role='ADMITTING', approver=user).first()
+            if not step and not user.is_admin:
+                return Response({'error': 'Только Допускающий может подписать.'}, status=403)
+
+        image_file = request.FILES.get('signature')
+        if not image_file:
+            return Response({'error': 'Приложите подпись.'}, status=400)
+        if image_file.size > 2 * 1024 * 1024:
+            return Response({'error': 'Размер файла не более 2 МБ.'}, status=400)
+
+        try:
+            rel_dir = os.path.join('work_completion_signatures', str(permit.pk))
+            dest_dir = os.path.join(settings.MEDIA_ROOT, rel_dir)
+            os.makedirs(dest_dir, exist_ok=True)
+            fname = f'{field}.png'
+            rel_path = os.path.join(rel_dir, fname).replace('\\', '/')
+            full_path = os.path.join(settings.MEDIA_ROOT, rel_dir, fname)
+            with open(full_path, 'wb') as f:
+                for chunk in image_file.chunks():
+                    f.write(chunk)
+
+            data = dict(permit.data) if permit.data else {}
+            wc = data.get('workCompletion') or {}
+            wc[field] = rel_path
+            wc[f'{field.replace("Signature", "")}SignedAt'] = timezone.now().isoformat()
+            data['workCompletion'] = wc
+            permit.data = data
+            permit.save(update_fields=['data'])
+
+            return Response({'ok': True, 'signature_path': rel_path})
+        except Exception as e:
+            return Response({'error': f'Ошибка: {str(e)}'}, status=500)
+
+    @action(detail=True, methods=['post'], url_path='target_briefing_ecpp')
+    def target_briefing_ecpp(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+        signed_xml = request.data.get('signed_xml')
+        row = request.data.get('row', '')
+        side = request.data.get('side', '')
+
+        if not signed_xml:
+            return Response({'error': 'Нет данных подписи.'}, status=400)
+        if row not in ('row1', 'row2', 'row3') or side not in ('instructedBy', 'receivedBy'):
+            return Response({'error': 'Неверные параметры row/side.'}, status=400)
+
+        if permit.status not in ('PENDING_APPROVAL', 'APPROVED'):
+            return Response({'error': 'Подпись доступна только на этапе согласования или после.'}, status=400)
+
+        try:
+            cert_info = parse_xml_signature_info(signed_xml)
+        except Exception as e:
+            return Response({'error': f'Ошибка чтения ЭЦП: {str(e)}'}, status=400)
+
+        sign_iin = cert_info.get('iin')
+        if not sign_iin or sign_iin != user.iin:
+            return Response({'error': f'ИИН в ЭЦП ({sign_iin}) не совпадает с вашим ({user.iin}).'}, status=400)
+
+        sign_bin = cert_info.get('bin')
+        user_bin = user.bin
+        target_bin = user_bin if user_bin else '950540000524'
+        if not sign_bin:
+            return Response({'error': 'Нужна ЭЦП юридического лица (GOST) с БИН.'}, status=400)
+        if sign_bin != target_bin:
+            return Response({'error': f'БИН организации не совпадает ({sign_bin} != {target_bin}).'}, status=400)
+
+        if row == 'row1':
+            is_issuer = permit.approval_steps.filter(role='ISSUER', approver=user, status='APPROVED').exists()
+            is_responsible = permit.approval_steps.filter(role='RESPONSIBLE', approver=user, status='APPROVED').exists()
+            is_producer = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).exists()
+            if not is_issuer and not is_responsible and not is_producer and not user.is_admin:
+                return Response({'error': 'Только Выдающий наряд, Ответственный руководитель или Производитель работ могут подписать.'}, status=403)
+        elif row == 'row2':
+            is_admitting = permit.approval_steps.filter(role='ADMITTING', approver=user, status='APPROVED').exists()
+            is_responsible = permit.approval_steps.filter(role='RESPONSIBLE', approver=user, status='APPROVED').exists()
+            is_producer = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).exists()
+            team = (permit.data or {}).get('teamMembers') or []
+            is_brigade = any(m.get('userId') == user.id for m in team)
+            if not is_admitting and not is_responsible and not is_producer and not is_brigade and not user.is_admin:
+                return Response({'error': 'Только Допускающий, Ответственный руководитель, Производитель работ или члены бригады могут подписать.'}, status=403)
+        elif row == 'row3':
+            is_responsible = permit.approval_steps.filter(role='RESPONSIBLE', approver=user).exists()
+            is_producer = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).exists()
+            observer = (permit.data or {}).get('brigadeObserver') or {}
+            team = (permit.data or {}).get('teamMembers') or []
+            is_observer = str(user.id) == str(observer.get('id'))
+            is_brigade = any(m.get('userId') == user.id for m in team)
+            if not is_responsible and not is_producer and not is_observer and not is_brigade and not user.is_admin:
+                return Response({'error': 'Только Ответственный руководитель, Производитель работ, члены бригады или наблюдающий могут подписать.'}, status=403)
+
+        try:
+            rel_dir = os.path.join('target_briefing_signatures', str(permit.pk))
+            dest_dir = os.path.join(settings.MEDIA_ROOT, rel_dir)
+            os.makedirs(dest_dir, exist_ok=True)
+            fname = f'{row}_{side}_ecpp.xml'
+            rel_path = os.path.join(rel_dir, fname).replace('\\', '/')
+            full_path = os.path.join(settings.MEDIA_ROOT, rel_dir, fname)
+            with open(full_path, 'wb') as f:
+                f.write(signed_xml.encode('utf-8'))
+
+            data = dict(permit.data) if permit.data else {}
+            tb = data.get('targetBriefing') or {}
+            if side.startswith('received_'):
+                tb[side] = rel_path
+                tb[f'{side}_date'] = timezone.now().isoformat()
+            else:
+                row_data = tb.get(row) or {}
+                row_data[f'{side}Signature'] = rel_path
+                tb[row] = row_data
+            data['targetBriefing'] = tb
+            permit.data = data
+            permit.save(update_fields=['data'])
+
+            return Response({'ok': True, 'signature_path': rel_path})
+        except Exception as e:
+            return Response({'error': f'Ошибка: {str(e)}'}, status=500)
+
+    @action(detail=True, methods=['post'], url_path='target_briefing_signature')
+    def target_briefing_signature(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+
+        if permit.status not in ('PENDING_APPROVAL', 'APPROVED'):
+            return Response({'error': 'Подпись доступна только на этапе согласования или после.'}, status=400)
+
+        row = request.data.get('row', '')
+        side = request.data.get('side', '')
+        if row not in ('row1', 'row2', 'row3') or not side:
+            return Response({'error': 'Неверные параметры row/side.'}, status=400)
+
+        if row == 'row1':
+            is_issuer = permit.approval_steps.filter(role='ISSUER', approver=user, status='APPROVED').exists()
+            is_responsible = permit.approval_steps.filter(role='RESPONSIBLE', approver=user, status='APPROVED').exists()
+            is_producer = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).exists()
+            if not is_issuer and not is_responsible and not is_producer and not user.is_admin:
+                return Response({'error': 'Только Выдающий наряд, Ответственный руководитель или Производитель работ могут подписать.'}, status=403)
+        elif row == 'row2':
+            is_admitting = permit.approval_steps.filter(role='ADMITTING', approver=user, status='APPROVED').exists()
+            is_responsible = permit.approval_steps.filter(role='RESPONSIBLE', approver=user, status='APPROVED').exists()
+            is_producer = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).exists()
+            team = (permit.data or {}).get('teamMembers') or []
+            is_brigade = any(m.get('userId') == user.id for m in team)
+            if not is_admitting and not is_responsible and not is_producer and not is_brigade and not user.is_admin:
+                return Response({'error': 'Только Допускающий, Ответственный руководитель, Производитель работ или члены бригады могут подписать.'}, status=403)
+        elif row == 'row3':
+            observer = (permit.data or {}).get('brigadeObserver') or {}
+            team = (permit.data or {}).get('teamMembers') or []
+            is_observer = str(user.id) == str(observer.get('id'))
+            is_brigade = any(m.get('userId') == user.id for m in team)
+            is_responsible = permit.approval_steps.filter(role='RESPONSIBLE', approver=user).exists()
+            is_producer = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).exists()
+            if not is_observer and not is_brigade and not is_responsible and not is_producer and not user.is_admin:
+                return Response({'error': 'Только Ответственный руководитель, Производитель работ, члены бригады или наблюдающий могут подписать.'}, status=403)
+
+        image_file = request.FILES.get('signature')
+        if not image_file:
+            return Response({'error': 'Приложите подпись.'}, status=400)
+        if image_file.size > 2 * 1024 * 1024:
+            return Response({'error': 'Размер файла не более 2 МБ.'}, status=400)
+
+        try:
+            rel_dir = os.path.join('target_briefing_signatures', str(permit.pk))
+            dest_dir = os.path.join(settings.MEDIA_ROOT, rel_dir)
+            os.makedirs(dest_dir, exist_ok=True)
+            fname = f'{row}_{side}.png'
+            rel_path = os.path.join(rel_dir, fname).replace('\\', '/')
+            full_path = os.path.join(settings.MEDIA_ROOT, rel_dir, fname)
+            with open(full_path, 'wb') as f:
+                for chunk in image_file.chunks():
+                    f.write(chunk)
+
+            data = dict(permit.data) if permit.data else {}
+            tb = data.get('targetBriefing') or {}
+            if side.startswith('received_'):
+                tb[side] = rel_path
+                tb[f'{side}_date'] = timezone.now().isoformat()
+            else:
+                row_data = tb.get(row) or {}
+                row_data[f'{side}Signature'] = rel_path
+                tb[row] = row_data
+            data['targetBriefing'] = tb
+            permit.data = data
+            permit.save(update_fields=['data'])
+
+            return Response({'ok': True, 'signature_path': rel_path})
+        except Exception as e:
+            return Response({'error': f'Ошибка: {str(e)}'}, status=500)
+
+    @action(detail=True, methods=['post'], url_path='daily_admission_add_row')
+    def daily_admission_add_row(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+
+        admit_step = permit.approval_steps.filter(role='ADMITTING', approver=user).first()
+        prod_step = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).first()
+        if not admit_step and not prod_step:
+            return Response({'error': 'Только Допускающий или Производитель работ могут добавлять строки.'}, status=403)
+
+        data = dict(permit.data) if permit.data else {}
+        rows = data.get('dailyAdmissions') or []
+        if len(rows) >= 10:
+            return Response({'error': 'Максимум 10 строк.'}, status=400)
+
+        rows.append({'workplace': ''})
+        data['dailyAdmissions'] = rows
+        permit.data = data
+        permit.save(update_fields=['data'])
+        return Response({'ok': True, 'total': len(rows)})
+
+    @action(detail=True, methods=['post'], url_path='daily_admission_update')
+    def daily_admission_update(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+
+        admit_step = permit.approval_steps.filter(role='ADMITTING', approver=user).first()
+        prod_step = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).first()
+        if not admit_step and not prod_step:
+            return Response({'error': 'Только Допускающий или Производитель работ могут редактировать.'}, status=403)
+
+        index = int(request.data.get('index', 0))
+        workplace = request.data.get('workplace', '')
+
+        data = dict(permit.data) if permit.data else {}
+        rows = data.get('dailyAdmissions') or []
+        while len(rows) <= index:
+            rows.append({})
+        rows[index] = {**rows[index], 'workplace': workplace}
+        data['dailyAdmissions'] = rows
+        permit.data = data
+        permit.save(update_fields=['data'])
+        return Response({'ok': True})
+
+    @action(detail=True, methods=['post'], url_path='daily_admission_delete_row')
+    def daily_admission_delete_row(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+
+        admit_step = permit.approval_steps.filter(role='ADMITTING', approver=user).first()
+        prod_step = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).first()
+        if not admit_step and not prod_step:
+            return Response({'error': 'Только Допускающий или Производитель работ могут удалять строки.'}, status=403)
+
+        index = int(request.data.get('index', 0))
+        data = dict(permit.data) if permit.data else {}
+        rows = data.get('dailyAdmissions') or []
+        if index >= len(rows):
+            return Response({'error': 'Строка не найдена.'}, status=400)
+
+        row = rows[index]
+        if row.get('admittingSignature') or row.get('producerAdmissionSignature') or row.get('producerCompletionSignature'):
+            return Response({'error': 'Нельзя удалить строку с подписью.'}, status=400)
+
+        rows.pop(index)
+        data['dailyAdmissions'] = rows
+        permit.data = data
+        permit.save(update_fields=['data'])
+        return Response({'ok': True})
+
+    @action(detail=True, methods=['post'], url_path='daily_admission_signature')
+    def daily_admission_signature(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+
+        if permit.status not in ('PENDING_APPROVAL', 'APPROVED'):
+            return Response({'error': 'Подпись доступна только на этапе согласования или после.'}, status=400)
+
+        sig_type = request.data.get('signature_type', '')
+        if sig_type not in ('admitting', 'producer_admission', 'producer_completion'):
+            return Response({'error': 'Неверный тип подписи.'}, status=400)
+
+        if sig_type == 'admitting':
+            step = permit.approval_steps.filter(role='ADMITTING', approver=user).first()
+        else:
+            step = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).first()
+        if not step:
+            return Response({'error': 'У вас нет прав для этой подписи.'}, status=403)
+
+        index = int(request.data.get('index', 0))
+        image_file = request.FILES.get('signature')
+        if not image_file:
+            return Response({'error': 'Приложите подпись.'}, status=400)
+        if image_file.size > 2 * 1024 * 1024:
+            return Response({'error': 'Размер файла не более 2 МБ.'}, status=400)
+
+        try:
+            rel_dir = os.path.join('daily_admission_signatures', str(permit.pk))
+            dest_dir = os.path.join(settings.MEDIA_ROOT, rel_dir)
+            os.makedirs(dest_dir, exist_ok=True)
+            fname = f'{sig_type}_{index}.png'
+            rel_path = os.path.join(rel_dir, fname).replace('\\', '/')
+            full_path = os.path.join(settings.MEDIA_ROOT, rel_dir, fname)
+            with open(full_path, 'wb') as f:
+                for chunk in image_file.chunks():
+                    f.write(chunk)
+
+            data = dict(permit.data) if permit.data else {}
+            rows = data.get('dailyAdmissions') or []
+            while len(rows) <= index:
+                rows.append({})
+            row = rows[index]
+
+            key_map = {
+                'admitting': 'admittingSignature',
+                'producer_admission': 'producerAdmissionSignature',
+                'producer_completion': 'producerCompletionSignature',
+            }
+            row[key_map[sig_type]] = rel_path
+
+            now = timezone.now()
+            if sig_type == 'admitting':
+                row['admissionDateTime'] = now.isoformat()
+            elif sig_type == 'producer_completion':
+                row['completionDateTime'] = now.isoformat()
+
+            rows[index] = row
+            data['dailyAdmissions'] = rows
+            permit.data = data
+            permit.save(update_fields=['data'])
+
+            return Response({'ok': True, 'signature_path': rel_path})
+        except Exception as e:
+            return Response({'error': f'Ошибка: {str(e)}'}, status=500)
 
 
 
