@@ -3279,7 +3279,7 @@ class AIAssistantView(APIView):
         zen_api_key = settings.OPENCODE_ZEN_API_KEY
 
         if not zen_api_key:
-            return Response({"answer": "Ошибка: API ключ OpenCode Zen не настроен (OPENCODE_ZEN_API_KEY в .env)."}, status=200)
+            return Response({"answer": "ИИ-ассистент доступен только в рабочей среде (production)."}, status=200)
 
         client = OpenAI(
             api_key=zen_api_key,
@@ -3307,7 +3307,7 @@ class AIAssistantView(APIView):
                     {"role": "user", "content": user_question}
                 ],
                 temperature=0.3,
-                max_tokens=2000  # GLM — думающая модель: часть бюджета уходит на рассуждения
+                max_tokens=4000  # GLM — думающая модель: на сложных вопросах рассуждения съедают много токенов
             )
 
             ai_answer = response.choices[0].message.content

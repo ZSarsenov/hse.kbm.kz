@@ -488,10 +488,12 @@ function App() {
         onClose={() => setIsTypeSelectorOpen(false)}
         onSelect={handleSelectCategory}
       />
-      {/* 👇 2. ВСТАВЛЯЕМ АССИСТЕНТА СЮДА (ПЕРЕД ЗАКРЫВАЮЩИМ ТЕГОМ) */}
-      <Suspense fallback={null}>
-        <AIAssistant />
-      </Suspense>
+      {/* ИИ-ассистент — только в production-сборке (в dev-среде ключ не выдаётся) */}
+      {import.meta.env.MODE === 'production' && (
+        <Suspense fallback={null}>
+          <AIAssistant />
+        </Suspense>
+      )}
 
       {/* Стилизованные диалоги подтверждения (вместо window.confirm) */}
       <ConfirmDialog />
