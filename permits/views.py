@@ -3275,17 +3275,17 @@ class AIAssistantView(APIView):
         if not user_question:
             return Response({"error": "Вопрос не может быть пустым"}, status=400)
 
-        # 👇 Вставьте сюда ваш ключ от DeepSeek
-        deepseek_api_key = settings.DEEPSEEK_API_KEY
+        # OpenCode Zen (подписка opencode) — OpenAI-совместимый шлюз
+        zen_api_key = settings.OPENCODE_ZEN_API_KEY
 
-        if not deepseek_api_key:
-            return Response({"answer": "Ошибка: API ключ DeepSeek не настроен."}, status=200)
+        if not zen_api_key:
+            return Response({"answer": "Ошибка: API ключ OpenCode Zen не настроен (OPENCODE_ZEN_API_KEY в .env)."}, status=200)
 
-        # 👇 НАСТРОЙКА КЛИЕНТА ПОД DEEPSEEK
         client = OpenAI(
-            api_key=deepseek_api_key,
-            base_url="https://api.deepseek.com"  # Это перенаправляет запросы на сервера DeepSeek
+            api_key=zen_api_key,
+            base_url="https://opencode.ai/zen/v1"
         )
+        ai_model = getattr(settings, 'AI_CHAT_MODEL', None) or 'glm-5.3-flash'
 
         # Инструкция, чтобы он не болтал лишнего
         system_prompt = """
@@ -3301,24 +3301,26 @@ class AIAssistantView(APIView):
 
         try:
             response = client.chat.completions.create(
-                model="deepseek-chat",  # 👈 Используем их модель (V3)
+                model=ai_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_question}
                 ],
-                temperature=0.3,  # Низкая температура для точности
-                max_tokens=500
+                temperature=0.3,
+                max_tokens=2000  # GLM — думающая модель: часть бюджета уходит на рассуждения
             )
 
             ai_answer = response.choices[0].message.content
+            if not ai_answer or not ai_answer.strip():
+                return Response({"answer": "Извините, не удалось сформировать ответ. Попробуйте переформулировать вопрос."}, status=200)
             return Response({"answer": ai_answer})
 
         except Exception as e:
             err_str = str(e)
-            logger.error(f"DeepSeek Error: {err_str}")
-            if 'Insufficient Balance' in err_str:
+            logger.error(f"AI (OpenCode Zen / {ai_model}) Error: {err_str}")
+            if 'Insufficient' in err_str or 'balance' in err_str.lower():
                 return Response(
-                    {"answer": "Ошибка: на балансе DeepSeek недостаточно средств. Пополните счёт на platform.deepseek.com и повторите попытку."},
+                    {"answer": "Ошибка: недостаточно средств на балансе OpenCode Zen. Пополните счёт на opencode.ai/auth и повторите попытку."},
                     status=200
                 )
             return Response({"answer": "Извините, сервис ИИ временно недоступен. Попробуйте позже."}, status=200)

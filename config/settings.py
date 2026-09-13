@@ -18,6 +18,10 @@ SECRET_KEY = 'django-insecure-&#9!0(96ik)j9&cytk*u10xgmbjk=fu_j4@+9cv9tpfo-nu2%@
 
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 
+# OpenCode Zen — ИИ-ассистент (подписка opencode, OpenAI-совместимый шлюз)
+OPENCODE_ZEN_API_KEY = os.getenv('OPENCODE_ZEN_API_KEY')
+AI_CHAT_MODEL = os.getenv('AI_CHAT_MODEL', 'glm-5.3-flash')
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
