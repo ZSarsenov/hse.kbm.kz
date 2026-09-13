@@ -480,6 +480,28 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
       if (typeof role === 'string') return role;
       return role.name || role.freeText || '—';
     };
+    const handleSubmitForApprovalElecNew = async () => {
+      try {
+        const response = await fetch(`/api/v1/permits/${permit.id}/submit_for_approval/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Token ${localStorage.getItem('auth_token')}`
+          },
+          body: JSON.stringify({})
+        });
+        const resData = await response.json();
+        if (response.ok && resData.ok) {
+          alert(`✅ ${resData.status || 'Наряд отправлен на согласование.'}`);
+          onBack();
+        } else {
+          alert(resData.error || 'Ошибка при отправке на согласование.');
+        }
+      } catch (e: any) {
+        console.error(e);
+        alert(`Ошибка: ${e.message || 'Сеть'}`);
+      }
+    };
     return (
       <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
         <button onClick={onBack} className="flex items-center text-gray-500 hover:text-gray-900 transition-colors w-fit text-lg font-medium">
@@ -495,9 +517,6 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
             </div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold text-slate-900 leading-tight">Работа на электроустановках</h1>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-yellow-100 text-yellow-700 border border-yellow-200">
-                <Zap size={12}/> Тип наряда
-              </span>
             </div>
             <div className="flex items-center gap-2 text-slate-600 mt-2">
               <MapPin size={18} className="text-indigo-500" />
@@ -517,17 +536,19 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 <div className="p-2 bg-white rounded-lg shadow-sm text-amber-500 shrink-0"><Clock size={20} /></div>
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Период работ</p>
-                  <p className="font-semibold text-slate-700 leading-snug">
-                    {data.dateStart ? data.dateStart : '—'}{data.dateEnd ? ` — ${data.dateEnd}` : ''}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5">Срок действия: 7 дней</p>
+                  <div className="font-semibold text-slate-700 leading-snug space-y-0.5">
+                    <p className="break-words">{permit.createdAt ? new Date(permit.createdAt).toLocaleDateString('ru-RU') : '—'}</p>
+                    {permit.validTo ? (
+                      <p className="break-words">{new Date(permit.validTo).toLocaleDateString('ru-RU')}</p>
+                    ) : null}
+                  </div>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-white rounded-lg shadow-sm text-rose-500"><AlertTriangle size={20} /></div>
+                <div className="p-2 bg-white rounded-lg shadow-sm text-blue-600"><Zap size={20} /></div>
                 <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Категория работ</p>
-                  <p className="font-semibold text-slate-700">{data.workCategory || '—'}</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Тип наряда</p>
+                  <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200 font-medium">Работа на электроустановках</span>
                 </div>
               </div>
             </div>
@@ -1532,6 +1553,15 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                   <Edit3 size={18} /> Редактировать
                 </button>
               </>
+            )}
+            {!isAuditor && (permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator && electricalNewHasRequiredFields && (
+              <button
+                onClick={handleSubmitForApprovalElecNew}
+                className="flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-white font-medium shadow-sm flex items-center justify-center gap-2 transition-all bg-blue-600 hover:bg-blue-700"
+              >
+                <FileSignature size={18} />
+                Отправить на согласование
+              </button>
             )}
             {!isAuditor && (permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator && !electricalNewHasRequiredFields && (
               <div className="flex items-center text-amber-700 text-sm px-4 bg-amber-50 rounded-lg border border-amber-200 py-2.5 gap-2">

@@ -172,6 +172,14 @@ def _advance_after_approval_step(permit, completed_step, acting_user):
             print(f"🔔 Уведомление отправлено пользователю {next_step.approver.get_full_name()}")
     else:
         permit.approve_final()
+        # ELECTRICAL_NEW: 7 дней от даты согласования (например 13.09 — по 20.09)
+        if (permit.data or {}).get('category') == 'ELECTRICAL_NEW':
+            from datetime import timedelta
+            today = timezone.now().date()
+            permit.valid_from = datetime.combine(today, datetime.min.time(), tzinfo=timezone.get_current_timezone())
+            to_date = today + timedelta(days=7)
+            permit.valid_to = datetime.combine(to_date, datetime.max.time(), tzinfo=timezone.get_current_timezone())
+            permit.save(update_fields=['valid_from', 'valid_to'])
         Notification.objects.create(
             user=permit.initiator,
             permit_id=permit.id,
@@ -3306,5 +3314,11 @@ class AIAssistantView(APIView):
             return Response({"answer": ai_answer})
 
         except Exception as e:
-            print(f"DeepSeek Error: {e}")
+            err_str = str(e)
+            logger.error(f"DeepSeek Error: {err_str}")
+            if 'Insufficient Balance' in err_str:
+                return Response(
+                    {"answer": "Ошибка: на балансе DeepSeek недостаточно средств. Пополните счёт на platform.deepseek.com и повторите попытку."},
+                    status=200
+                )
             return Response({"answer": "Извините, сервис ИИ временно недоступен. Попробуйте позже."}, status=200)
