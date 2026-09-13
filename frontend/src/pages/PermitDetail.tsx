@@ -184,7 +184,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
   // --- ЭЛЕКТРОУСТАНОВКИ ---
   const [electricalTab, setElectricalTab] = useState<'main' | 'brigade'>('main');
-  const [electricalNewTab, setElectricalNewTab] = useState<'main' | 'measures'>('main');
+  const [electricalNewTab, setElectricalNewTab] = useState<'main' | 'team' | 'checklist' | 'measures' | 'loto' | 'admission' | 'daily' | 'brigade_change' | 'target_briefing' | 'work_completion'>('main');
 
   if (permit.category === PermitCategory.ELECTRICAL) {
     const brigadeMembers = Array.isArray(data.brigadeMembers) ? data.brigadeMembers : [];
@@ -407,9 +407,9 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
               <span className="text-sm font-mono text-slate-400">#{permit.permitId}</span>
             </div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-slate-900 leading-tight">Наряд допуска для работы в электроустановках</h1>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-indigo-100 text-indigo-700 border-indigo-200">
-                <Zap size={12}/> Электроустановки v2
+              <h1 className="text-3xl font-bold text-slate-900 leading-tight">Работа на электроустановках</h1>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-yellow-100 text-yellow-700 border border-yellow-200">
+                <Zap size={12}/> Тип наряда
               </span>
             </div>
             <div className="flex items-center gap-2 text-slate-600 mt-2">
@@ -433,6 +433,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                   <p className="font-semibold text-slate-700 leading-snug">
                     {data.dateStart ? data.dateStart : '—'}{data.dateEnd ? ` — ${data.dateEnd}` : ''}
                   </p>
+                  <p className="text-xs text-slate-500 mt-0.5">Срок действия: 7 дней</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -450,7 +451,15 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
             <div className="flex gap-6 overflow-x-auto">
               {[
                 { id: 'main' as const, label: 'Основное' },
+                { id: 'team' as const, label: 'Бригада' },
+                { id: 'checklist' as const, label: 'Чек лист' },
                 { id: 'measures' as const, label: 'Меры подготовки' },
+                { id: 'loto' as const, label: 'LOTO' },
+                { id: 'admission' as const, label: 'Разрешение на допуск' },
+                { id: 'daily' as const, label: 'Ежедневный допуск' },
+                { id: 'brigade_change' as const, label: 'Изменение бригады' },
+                { id: 'target_briefing' as const, label: 'Целевой инструктаж' },
+                { id: 'work_completion' as const, label: 'Окончание работы' },
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -527,6 +536,88 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                   </div>
                 )}
               </div>
+            )}
+
+            {electricalNewTab === 'team' && (
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Users size={20} className="text-blue-500"/> Состав бригады</h3>
+                  <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">Всего: {(data.teamMembers || []).length} чел.</span>
+                </div>
+                {(data.teamMembers || []).length > 0 ? (
+                  <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase">
+                        <tr>
+                          <th className="px-4 py-3 w-10">№</th>
+                          <th className="px-4 py-3">ФИО</th>
+                          <th className="px-4 py-3">Должность</th>
+                          <th className="px-4 py-3">Инструктаж провел</th>
+                          <th className="px-4 py-3">Дата</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {(data.teamMembers || []).map((member: any, idx: number) => (
+                          <tr key={idx} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-gray-400">{idx + 1}</td>
+                            <td className="px-4 py-3 font-medium text-gray-900">{member.name}</td>
+                            <td className="px-4 py-3 text-gray-600">{member.role}</td>
+                            <td className="px-4 py-3 text-gray-600">{member.instructedBy || '—'}</td>
+                            <td className="px-4 py-3 text-gray-500">{member.instructedAt ? new Date(member.instructedAt).toLocaleString() : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">Состав бригады не указан</div>
+                )}
+              </div>
+            )}
+
+            {electricalNewTab === 'checklist' && (
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <ClipboardList size={20} className="text-orange-500"/>
+                  <h3 className="text-lg font-bold text-slate-800">Чек-лист оценки риска</h3>
+                </div>
+                {data.checklist && Object.keys(data.checklist).length > 0 ? (
+                  <ChecklistSection checklist={data.checklist as ChecklistData} onChange={() => {}} readOnly={true} />
+                ) : (
+                  <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">Чек-лист не заполнен</div>
+                )}
+              </div>
+            )}
+
+            {electricalNewTab === 'loto' && (
+              <div>
+                <IsolationMatrixForm
+                  data={data.isolationMatrix || {}}
+                  onChange={() => {}}
+                  readOnly={true}
+                  lotoPhotoUrl={permit.loto_photo || null}
+                />
+              </div>
+            )}
+
+            {electricalNewTab === 'admission' && (
+              <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">Разрешение на допуск</div>
+            )}
+
+            {electricalNewTab === 'daily' && (
+              <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">Ежедневный допуск</div>
+            )}
+
+            {electricalNewTab === 'brigade_change' && (
+              <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">Изменение бригады</div>
+            )}
+
+            {electricalNewTab === 'target_briefing' && (
+              <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">Целевой инструктаж</div>
+            )}
+
+            {electricalNewTab === 'work_completion' && (
+              <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">Окончание работы</div>
             )}
           </div>
         </div>
