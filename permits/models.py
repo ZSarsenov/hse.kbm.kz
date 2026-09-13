@@ -110,7 +110,11 @@ class WorkPermit(models.Model):
         if not self.permit_id:
             import time
             current_year = time.strftime('%Y')
-            prefix = f"OR-{current_year}-"
+            is_electrical_new = (self.data or {}).get('category') == 'ELECTRICAL_NEW'
+            if is_electrical_new:
+                prefix = f"RVE-{current_year}-"
+            else:
+                prefix = f"OR-{current_year}-"
             last_permit = WorkPermit.objects.filter(
                 permit_id__startswith=prefix
             ).order_by('-permit_id').first()
@@ -144,6 +148,9 @@ class WorkPermit(models.Model):
         # Формируем цепочку (Порядок важен!)
         steps_config = []
 
+        # Для электроустановок (новый тип) — упрощённая цепочка без доп. согласующих
+        is_electrical_new = (self.data or {}).get('category') == 'ELECTRICAL_NEW'
+
         # 1. Выдающий наряд — тот, кого указали в поле "Наряд выдал (Выдающий)", иначе создатель наряда
         issuer_id = get_user_id('issuer')
         if issuer_id:
@@ -160,6 +167,8 @@ class WorkPermit(models.Model):
         admit_id = get_user_id('admitting')
         if admit_id:
             steps_config.append({'role': 'ADMITTING', 'user_id': admit_id})
+        elif is_electrical_new:
+            raise ValidationError("Для электроустановок обязательно укажите «Допускающий».")
 
         # 4. Производитель работ (из БД или исполнитель без ЭЦП — без учётной записи, графическая подпись)
         prod_id = get_user_id('producer')
@@ -171,26 +180,30 @@ class WorkPermit(models.Model):
             steps_config.append({'role': 'WORK_PRODUCER', 'user_id': prod_id})
         elif external_line:
             steps_config.append({'role': 'WORK_PRODUCER', 'external': True})
+        elif is_electrical_new:
+            raise ValidationError("Для электроустановок обязательно укажите «Производитель работ».")
 
-        # 5. Дополнительные согласующие (до 5, подписывают ДО основного)
-        additional_coords = self.data.get('additionalCoordinators', [])
-        if isinstance(additional_coords, list):
-            for ac in additional_coords[:5]:
-                if isinstance(ac, dict) and ac.get('id'):
-                    steps_config.append({'role': 'COORDINATOR', 'user_id': ac['id']})
-                elif isinstance(ac, dict) and ac.get('external'):
-                    steps_config.append({'role': 'COORDINATOR', 'external': True})
+        # 5-6. Дополнительные согласующие и основной согласующий — только для обычных нарядов
+        if not is_electrical_new:
+            # 5. Дополнительные согласующие (до 5, подписывают ДО основного)
+            additional_coords = self.data.get('additionalCoordinators', [])
+            if isinstance(additional_coords, list):
+                for ac in additional_coords[:5]:
+                    if isinstance(ac, dict) and ac.get('id'):
+                        steps_config.append({'role': 'COORDINATOR', 'user_id': ac['id']})
+                    elif isinstance(ac, dict) and ac.get('external'):
+                        steps_config.append({'role': 'COORDINATOR', 'external': True})
 
-        # 6. Основной согласующий (Нач. смены / участка / инженер ТБ) — подписывает ПОСЛЕДНИМ
-        coord_id = get_user_id('supervisor')
-        sup_raw = self.data.get('supervisor')
-        external_super_line = ''
-        if isinstance(sup_raw, dict) and sup_raw.get('external'):
-            external_super_line = (sup_raw.get('name') or sup_raw.get('freeText') or '').strip()
-        if coord_id:
-            steps_config.append({'role': 'COORDINATOR', 'user_id': coord_id})
-        elif external_super_line:
-            steps_config.append({'role': 'COORDINATOR', 'external': True})
+            # 6. Основной согласующий (Нач. смены / участка / инженер ТБ) — подписывает ПОСЛЕДНИМ
+            coord_id = get_user_id('supervisor')
+            sup_raw = self.data.get('supervisor')
+            external_super_line = ''
+            if isinstance(sup_raw, dict) and sup_raw.get('external'):
+                external_super_line = (sup_raw.get('name') or sup_raw.get('freeText') or '').strip()
+            if coord_id:
+                steps_config.append({'role': 'COORDINATOR', 'user_id': coord_id})
+            elif external_super_line:
+                steps_config.append({'role': 'COORDINATOR', 'external': True})
 
         # СОЗДАЕМ ЗАПИСИ В БД
         from django.contrib.auth import get_user_model

@@ -34,6 +34,7 @@ const STEP_ICONS = [FileText, Users, AlertTriangle, Lock];
 export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, onSubmit, initialData }) => {
 
   const isEditing = !!initialData;
+  const isElectricalNew = category === PermitCategory.ELECTRICAL_NEW;
   const { t } = useTranslation();
 
   const STEPS = [
@@ -41,7 +42,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
     { id: 2, label: t('create.steps.brigade'), icon: STEP_ICONS[1] },
     { id: 3, label: t('create.steps.risk'), icon: STEP_ICONS[2] },
     { id: 4, label: t('create.steps.loto'), icon: STEP_ICONS[3] },
-  ];
+  ].filter(s => !(isElectricalNew && s.id === 2))
+   .map((s, idx) => ({ ...s, id: idx + 1 }));
 
   // --- ELECTRICAL PERMIT MODE ---
   if (category === PermitCategory.ELECTRICAL) {
@@ -94,6 +96,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
     // Safety Measures
     m5_1_stop: '', m5_2_disconnect: '', m5_3_install: '', m5_4_analysis: '', m5_5_fence: '',
     m5_6_height: '', m5_7_warn: '', m5_8_railway: '', m5_9_routes: '', m5_10_additional: '',
+    electricalDisconnects: isElectricalNew ? [{ id: Date.now().toString(), installationName: '', actionRequired: '' }] : undefined,
     // Risk Assessment
     riskIdentifiedBy: '', riskGroup: [], riskTable: [], riskApprovedBy: '',
 
@@ -223,7 +226,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       riskGroup: formData.riskGroup,
       isolationMatrix: formData.isolationMatrix,
       extensions: formData.extensions,
-      templateType: 'Наряд повышенной опасности',
+      templateType: category === PermitCategory.ELECTRICAL_NEW ? 'Наряд допуска для работы в электроустановках' : 'Наряд повышенной опасности',
       category: category,
       notifyFireService: notifyFireService,
       callFirePost: callFirePost,
@@ -536,9 +539,12 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       } else if (!roles.producer.id) {
           alert("Не заполнен Производитель работ!"); setIsSubmitting(false); return;
       }
-      if (!roles.admitting.id && !roles.admitting.name) {
-          alert("Не заполнен Допускающий к работе!"); setIsSubmitting(false); return;
-      }
+       if (!roles.admitting.id && !roles.admitting.name) {
+           alert("Не заполнен Допускающий к работе!"); setIsSubmitting(false); return;
+       }
+       if (isElectricalNew && !formData.workCategory) {
+           alert("Укажите категорию работ."); setIsSubmitting(false); return;
+       }
       if (supervisorIsExternal) {
           if (!roles.supervisor.name.trim()) {
             alert("Введите ФИО и должность согласующего — без ЭЦП (одной строкой)."); setIsSubmitting(false); return;
@@ -765,36 +771,54 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                       />
                     </React.Suspense>
                   </div>
+                   <div className="md:col-span-2">
+                     <label className="block text-sm font-semibold text-gray-700 mb-2">{t('create.general.workContent')}</label>
+                    <textarea
+                      rows={3}
+                      value={formData.content}
+                      onChange={(e) => updateForm('content', e.target.value)}
+                      placeholder={t('create.general.workContentPlaceholder')}
+                      className={commonInputClasses}
+                    />
+                  </div>
+                  {/* Категория работ — только для ELECTRICAL_NEW */}
+                  {isElectricalNew && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Категория работ<span className="text-red-500 ml-1">*</span></label>
+                      <select
+                        value={formData.workCategory || ''}
+                        onChange={e => updateForm('workCategory', e.target.value)}
+                        className={commonInputClasses}
+                      >
+                        <option value="">Выберите категорию...</option>
+                        <option value="Со снятием напряжения">Со снятием напряжения</option>
+                        <option value="Без снятия напряжения с применением электрозащитных средств">Без снятия напряжения с применением электрозащитных средств</option>
+                        <option value="Без снятия напряжения на потенциале токоведущей части">Без снятия напряжения на потенциале токоведущей части</option>
+                      </select>
+                    </div>
+                  )}
+                  {!isElectricalNew && (
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('create.general.workContent')}</label>
-                   <textarea
-                     rows={3}
-                     value={formData.content}
-                     onChange={(e) => updateForm('content', e.target.value)}
-                     placeholder={t('create.general.workContentPlaceholder')}
-                     className={commonInputClasses}
-                   />
-                 </div>
-                 <div className="md:col-span-2">
-                   <label className="flex items-center gap-3 cursor-pointer select-none">
-                     <div
-                       onClick={() => {
-                         const next = !notifyFireService;
-                         setNotifyFireService(next);
-                         if (!next) setCallFirePost(false);
-                       }}
-                       className={`relative w-12 h-7 rounded-full transition-colors ${notifyFireService ? 'bg-red-500' : 'bg-gray-300'}`}
-                     >
-                       <div className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${notifyFireService ? 'translate-x-5' : ''}`} />
-                     </div>
-                     <span className="text-sm font-medium text-gray-700">
-                       {t('create.general.notifyFire')}
-                     </span>
-                     {notifyFireService && (
-                       <span className="text-sm text-red-600 font-medium">{t('create.general.notifyFireHint')}</span>
-                     )}
-                   </label>
-                 </div>
+                    <label className="flex items-center gap-3 cursor-pointer select-none">
+                      <div
+                        onClick={() => {
+                          const next = !notifyFireService;
+                          setNotifyFireService(next);
+                          if (!next) setCallFirePost(false);
+                        }}
+                        className={`relative w-12 h-7 rounded-full transition-colors ${notifyFireService ? 'bg-red-500' : 'bg-gray-300'}`}
+                      >
+                        <div className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${notifyFireService ? 'translate-x-5' : ''}`} />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">
+                        {t('create.general.notifyFire')}
+                      </span>
+                      {notifyFireService && (
+                        <span className="text-sm text-red-600 font-medium">{t('create.general.notifyFireHint')}</span>
+                      )}
+                    </label>
+                  </div>
+                  )}
                  {notifyFireService && (
                    <div className="md:col-span-2">
                      <label className="flex items-center gap-3 cursor-pointer select-none">
@@ -963,8 +987,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                    </div>
                  </div>
 
-                 {/* 5. Согласующий (необязательный — без звёздочки) */}
-                  <div className="md:col-span-2 border-t pt-4 mt-2">
+                  {/* 5. Согласующий (необязательный — без звёздочки) */}
+                  {!isElectricalNew && (
+                   <div className="md:col-span-2 border-t pt-4 mt-2">
                    <div className="flex flex-col min-w-0">
                    {supervisorIsExternal ? (
                      <>
@@ -1101,23 +1126,96 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                      >
                        <Plus size={16} />
                        {t('create.roles.addCoordinator')}
-                     </button>
-                   )}
-                 </div>
+                      </button>
+                    )}
+                  </div>
+                  )}
 
-              </div>
-              )}
-           </div>
+               </div>
+               )}
+            </div>
 
-           {/* Section 3: Safety Measures */}
+            {/* Section 3: Safety Measures */}
            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
              <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                <ShieldAlert size={24} className="text-blue-600"/>
-               {t('create.safety.sectionTitle')}
+               {isElectricalNew ? 'Меры по подготовке рабочих мест' : t('create.safety.sectionTitle')}
              </h3>
              <div className="space-y-5">
-               {[
-                 { key: 'm5_1_stop', label: t('create.safety.m5_1'), placeholder: t('create.safety.m5_1_ph') },
+               {isElectricalNew ? (
+                 <>
+                 {/* Таблица отключений/заземлений */}
+                 <div>
+                   <div className="flex items-center justify-between mb-3">
+                     <label className="text-sm font-semibold text-gray-700">Наименование электроустановок, в которых нужно провести отключения и установить заземления / Что должно быть отключено и где заземлено</label>
+                     {(formData.electricalDisconnects || []).length < 10 && (
+                       <button
+                         type="button"
+                         onClick={() => updateForm('electricalDisconnects', [...(formData.electricalDisconnects || []), { id: Date.now().toString(), installationName: '', actionRequired: '' }])}
+                         className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1"
+                       >
+                         <Plus size={14} /> Добавить строку
+                       </button>
+                     )}
+                   </div>
+                   <div className="border border-gray-200 rounded-xl overflow-hidden">
+                     <table className="w-full">
+                       <thead className="bg-gray-50">
+                         <tr>
+                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 border-b border-gray-200 w-1/2">Наименование электроустановки</th>
+                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 border-b border-gray-200 w-1/2">Что должно быть отключено и где заземлено</th>
+                           <th className="px-4 py-3 w-12 border-b border-gray-200"></th>
+                         </tr>
+                       </thead>
+                       <tbody className="divide-y divide-gray-100">
+                         {(formData.electricalDisconnects || []).map((row: any, idx: number) => (
+                           <tr key={row.id} className="hover:bg-gray-50/50">
+                             <td className="p-3">
+                               <textarea
+                                 rows={2}
+                                 className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none text-sm"
+                                 value={row.installationName}
+                                 onChange={e => {
+                                   const updated = (formData.electricalDisconnects || []).map((r: any) => r.id === row.id ? { ...r, installationName: e.target.value } : r);
+                                   updateForm('electricalDisconnects', updated);
+                                 }}
+                                 placeholder="Наименование..."
+                               />
+                             </td>
+                             <td className="p-3">
+                               <textarea
+                                 rows={2}
+                                 className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none text-sm"
+                                 value={row.actionRequired}
+                                 onChange={e => {
+                                   const updated = (formData.electricalDisconnects || []).map((r: any) => r.id === row.id ? { ...r, actionRequired: e.target.value } : r);
+                                   updateForm('electricalDisconnects', updated);
+                                 }}
+                                 placeholder="Отключить, заземлить..."
+                               />
+                             </td>
+                             <td className="p-3 text-center">
+                               {(formData.electricalDisconnects || []).length > 1 && (
+                                 <button
+                                   type="button"
+                                   onClick={() => updateForm('electricalDisconnects', (formData.electricalDisconnects || []).filter((r: any) => r.id !== row.id))}
+                                   className="text-gray-400 hover:text-red-500 transition-colors"
+                                 >
+                                   <Trash2 size={18} />
+                                 </button>
+                               )}
+                             </td>
+                           </tr>
+                         ))}
+                       </tbody>
+                     </table>
+                   </div>
+                   <p className="text-xs text-gray-400 mt-2">Максимум 10 строк. {(formData.electricalDisconnects || []).length}/10</p>
+                 </div>
+                 </>
+                ) : (
+                [
+                  { key: 'm5_1_stop', label: t('create.safety.m5_1'), placeholder: t('create.safety.m5_1_ph') },
                  { key: 'm5_2_disconnect', label: t('create.safety.m5_2'), placeholder: t('create.safety.m5_2_ph') },
                  { key: 'm5_3_install', label: t('create.safety.m5_3'), placeholder: t('create.safety.m5_3_ph') },
                  { key: 'm5_4_analysis', label: t('create.safety.m5_4'), placeholder: t('create.safety.m5_4_ph') },
@@ -1138,10 +1236,11 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                          value={(formData as any)[field.key]}
                          onChange={(e) => updateForm(field.key as keyof RegulationFormData, e.target.value)}
                        />
-                    </div>
-                 </div>
-               ))}
-               {/* Кнопка прикрепления документа */}
+                     </div>
+                  </div>
+                ))
+                )}
+                {/* Кнопка прикрепления документа */}
                <div className="pt-4 border-t border-gray-100">
                  <input
                    type="file"
@@ -1197,7 +1296,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
        )}
 
        {/* STEP 2: TEAM & DATES */}
-       {activeStep === 2 && (
+        {activeStep === 2 && !isElectricalNew && (
          <div className="space-y-6 ">
 
             {/* Dates */}
@@ -1407,7 +1506,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
        )}
 
        {/* STEP 3: RISK ASSESSMENT */}
-       {activeStep === 3 && (
+        {(activeStep === 3 || (activeStep === 2 && isElectricalNew)) && (
          <div className="space-y-6 ">
 
             {/* General Info (Static) */}
@@ -1588,7 +1687,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
        )}
 
        {/* STEP 4: LOTO with Isolation Matrix */}
-       {activeStep === 4 && (
+        {(activeStep === 4 || (activeStep === 3 && isElectricalNew)) && (
          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm ">
             <div className="flex items-center justify-between border-b pb-2 mb-6">
                 <h3 className="font-bold text-gray-900 uppercase text-sm tracking-wider flex items-center gap-2">
@@ -1653,7 +1752,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 -mx-2 md:-mx-4 mt-8 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10 w-[calc(100%+16px)] md:w-[calc(100%+32px)]">
         <div className="w-full flex justify-between items-center">
            <div className="hidden sm:block text-base text-gray-400">
-             {t('create.step', { current: activeStep, total: 4 })}
+             {t('create.step', { current: activeStep, total: STEPS.length })}
            </div>
            <div className="flex gap-3 w-full sm:w-auto">
              {activeStep > 1 && (
@@ -1662,10 +1761,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                </button>
              )}
 
-             {activeStep < 4 ? (
-               <button onClick={() => setActiveStep(activeStep + 1)} className="flex-1 sm:flex-none px-8 py-3 bg-slate-800 text-white rounded-lg hover:bg-slate-700 text-base font-medium ml-auto">
-                 {t('create.next')}
-               </button>
+              {activeStep < STEPS.length ? (
+                <button onClick={() => setActiveStep(activeStep + 1)} className="flex-1 sm:flex-none px-8 py-3 bg-slate-800 text-white rounded-lg hover:bg-slate-700 text-base font-medium ml-auto">
+                  {t('create.next')}
+                </button>
              ) : (
                <>
                  <button

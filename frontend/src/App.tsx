@@ -248,7 +248,11 @@ function App() {
   // перед показом формы редактирования.
   const handleEditPermit = async (permit: WorkPermit) => {
       if (!token) return;
-      const cat = permit.category === PermitCategory.ELECTRICAL ? PermitCategory.ELECTRICAL : PermitCategory.DANGEROUS;
+      const cat = permit.category === PermitCategory.ELECTRICAL
+        ? PermitCategory.ELECTRICAL
+        : permit.category === PermitCategory.ELECTRICAL_NEW
+          ? PermitCategory.ELECTRICAL_NEW
+          : PermitCategory.DANGEROUS;
       setSelectedCategory(cat);
       // Сначала переходим во view CREATE с временно "обрезанной" версией —
       // показываем форму, чтобы не было паузы. Полная версия подгрузится через
@@ -264,11 +268,7 @@ function App() {
               const raw = await response.json();
               const fullPermit = formatPermit(raw);
               // По полной версии уточняем категорию (в списке data могла быть обрезана)
-              if (fullPermit.category === PermitCategory.ELECTRICAL) {
-                setSelectedCategory(PermitCategory.ELECTRICAL);
-              } else {
-                setSelectedCategory(PermitCategory.DANGEROUS);
-              }
+              setSelectedCategory(fullPermit.category ?? PermitCategory.DANGEROUS);
               setEditingPermit(fullPermit);
               // Также обновляем кеш — нам пригодится при следующем открытии деталей
               setPermits(prev => prev.map(item =>

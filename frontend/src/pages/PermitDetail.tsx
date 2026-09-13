@@ -184,6 +184,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
   // --- ЭЛЕКТРОУСТАНОВКИ ---
   const [electricalTab, setElectricalTab] = useState<'main' | 'brigade'>('main');
+  const [electricalNewTab, setElectricalNewTab] = useState<'main' | 'measures'>('main');
 
   if (permit.category === PermitCategory.ELECTRICAL) {
     const brigadeMembers = Array.isArray(data.brigadeMembers) ? data.brigadeMembers : [];
@@ -379,6 +380,184 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
       </div>
     );
   }
+
+  if (permit.category === PermitCategory.ELECTRICAL_NEW) {
+    const disconnects = Array.isArray(data.electricalDisconnects) ? data.electricalDisconnects : [];
+    const electricalNewHasRequiredFields = !!(
+      data.workCategory &&
+      data.admitting?.id &&
+      (data.producer?.id || data.producer?.name)
+    );
+    const renderRole = (role: any) => {
+      if (!role) return '—';
+      if (typeof role === 'string') return role;
+      return role.name || role.freeText || '—';
+    };
+    return (
+      <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
+        <button onClick={onBack} className="flex items-center text-gray-500 hover:text-gray-900 transition-colors w-fit text-lg font-medium">
+          <ArrowLeft size={24} className="mr-2" /> Назад к списку
+        </button>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          {/* HEADER */}
+          <div className="p-6 md:p-8 border-b border-gray-100 bg-gradient-to-r from-white to-slate-50/50">
+            <div className="flex items-center gap-3 mb-2">
+              <StatusBadge status={permit.status} />
+              <span className="text-sm font-mono text-slate-400">#{permit.permitId}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-slate-900 leading-tight">Наряд допуска для работы в электроустановках</h1>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-indigo-100 text-indigo-700 border-indigo-200">
+                <Zap size={12}/> Электроустановки v2
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-slate-600 mt-2">
+              <MapPin size={18} className="text-indigo-500" />
+              <span className="font-medium">{data.department || 'Электроустановка'}</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50 p-5 rounded-xl border border-slate-100 mt-6">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-white rounded-lg shadow-sm text-blue-600"><User size={20} /></div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Инициатор</p>
+                  <p className="font-semibold text-slate-700">{initiator?.name || 'Неизвестно'}</p>
+                  <p className="text-xs text-slate-500">{initiator?.position || 'Сотрудник'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-white rounded-lg shadow-sm text-amber-500 shrink-0"><Clock size={20} /></div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Период работ</p>
+                  <p className="font-semibold text-slate-700 leading-snug">
+                    {data.dateStart ? data.dateStart : '—'}{data.dateEnd ? ` — ${data.dateEnd}` : ''}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-white rounded-lg shadow-sm text-rose-500"><AlertTriangle size={20} /></div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Категория работ</p>
+                  <p className="font-semibold text-slate-700">{data.workCategory || '—'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* TABS */}
+          <div className="border-b border-gray-200 px-6 md:px-8">
+            <div className="flex gap-6 overflow-x-auto">
+              {[
+                { id: 'main' as const, label: 'Основное' },
+                { id: 'measures' as const, label: 'Меры подготовки' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setElectricalNewTab(tab.id)}
+                  className={`pb-4 pt-4 text-sm font-bold uppercase tracking-wide border-b-2 transition-colors whitespace-nowrap ${electricalNewTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* CONTENT */}
+          <div className="p-6 md:p-8 min-h-[300px]">
+            {electricalNewTab === 'main' && (
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2"><FileText size={20} className="text-slate-400"/> Описание и условия работ</h3>
+                  <div className="bg-slate-50 p-5 rounded-xl border border-slate-100 space-y-4">
+                    <div><span className="text-xs font-bold text-gray-400 uppercase">Категория работ</span><p className="text-gray-900 font-medium text-lg">{data.workCategory || '—'}</p></div>
+                    <div><span className="text-xs font-bold text-gray-400 uppercase">Поручается</span><p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{data.content || data.assignment || 'Описание отсутствует'}</p></div>
+                    <div><span className="text-xs font-bold text-gray-400 uppercase">Место проведения</span><p className="text-gray-800">{data.workPlace || '—'}{data.department ? ` / ${data.department}` : ''}</p></div>
+                  </div>
+                </div>
+
+                <ApprovalTracker steps={(permit as any).approvalSteps} />
+
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><User size={20} className="text-slate-400"/> Ответственные лица</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Выдающий наряд</span><p className="font-medium text-gray-900">{renderRole(data.issuer)}</p></div>
+                    <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Ответственный руководитель работ</span><p className="font-medium text-gray-900">{renderRole(data.responsible)}</p></div>
+                    <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Допускающий</span><p className="font-medium text-gray-900">{renderRole(data.admitting)}</p></div>
+                    <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Производитель работ</span><p className="font-medium text-gray-900">{renderRole(data.producer)}</p></div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {electricalNewTab === 'measures' && (
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Shield size={20} className="text-red-500"/> Меры по подготовке рабочих мест</h3>
+                  <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">Всего: {disconnects.length} п.</span>
+                </div>
+                {disconnects.length > 0 ? (
+                  <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase">
+                        <tr>
+                          <th className="px-4 py-3 w-10">№</th>
+                          <th className="px-4 py-3">Наименование электроустановки</th>
+                          <th className="px-4 py-3">Что должно быть отключено и где заземлено</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {disconnects.map((row: any, idx: number) => (
+                          <tr key={row.id || idx} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-gray-400">{idx + 1}</td>
+                            <td className="px-4 py-3 text-gray-900">{row.installationName || '—'}</td>
+                            <td className="px-4 py-3 text-gray-600">{row.actionRequired || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">Меры подготовки не указаны</div>
+                )}
+                {(data as any).m5_10_additional && (
+                  <div className="mt-5 p-4 border-l-4 border-red-500 bg-red-50/30 rounded-r-lg">
+                    <h4 className="font-bold text-gray-700 text-sm mb-1">Дополнительные мероприятия</h4>
+                    <p className="text-gray-900">{data.m5_10_additional}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* FOOTER */}
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-lg md:relative md:bg-transparent md:border-0 md:shadow-none md:p-0 z-20">
+          <div className="max-w-5xl mx-auto flex flex-col sm:flex-row gap-3 justify-end">
+            {!isAuditor && (((permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator) || canEditAsManager) && (
+              <>
+                {permit.status === 'DRAFT' && isInitiator && (
+                  <button onClick={onDelete} className="px-4 py-2.5 border border-red-200 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 font-medium flex items-center justify-center gap-2">
+                    <Trash2 size={18} /><span className="sm:hidden">Удалить</span>
+                  </button>
+                )}
+                <button onClick={onEdit} className="flex-1 sm:flex-none px-6 py-2.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium flex items-center justify-center gap-2">
+                  <Edit3 size={18} /> Редактировать
+                </button>
+              </>
+            )}
+            {!isAuditor && (permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator && !electricalNewHasRequiredFields && (
+              <div className="flex items-center text-amber-700 text-sm px-4 bg-amber-50 rounded-lg border border-amber-200 py-2.5 gap-2">
+                <AlertTriangle size={16} />
+                Наряд не заполнен полностью. Откройте редактирование и заполните обязательные поля.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
 
   // --- ОБЫЧНЫЕ НАРЯДЫ ---
   const [activeTab, setActiveTab] = useState<'info' | 'safety' | 'team' | 'checklist' | 'loto'>('info');

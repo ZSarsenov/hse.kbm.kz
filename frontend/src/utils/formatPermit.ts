@@ -53,7 +53,11 @@ export const formatPermit = (p: RawPermit): WorkPermit => ({
   validFrom: p.valid_from,
   validTo: p.valid_to,
   data: p.data,
-  category: p.data?.category === PermitCategory.ELECTRICAL ? PermitCategory.ELECTRICAL : PermitCategory.DANGEROUS,
+  category: p.data?.category === PermitCategory.ELECTRICAL
+    ? PermitCategory.ELECTRICAL
+    : p.data?.category === PermitCategory.ELECTRICAL_NEW
+      ? PermitCategory.ELECTRICAL_NEW
+      : PermitCategory.DANGEROUS,
   approvalSteps: p.approval_steps,
   producer_closed: p.producer_closed,
 });

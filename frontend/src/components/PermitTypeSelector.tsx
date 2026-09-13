@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, AlertTriangle, Zap, ArrowRight } from 'lucide-react';
+import { X, AlertTriangle, Zap, ArrowRight, PlugZap } from 'lucide-react';
 import { PermitCategory } from '../types';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
@@ -100,6 +100,26 @@ export const PermitTypeSelector: React.FC<PermitTypeSelectorProps> = ({ isOpen, 
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed mb-4">
               {t('permitType.electricalDesc')}
+            </p>
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0A3D62] opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200">
+              {t('permitType.select')} <ArrowRight size={14} />
+            </span>
+          </button>
+
+          {/* Наряд для работы в электроустановках v2 */}
+          <button
+            onClick={() => onSelect(PermitCategory.ELECTRICAL_NEW)}
+            className="group relative text-left p-5 bg-white border border-slate-200 rounded-xl transition-all duration-200 hover:border-[#0A3D62] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#0A3D62]/20 md:col-span-2"
+          >
+            <span className="absolute top-4 right-4 text-[11px] font-bold font-mono text-slate-300 group-hover:text-slate-400 transition-colors">03</span>
+            <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
+              <PlugZap size={24} />
+            </div>
+            <h3 className="text-base font-bold text-slate-900 leading-snug mb-1.5 pr-8">
+              Наряд для работы в электроустановках v2
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed mb-4">
+              Работы в действующих электроустановках до и выше 1000 В. Назначение ответственного руководителя, допускающего и производителя работ. Таблица отключений и заземлений.
             </p>
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0A3D62] opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200">
               {t('permitType.select')} <ArrowRight size={14} />

@@ -13,6 +13,7 @@ export enum PermitStatus {
 export enum PermitCategory {
   DANGEROUS = 'DANGEROUS',
   ELECTRICAL = 'ELECTRICAL',
+  ELECTRICAL_NEW = 'ELECTRICAL_NEW',
 }
 
 export enum UserRole {
@@ -249,6 +250,8 @@ export interface RegulationFormData {
   m5_8_railway: string;
   m5_9_routes: string;
   m5_10_additional: string;
+  workCategory?: string; // Категория работ (для ELECTRICAL_NEW)
+  electricalDisconnects?: ElectricalSafetyMeasure[]; // Таблица отключений/заземлений (для ELECTRICAL_NEW)
   riskIdentifiedBy: string;
   riskGroup: RiskGroupMember[];
   riskTable: RiskTableRow[];
