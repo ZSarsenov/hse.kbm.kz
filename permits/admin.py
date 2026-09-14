@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import WorkPermitTemplate, WorkPermit, ApprovalStep, Department, Location, DangerousWorkType
+from .models import WorkPermitTemplate, WorkPermit, ApprovalStep, Department, Location, DangerousWorkType, ElectricalWorkType
 
 @admin.register(WorkPermitTemplate)
 class WorkPermitTemplateAdmin(admin.ModelAdmin):
@@ -25,6 +25,12 @@ class LocationAdmin(admin.ModelAdmin):
 
 @admin.register(DangerousWorkType)
 class DangerousWorkTypeAdmin(admin.ModelAdmin):
+    list_display = ('name', 'name_kk', 'color_code')
+    search_fields = ('name', 'name_kk')
+
+
+@admin.register(ElectricalWorkType)
+class ElectricalWorkTypeAdmin(admin.ModelAdmin):
     list_display = ('name', 'name_kk', 'color_code')
     search_fields = ('name', 'name_kk')
 

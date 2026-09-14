@@ -410,6 +410,23 @@ class DangerousWorkType(models.Model):
         return self.name
 
 
+class ElectricalWorkType(models.Model):
+    """
+    Справочник 'Виды электрических работ' — отдельная таблица для нарядов
+    на работу в электроустановках (ELECTRICAL_NEW).
+    """
+    name = models.CharField(max_length=512, unique=True, verbose_name='Вид электрических работ')
+    name_kk = models.CharField(max_length=512, blank=True, default='', verbose_name='Атауы (қазақша)')
+    color_code = models.CharField(max_length=7, default="#FF0000", verbose_name='Цвет рамки (HEX)')
+
+    class Meta:
+        verbose_name = 'Вид электрических работ'
+        verbose_name_plural = 'Виды электрических работ'
+
+    def __str__(self):
+        return self.name
+
+
 class Notification(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications')
     title = models.CharField(max_length=255)

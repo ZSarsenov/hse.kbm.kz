@@ -745,13 +745,13 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                  </div>
 
                  <div className="md:col-span-2">
-                    <SearchableSelect
-                        label={t('create.general.workName')}
-                        value={formData.workName}
-                        apiEndpoint="/api/v1/work-types/"
-                        placeholder={t('create.general.workNamePlaceholder')}
-                        onChange={(val) => updateForm('workName', val)}
-                    />
+                     <SearchableSelect
+                         label={t('create.general.workName')}
+                         value={formData.workName}
+                         apiEndpoint={isElectricalNew ? "/api/v1/electrical-work-types/" : "/api/v1/work-types/"}
+                         placeholder={t('create.general.workNamePlaceholder')}
+                         onChange={(val) => updateForm('workName', val)}
+                     />
                  </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">{t('create.general.workPlace')}</label>

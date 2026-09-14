@@ -2,7 +2,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import (WorkPermit, WorkPermitTemplate, ApprovalStep, Location, Department, DangerousWorkType,
-                     Notification)
+                     ElectricalWorkType, Notification)
 
 User = get_user_model()
 
@@ -216,6 +216,13 @@ class DepartamentSerializer(serializers.ModelSerializer):
 class DangerousWorkTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = DangerousWorkType
+        fields = ('id', 'name', 'name_kk', 'color_code')
+
+
+# 6.1 Сериализатор для Видов электрических работ
+class ElectricalWorkTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ElectricalWorkType
         fields = ('id', 'name', 'name_kk', 'color_code')
 
 

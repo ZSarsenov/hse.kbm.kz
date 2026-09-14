@@ -23,11 +23,11 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q
 from rest_framework.exceptions import PermissionDenied
 
-from .models import WorkPermit, WorkPermitTemplate, Department, DangerousWorkType, ApprovalStep, Notification
+from .models import WorkPermit, WorkPermitTemplate, Department, DangerousWorkType, ElectricalWorkType, ApprovalStep, Notification
 from core.signature import parse_xml_signature_info
 from .serializers import (PermitSerializer, PermitListSerializer,
                           WorkPermitTemplateSerializer, DepartamentSerializer,
-                          DangerousWorkTypeSerializer, NotificationSerializer)
+                          DangerousWorkTypeSerializer, ElectricalWorkTypeSerializer, NotificationSerializer)
 
 from .kalkan import Kalkan # временно не используем способ подписания через Kalkan
 
@@ -3116,6 +3116,19 @@ class DangerousWorkTypeViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = DangerousWorkType.objects.all()
     serializer_class = DangerousWorkTypeSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = None  # справочник — отдаём массивом
+
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', 'name_kk']
+
+
+class ElectricalWorkTypeViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Справочник видов электрических работ (для нарядов на электроустановках)
+    """
+    queryset = ElectricalWorkType.objects.all()
+    serializer_class = ElectricalWorkTypeSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = None  # справочник — отдаём массивом
 
