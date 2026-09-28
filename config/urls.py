@@ -16,6 +16,8 @@ urlpatterns = [
     path('api/v1/api-token-auth/', CustomUserToken.as_view()),
     # Поиск пользователей
     path('api/v1/', include('users.urls')),
+    # Подписание через eGov Mobile (QR); выключено, пока EGOV_QR_ENABLED != True
+    path('api/v1/egov_qr/', include('egov_qr.urls')),
 ]
 
 # В режиме разработки Django сам обслуживает статические и медиа файлы

@@ -12,6 +12,7 @@ import { WellMap } from '../components/WellMap';
 import ChecklistSection, { ChecklistData } from '../components/ChecklistSection';
 import { SignaturePadModal, getSignatureUrl } from '../components/SignaturePadModal';
 import { IsolationMatrixForm } from '../components/IsolationMatrixForm';
+import { EgovQrSignButton } from '../components/EgovQrSignButton';
 
 interface UserSearchSelection {
   userId: number;
@@ -2747,8 +2748,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                     {myPendingSteps
                         .sort((a: any, b: any) => a.step_order - b.step_order)
                         .map((step: any) => (
+                            <div key={step.role} className="flex flex-col sm:flex-row gap-2">
                             <button
-                                key={step.role}
                                 onClick={() => handleSign(step.role)}
                                 disabled={loading}
                                 className={`px-6 py-2.5 rounded-lg text-white font-medium shadow-sm flex items-center justify-center gap-2 transition-all
@@ -2757,6 +2758,16 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                 {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <FileSignature size={18} />}
                                 Согласовать как {step.role_label || step.role} (очередь {step.step_order})
                             </button>
+                            <EgovQrSignButton
+                                permitId={permit.id}
+                                role={step.role}
+                                disabled={loading}
+                                onSigned={() => {
+                                    alert(`✅ УСПЕХ! Подписано через eGov Mobile за роль "${step.role_label || step.role}".`);
+                                    onBack();
+                                }}
+                            />
+                            </div>
                         ))}
                 </div>
             )}
@@ -2772,6 +2783,17 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                    {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <FileSignature size={18} />}
                    Согласовать (ЭЦП) {myPendingSteps[0].role_label ? `как ${myPendingSteps[0].role_label}` : ''}
                 </button>
+            )}
+            {showApprove && myPendingSteps.length === 1 && (
+                <EgovQrSignButton
+                    permitId={permit.id}
+                    role={myPendingSteps[0].role}
+                    disabled={loading}
+                    onSigned={() => {
+                        alert('✅ УСПЕХ! Подписано через eGov Mobile.');
+                        onBack();
+                    }}
+                />
             )}
 
             {/* 4. ИНФОРМАЦИЯ (Если нечего нажимать, но наряд активен) */}

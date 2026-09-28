@@ -30,6 +30,17 @@ ALLOWED_HOSTS = ['*']
 # Базовый URL системы для генерации QR-кодов верификации нарядов
 HSE_BASE_URL = 'https://hse.kbm.kz'
 
+# Подписание через eGov Mobile (QR). По умолчанию ВЫКЛЮЧЕНО: пока флаг не включён,
+# все эндпоинты /api/v1/egov_qr/ отвечают 404, а кнопка на фронте не показывается.
+EGOV_QR_ENABLED = os.getenv('EGOV_QR_ENABLED', 'False') == 'True'
+# Публичный HTTPS-адрес, до которого eGov Mobile достучится с телефона через интернет.
+EGOV_QR_BASE_URL = os.getenv('EGOV_QR_BASE_URL', HSE_BASE_URL)
+# Организация, которая показывается пользователю в eGov Mobile при подписании.
+EGOV_QR_ORG_BIN = os.getenv('EGOV_QR_ORG_BIN', '')
+EGOV_QR_ORG_NAME_RU = os.getenv('EGOV_QR_ORG_NAME_RU', 'АО «Каражанбасмунай»')
+EGOV_QR_ORG_NAME_KZ = os.getenv('EGOV_QR_ORG_NAME_KZ', '«Қаражанбасмұнай» АҚ')
+EGOV_QR_ORG_NAME_EN = os.getenv('EGOV_QR_ORG_NAME_EN', 'Karazhanbasmunai JSC')
+
 
 # Application definition
 INSTALLED_APPS = [
@@ -38,6 +49,7 @@ INSTALLED_APPS = [
     'permits.apps.PermitsConfig',
     'users.apps.UsersConfig',
     'workflow.apps.WorkflowConfig',
+    'egov_qr.apps.EgovQrConfig',
 
     # Сторонние библиотеки
     'corsheaders',
