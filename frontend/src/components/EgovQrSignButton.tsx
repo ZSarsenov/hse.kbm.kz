@@ -122,9 +122,10 @@ interface ButtonProps {
   role?: string;
   onSigned: () => void;
   disabled?: boolean;
+  compact?: boolean; // маленькая кнопка для таблиц (электро-наряды)
 }
 
-export const EgovQrSignButton: React.FC<ButtonProps> = ({ permitId, role, onSigned, disabled }) => {
+export const EgovQrSignButton: React.FC<ButtonProps> = ({ permitId, role, onSigned, disabled, compact }) => {
   const [enabled, setEnabled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -141,9 +142,11 @@ export const EgovQrSignButton: React.FC<ButtonProps> = ({ permitId, role, onSign
       <button
         onClick={() => setOpen(true)}
         disabled={disabled}
-        className="flex-1 sm:flex-none px-6 py-2.5 rounded-lg font-medium shadow-sm flex items-center justify-center gap-2 transition-all border border-blue-600 text-blue-700 bg-white hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        className={compact
+          ? 'mt-1 px-3 py-1 rounded text-[10px] font-medium inline-flex items-center gap-1 border border-blue-600 text-blue-700 bg-white hover:bg-blue-50 disabled:opacity-50'
+          : 'flex-1 sm:flex-none px-6 py-2.5 rounded-lg font-medium shadow-sm flex items-center justify-center gap-2 transition-all border border-blue-600 text-blue-700 bg-white hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed'}
       >
-        <Smartphone size={18} />
+        <Smartphone size={compact ? 12 : 18} />
         eGov Mobile (QR)
       </button>
       {open && (

@@ -274,6 +274,152 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const pendingTBRowRef = useRef<string>('');
   const pendingTBSideRef = useRef<string>('');
 
+  // NCALayer и обработчики подписи ЭЦП объявлены до веток ELECTRICAL / ELECTRICAL_NEW,
+  // т.к. эти ветки делают ранний return, а их кнопки тоже вызывают handleSign и др.
+  const { signXml, loading, error: ncaError } = useNCALayer();
+
+  const handleSign = async (role?: string) => {
+    try {
+      // Если несколько ролей и роль не указана - показываем выбор
+      if (myPendingSteps.length > 1 && !role) {
+        const roleOptions = myPendingSteps.map((s: any) => ({
+          role: s.role,
+          display: s.role_label || s.role,
+          step_order: s.step_order
+        })).sort((a: any, b: any) => a.step_order - b.step_order);
+        
+        const roleList = roleOptions.map((r: any, idx: number) => 
+          `${idx + 1}. ${r.display} (очередь ${r.step_order})`
+        ).join('\n');
+        
+        const choice = prompt(
+          `У вас несколько ролей для подписания:\n\n${roleList}\n\nВведите номер роли (1-${roleOptions.length}):`
+        );
+        
+        if (!choice) return;
+        const choiceNum = parseInt(choice);
+        if (isNaN(choiceNum) || choiceNum < 1 || choiceNum > roleOptions.length) {
+          alert("Неверный выбор.");
+          return;
+        }
+        role = roleOptions[choiceNum - 1].role;
+      } else if (myPendingSteps.length === 1 && !role) {
+        // Если только одна роль - используем её автоматически
+        role = myPendingSteps[0].role;
+      }
+
+      const signerIIN = currentUser.iin || initiator.iin;
+      if (!signerIIN) {
+          alert("Ошибка: Не найден ИИН пользователя. Проверьте профиль.");
+          return;
+      }
+      console.log("Начинаем подписание...", signerIIN, role ? `за роль ${role}` : '');
+      const xmlToSign = `<WorkPermit><ID>${permit.permitId}</ID><Date>${new Date().toISOString()}</Date></WorkPermit>`;
+
+      const signedXml = await signXml(xmlToSign, signerIIN, currentUser.bin);
+      if (!signedXml) throw new Error("Получен пустой ответ от NCALayer");
+
+      const requestBody: any = { signed_xml: signedXml };
+      if (role) {
+        requestBody.role = role;
+      }
+
+      const response = await fetch(`/api/v1/permits/${permit.id}/sign/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const resData = await response.json();
+      if (response.ok && resData.ok) {
+         const roleDisplay = role ? myPendingSteps.find((s: any) => s.role === role)?.role_label || role : '';
+         alert(`✅ УСПЕХ! Подписано${roleDisplay ? ` за роль "${roleDisplay}"` : ''}. ${resData.status || ''}`);
+         onBack();
+      } else {
+         // Если ошибка о нескольких ролях - показываем список
+         if (resData.available_roles && Array.isArray(resData.available_roles)) {
+           const rolesList = resData.available_roles.map((r: any) => 
+             typeof r === 'string' ? r : `${r.role_display} (очередь ${r.step_order})`
+           ).join('\n');
+           alert(`❌ ${resData.error}\n\nДоступные роли:\n${rolesList}`);
+         } else {
+           alert(`❌ ОШИБКА: ${resData.error || 'Не удалось подписать'}`);
+         }
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert(`Ошибка: ${e.message || JSON.stringify(e)}`);
+    }
+  };
+
+  const handleTargetBriefingEcpp = async (row: string, side: string) => {
+    try {
+      const signerIIN = currentUser.iin;
+      if (!signerIIN) {
+        alert("Ошибка: Не найден ИИН пользователя. Проверьте профиль.");
+        return;
+      }
+      const xmlToSign = `<WorkPermit><ID>${permit.permitId}</ID><Date>${new Date().toISOString()}</Date><Type>target_briefing</Type><Row>${row}</Row><Side>${side}</Side></WorkPermit>`;
+      const signedXml = await signXml(xmlToSign, signerIIN, currentUser.bin);
+      if (!signedXml) throw new Error("Получен пустой ответ от NCALayer");
+
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/v1/permits/${permit.id}/target_briefing_ecpp/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+        body: JSON.stringify({ signed_xml: signedXml, row, side }),
+      });
+
+      const resData = await response.json();
+      if (response.ok && resData.ok) {
+        alert(`✅ УСПЕХ! Подписано.`);
+        onRefresh?.();
+      } else {
+        alert(`❌ ОШИБКА: ${resData.error || 'Не удалось подписать'}`);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert(`Ошибка: ${e.message || JSON.stringify(e)}`);
+    }
+  };
+
+  const handleBrigadeChangeSign = async (index: number) => {
+    try {
+      const signerIIN = currentUser.iin;
+      if (!signerIIN) {
+        alert("Ошибка: Не найден ИИН пользователя.");
+        return;
+      }
+      const xmlToSign = `<WorkPermit><ID>${permit.permitId}</ID><Date>${new Date().toISOString()}</Date><Type>brigade_change</Type><Index>${index}</Index></WorkPermit>`;
+      const signedXml = await signXml(xmlToSign, signerIIN, currentUser.bin);
+      if (!signedXml) throw new Error("Получен пустой ответ от NCALayer");
+
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/v1/permits/${permit.id}/sign_brigade_change/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
+        body: JSON.stringify({ signed_xml: signedXml, index }),
+      });
+
+      const resData = await response.json();
+      if (response.ok && resData.ok) {
+        alert(`✅ УСПЕХ! Подписано.`);
+        onRefresh?.();
+      } else {
+        alert(`❌ ОШИБКА: ${resData.error || 'Не удалось подписать'}`);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert(`Ошибка: ${e.message || JSON.stringify(e)}`);
+    }
+  };
+
   if (permit.category === PermitCategory.ELECTRICAL) {
     const brigadeMembers = Array.isArray(data.brigadeMembers) ? data.brigadeMembers : [];
     const electricalHasRequiredFields = !!(
@@ -1201,10 +1347,21 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                           ) : issuerStep?.status === 'APPROVED' ? (
                             <span className="text-[10px] text-blue-600 font-medium mt-1 block">✓ Подписано (ЭЦП)</span>
                           ) : isIssuerUser && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') ? (
+                            <div className="flex flex-wrap gap-1">
                             <button onClick={() => handleSign('ISSUER')}
                               className="mt-1 px-3 py-1 bg-blue-600 text-white text-[10px] font-medium rounded hover:bg-blue-700">
                               Подписать (ЭЦП)
                             </button>
+                            <EgovQrSignButton
+                              compact
+                              permitId={permit.id}
+                              role="ISSUER"
+                              onSigned={() => {
+                                alert('✅ УСПЕХ! Подписано через eGov Mobile.');
+                                onBack();
+                              }}
+                            />
+                            </div>
                           ) : <div className="w-32 border-b border-gray-400 mt-2"></div>}
                         </td>
                         <td className="px-3 py-3 border border-gray-300">
@@ -1579,7 +1736,6 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
   // --- ОБЫЧНЫЕ НАРЯДЫ ---
   const [activeTab, setActiveTab] = useState<'info' | 'safety' | 'team' | 'checklist' | 'loto'>('info');
-  const { signXml, loading, error: ncaError } = useNCALayer();
   const [producerClosePadOpen, setProducerClosePadOpen] = useState(false);
 
   // --- HANDLERS ---
@@ -1668,148 +1824,6 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
     } catch (e: any) {
       console.error(e);
       alert(`Ошибка: ${e.message || 'Сеть'}`);
-    }
-  };
-
-  const handleSign = async (role?: string) => {
-    try {
-      // Если несколько ролей и роль не указана - показываем выбор
-      if (myPendingSteps.length > 1 && !role) {
-        const roleOptions = myPendingSteps.map((s: any) => ({
-          role: s.role,
-          display: s.role_label || s.role,
-          step_order: s.step_order
-        })).sort((a: any, b: any) => a.step_order - b.step_order);
-        
-        const roleList = roleOptions.map((r: any, idx: number) => 
-          `${idx + 1}. ${r.display} (очередь ${r.step_order})`
-        ).join('\n');
-        
-        const choice = prompt(
-          `У вас несколько ролей для подписания:\n\n${roleList}\n\nВведите номер роли (1-${roleOptions.length}):`
-        );
-        
-        if (!choice) return;
-        const choiceNum = parseInt(choice);
-        if (isNaN(choiceNum) || choiceNum < 1 || choiceNum > roleOptions.length) {
-          alert("Неверный выбор.");
-          return;
-        }
-        role = roleOptions[choiceNum - 1].role;
-      } else if (myPendingSteps.length === 1 && !role) {
-        // Если только одна роль - используем её автоматически
-        role = myPendingSteps[0].role;
-      }
-
-      const signerIIN = currentUser.iin || initiator.iin;
-      if (!signerIIN) {
-          alert("Ошибка: Не найден ИИН пользователя. Проверьте профиль.");
-          return;
-      }
-      console.log("Начинаем подписание...", signerIIN, role ? `за роль ${role}` : '');
-      const xmlToSign = `<WorkPermit><ID>${permit.permitId}</ID><Date>${new Date().toISOString()}</Date></WorkPermit>`;
-
-      const signedXml = await signXml(xmlToSign, signerIIN, currentUser.bin);
-      if (!signedXml) throw new Error("Получен пустой ответ от NCALayer");
-
-      const requestBody: any = { signed_xml: signedXml };
-      if (role) {
-        requestBody.role = role;
-      }
-
-      const response = await fetch(`/api/v1/permits/${permit.id}/sign/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Token ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      const resData = await response.json();
-      if (response.ok && resData.ok) {
-         const roleDisplay = role ? myPendingSteps.find((s: any) => s.role === role)?.role_label || role : '';
-         alert(`✅ УСПЕХ! Подписано${roleDisplay ? ` за роль "${roleDisplay}"` : ''}. ${resData.status || ''}`);
-         onBack();
-      } else {
-         // Если ошибка о нескольких ролях - показываем список
-         if (resData.available_roles && Array.isArray(resData.available_roles)) {
-           const rolesList = resData.available_roles.map((r: any) => 
-             typeof r === 'string' ? r : `${r.role_display} (очередь ${r.step_order})`
-           ).join('\n');
-           alert(`❌ ${resData.error}\n\nДоступные роли:\n${rolesList}`);
-         } else {
-           alert(`❌ ОШИБКА: ${resData.error || 'Не удалось подписать'}`);
-         }
-      }
-    } catch (e: any) {
-      console.error(e);
-      alert(`Ошибка: ${e.message || JSON.stringify(e)}`);
-    }
-  };
-
-  const handleTargetBriefingEcpp = async (row: string, side: string) => {
-    try {
-      const signerIIN = currentUser.iin;
-      if (!signerIIN) {
-        alert("Ошибка: Не найден ИИН пользователя. Проверьте профиль.");
-        return;
-      }
-      const xmlToSign = `<WorkPermit><ID>${permit.permitId}</ID><Date>${new Date().toISOString()}</Date><Type>target_briefing</Type><Row>${row}</Row><Side>${side}</Side></WorkPermit>`;
-      const signedXml = await signXml(xmlToSign, signerIIN, currentUser.bin);
-      if (!signedXml) throw new Error("Получен пустой ответ от NCALayer");
-
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(`/api/v1/permits/${permit.id}/target_briefing_ecpp/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Token ${token}`
-        },
-        body: JSON.stringify({ signed_xml: signedXml, row, side }),
-      });
-
-      const resData = await response.json();
-      if (response.ok && resData.ok) {
-        alert(`✅ УСПЕХ! Подписано.`);
-        onRefresh?.();
-      } else {
-        alert(`❌ ОШИБКА: ${resData.error || 'Не удалось подписать'}`);
-      }
-    } catch (e: any) {
-      console.error(e);
-      alert(`Ошибка: ${e.message || JSON.stringify(e)}`);
-    }
-  };
-
-  const handleBrigadeChangeSign = async (index: number) => {
-    try {
-      const signerIIN = currentUser.iin;
-      if (!signerIIN) {
-        alert("Ошибка: Не найден ИИН пользователя.");
-        return;
-      }
-      const xmlToSign = `<WorkPermit><ID>${permit.permitId}</ID><Date>${new Date().toISOString()}</Date><Type>brigade_change</Type><Index>${index}</Index></WorkPermit>`;
-      const signedXml = await signXml(xmlToSign, signerIIN, currentUser.bin);
-      if (!signedXml) throw new Error("Получен пустой ответ от NCALayer");
-
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(`/api/v1/permits/${permit.id}/sign_brigade_change/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
-        body: JSON.stringify({ signed_xml: signedXml, index }),
-      });
-
-      const resData = await response.json();
-      if (response.ok && resData.ok) {
-        alert(`✅ УСПЕХ! Подписано.`);
-        onRefresh?.();
-      } else {
-        alert(`❌ ОШИБКА: ${resData.error || 'Не удалось подписать'}`);
-      }
-    } catch (e: any) {
-      console.error(e);
-      alert(`Ошибка: ${e.message || JSON.stringify(e)}`);
     }
   };
 
