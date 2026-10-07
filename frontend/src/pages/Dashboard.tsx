@@ -170,6 +170,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                         <option value={PermitStatus.DRAFT}>{t('dashboard.draft')}</option>
                         <option value={PermitStatus.PENDING_APPROVAL}>{t('dashboard.pending')}</option>
                         <option value={PermitStatus.APPROVED}>{t('dashboard.approved')}</option>
+                        <option value={PermitStatus.RENEWED}>{t('status.RENEWED')}</option>
                     </>
                 )}
               </select>

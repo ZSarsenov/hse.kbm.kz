@@ -64,6 +64,7 @@
     "DRAFT": "Черновик",
     "PENDING_APPROVAL": "На согласовании",
     "APPROVED": "Согласован",
+    "RENEWED": "Продлён",
     "ACTIVE": "В работе",
     "REJECTED": "Отклонён",
     "CLOSED": "Закрыт",

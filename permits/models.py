@@ -36,6 +36,7 @@ class WorkPermit(models.Model):
     STATUS_DRAFT = 'DRAFT'
     STATUS_PENDING = 'PENDING_APPROVAL'
     STATUS_APPROVED = 'APPROVED'
+    STATUS_RENEWED = 'RENEWED'
     STATUS_REJECTED = 'REJECTED'
     STATUS_CLOSED = 'CLOSED'
 
@@ -44,6 +45,7 @@ class WorkPermit(models.Model):
         ('DRAFT', 'Черновик'),
         ('PENDING_APPROVAL', 'Ожидает согласования'),
         ('APPROVED', 'Согласован'),
+        ('RENEWED', 'Продлён'),
         ('REJECTED', 'Отклонен'),
         ('CLOSED', 'Закрыт'),
     )
@@ -179,7 +181,11 @@ class WorkPermit(models.Model):
         if prod_id:
             steps_config.append({'role': 'WORK_PRODUCER', 'user_id': prod_id})
         elif external_line:
-            steps_config.append({'role': 'WORK_PRODUCER', 'external': True})
+            # Производитель работ выбирается только из БД (сотрудники с учётной записью)
+            raise ValidationError(
+                "Производитель работ должен быть выбран из списка сотрудников. "
+                "Исполнители без ЭЦП больше не поддерживаются."
+            )
         elif is_electrical_new:
             raise ValidationError("Для электроустановок обязательно укажите «Производитель работ».")
 
@@ -266,21 +272,27 @@ class WorkPermit(models.Model):
     def approve_final(self):
         print(f"Наряд {self.permit_id} утвержден.")
 
+    # 2.1 Продление электро-наряда (ровно одно, +1 календарный день)
+    @transition(field=status, source=STATUS_APPROVED, target=STATUS_RENEWED)
+    def renew(self):
+        print(f"Наряд {self.permit_id} продлён на 1 день.")
+
     # 3. Отклонение (возврат)
     @transition(field=status, source=STATUS_PENDING, target=STATUS_REJECTED)
     def reject(self):
         print(f"Наряд {self.permit_id} отклонен и возвращен инициатору.")
 
     # 4. Закрытие
-    @transition(field=status, source=STATUS_APPROVED, target=STATUS_CLOSED)
+    @transition(field=status, source=[STATUS_APPROVED, STATUS_RENEWED], target=STATUS_CLOSED)
     def close_permit(self):
         print(f"Наряд {self.permit_id} закрыт.")
 
-    @transition(field=status, source='APPROVED', target='CLOSED')
+    @transition(field=status, source=[STATUS_APPROVED, STATUS_RENEWED], target='CLOSED')
     def close_work(self):
         """
         Перевод наряда в статус 'Закрыт'.
         Вызывается, когда Допускающий прикрепляет скан и закрывает наряд.
+        Продлённый (RENEWED) наряд тоже можно закрыть.
         """
         pass
 

@@ -10,7 +10,7 @@ interface LotoReportsProps {
 
 const mapPermitStatus = (status: string): LotoStatus => {
   if (status === 'CLOSED' || status === 'REJECTED') return LotoStatus.UNLOCKED;
-  if (status === 'APPROVED') return LotoStatus.LOCKED;
+  if (status === 'APPROVED' || status === 'RENEWED') return LotoStatus.LOCKED;
   return LotoStatus.PARTIAL;
 };
 
@@ -32,7 +32,7 @@ export const LotoReports: React.FC<LotoReportsProps> = ({ onNavigateToPermit }) 
       status: mapPermitStatus(p.status),
       lockedBy: admitting.name || '—',
       lockedAt: matrix.dateDeveloped || p.created_at || '',
-      signatureStatus: p.status === 'APPROVED' || p.status === 'CLOSED' ? 'VALID' as const : 'PENDING' as const,
+      signatureStatus: p.status === 'APPROVED' || p.status === 'RENEWED' || p.status === 'CLOSED' ? 'VALID' as const : 'PENDING' as const,
       lotoPhotoUrl: p.loto_photo || null,
       matrixData: {
         department: matrix.department || '',

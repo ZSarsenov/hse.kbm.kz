@@ -146,7 +146,11 @@ function App() {
   // ВСЕГДА дозапрашиваем полный наряд и заменяем кешированную облегчённую
   // версию на полную — иначе вкладки "Бригада", "Меры", "LOTO" и т.д. пустые.
   useEffect(() => {
-    if (currentView === 'DETAIL' && selectedPermitId && token) {
+    // Дозапрашиваем полную версию при ЛЮБОМ открытии карточки (DETAIL, а также
+    // карточка поверх Дашборда/Архива) — иначе пользователь видит кешированную
+    // облегчённую версию из списка: без подписей (dailyAdmissions), инструктажа
+    // и др. разделов, и приходится жёстко обновлять страницу.
+    if ((currentView === 'DETAIL' || currentView === 'DASHBOARD' || currentView === 'ARCHIVE') && selectedPermitId && token) {
       fetch(`/api/v1/permits/${selectedPermitId}/`, {
         headers: { 'Authorization': `Token ${token}` }
       })

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  ArrowLeft, MapPin, User, Clock, FileText, CheckCircle2, AlertTriangle, FileSignature, XCircle, Download, Shield, Users, Edit3, Trash2, Copy, FlaskConical, Zap, Plus
+  ArrowLeft, MapPin, User, Clock, FileText, CheckCircle2, AlertTriangle, FileSignature, XCircle, Download, Shield, Users, Edit3, Trash2, Copy, FlaskConical, Zap, Plus, Lock
 } from 'lucide-react';
 import { WorkPermit, PermitCategory } from '../types';
 import { confirm as confirmDialog } from '../components/ConfirmDialog';
@@ -123,16 +123,25 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // 1. ПОЛУЧАЕМ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ
   const currentUser = JSON.parse(localStorage.getItem('user_data') || '{}');
   const currentUserId = String(currentUser.id || currentUser.user_id);
+  const currentUsername = String(currentUser.username || '').trim().toLowerCase();
   const isAdmin = currentUser.is_admin || currentUser.role === 'ADMIN';
-  const isAuditor = currentUser.is_auditor || currentUser.role === 'AUDITOR';
+  const isAuditor = currentUser.is_auditor === true || currentUser.role === 'AUDITOR';
+  // RENEWED — полноценный рабочий статус: все разделы и подписи карточки доступны
+  const isWorkActive = permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED' || permit.status === 'RENEWED';
 
   // 2. ОПРЕДЕЛЯЕМ РОЛЬ
   const initiatorId = String(initiator.id || data.issuer?.id || '');
   const isInitiator = currentUserId === initiatorId;
 
   // Ищем все мои шаги (может быть несколько ролей)
-  const steps = (permit as any).approvalSteps || [];
-  const mySteps = steps.filter((s: any) => String(s.approver_id) === currentUserId);
+  // Accept both the normalized frontend shape and the raw API shape. This
+  // keeps the signing controls working while navigating between cached list
+  // data and the full detail response.
+  const steps = (permit as any).approvalSteps || (permit as any).approval_steps || [];
+  const mySteps = steps.filter((s: any) =>
+    String(s.approver_id) === currentUserId ||
+    (currentUsername && String(s.approver_username || '').trim().toLowerCase() === currentUsername)
+  );
   // Выдающий наряд для блока «Ответственные лица» — из Хода согласования (шаг 1 ISSUER), не инициатор
   const issuerStep = steps.find((s: any) => s.role === 'ISSUER');
   const myPendingSteps = mySteps.filter((s: any) => s.status === 'PENDING');
@@ -212,11 +221,11 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   );
 
   // Кнопка "Закрыть наряд" — Производитель работ (шаг 1)
-  const showProducerClose = !isAuditor && permit.status === 'APPROVED' && !permit.producer_closed &&
+  const showProducerClose = !isAuditor && (permit.status === 'APPROVED' || permit.status === 'RENEWED') && !permit.producer_closed &&
     (isProducerUser || canActForExternalProducer);
 
   // Кнопка "Закрыть наряд" — Допускающий (шаг 2, только после производителя)
-  const showAdmittingClose = !isAuditor && permit.status === 'APPROVED' && !!permit.producer_closed && !!isAdmittingUser;
+  const showAdmittingClose = !isAuditor && (permit.status === 'APPROVED' || permit.status === 'RENEWED') && !!permit.producer_closed && !!isAdmittingUser;
 
   // 3. ЛОГИКА ВИДИМОСТИ КНОПОК (аудитор — только просмотр и скачивание)
   const hasRequiredFields = !!(
@@ -242,7 +251,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const [producerPadOpen, setProducerPadOpen] = useState(false);
   const [supervisorPadOpen, setSupervisorPadOpen] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
-  const [newMember, setNewMember] = useState({ name: '', role: '', instructedBy: '' });
+  const [newMember, setNewMember] = useState<{ name: string; role: string; instructedBy: string; userId?: number | null }>({ name: '', role: '', instructedBy: '', userId: null });
   const [addingMember, setAddingMember] = useState(false);
 
   // --- ЛАБОРАНТ ЦНИПР ---
@@ -503,6 +512,240 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
         alert(`Ошибка: ${e.message || 'Сеть'}`);
       }
     };
+    const { signXml: signXmlElec, loading: signLoadingElec, error: ncaErrorElec } = useNCALayer();
+    const [chainPadRole, setChainPadRole] = useState<string | null>(null);
+    const [brigadeSignPadIdx, setBrigadeSignPadIdx] = useState<number | null>(null);
+    // По правилам: Допускающий и Производитель работ подписывают цепочку графически
+    const isGraphicChainRole = (role: string) => role === 'ADMITTING' || role === 'WORK_PRODUCER';
+    // Закрытие наряда: Производитель подтверждает → Допускающий закрывает (RENEWED тоже закрывается)
+    const handleProducerCloseElec = async () => {
+      const ok = await confirmDialog({
+        title: 'Завершение работ',
+        message: 'Подтвердить окончание работ? Наряд будет передан Допускающему для закрытия.',
+        confirmText: 'Подтвердить',
+      });
+      if (!ok) return;
+      try {
+        const res = await fetch(`/api/v1/permits/${permit.id}/producer_close/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${localStorage.getItem('auth_token')}` },
+          body: '{}',
+        });
+        const rd = await res.json().catch(() => ({}));
+        if (res.ok && rd.ok !== false) {
+          alert('Завершение работ подтверждено. Ожидайте закрытия Допускающим.');
+          onRefresh?.();
+        } else {
+          alert(rd.error || 'Ошибка');
+        }
+      } catch (e: any) {
+        alert(`Ошибка: ${e.message || 'Сеть'}`);
+      }
+    };
+    const handleAdmittingCloseElec = async () => {
+      const ok = await confirmDialog({
+        title: 'Закрытие наряда',
+        message: 'Вы уверены, что хотите закрыть наряд?\nЭто действие необратимо.',
+        confirmText: 'Закрыть наряд',
+        danger: true,
+      });
+      if (!ok) return;
+      try {
+        const res = await fetch(`/api/v1/permits/${permit.id}/close/`, {
+          method: 'POST',
+          headers: { 'Authorization': `Token ${localStorage.getItem('auth_token')}` },
+        });
+        const rd = await res.json().catch(() => ({}));
+        if (res.ok && rd.ok !== false) {
+          alert('Наряд успешно закрыт.');
+          onBack();
+        } else {
+          alert(rd.error || 'Ошибка');
+        }
+      } catch (e: any) {
+        alert(`Ошибка: ${e.message || 'Сеть'}`);
+      }
+    };
+    // ЭЦП-подписи целевого инструктажа (локальная версия для электро-ветки)
+    const handleTargetBriefingEcpp = async (row: string, side: string) => {
+      try {
+        // ИИН может отсутствовать в localStorage (старая сессия) — догружаем из БД
+        let me = currentUser;
+        if (!me.iin) {
+          try {
+            const token = localStorage.getItem('auth_token');
+            const res = await fetch(`/api/v1/users/?search=${encodeURIComponent(me.username || '')}`, {
+              headers: token ? { 'Authorization': `Token ${token}` } : {},
+            });
+            const data = await res.json();
+            const found = (Array.isArray(data) ? data : (data.results || [])).find((u: any) => String(u.id) === String(me.id));
+            if (found) {
+              me = { ...me, iin: found.iin, bin: found.bin };
+              localStorage.setItem('user_data', JSON.stringify(me));
+            }
+          } catch (e) { /* если не удалось — покажем ошибку ниже */ }
+        }
+        const signerIIN = me.iin;
+        if (!signerIIN) {
+          alert("Ошибка: Не найден ИИН пользователя. Проверьте профиль.");
+          return;
+        }
+        const xmlToSign = `<WorkPermit><ID>${permit.permitId}</ID><Date>${new Date().toISOString()}</Date><Type>target_briefing</Type><Row>${row}</Row><Side>${side}</Side></WorkPermit>`;
+        const signedXml = await signXmlElec(xmlToSign, signerIIN, me.bin);
+        if (!signedXml) throw new Error("Получен пустой ответ от NCALayer");
+
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`/api/v1/permits/${permit.id}/target_briefing_ecpp/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Token ${token}`
+          },
+          body: JSON.stringify({ signed_xml: signedXml, row, side }),
+        });
+
+        const resData = await response.json();
+        if (response.ok && resData.ok) {
+          alert(`✅ УСПЕХ! Подписано.`);
+          onRefresh?.();
+        } else {
+          alert(`❌ ОШИБКА: ${resData.error || 'Не удалось подписать'}`);
+        }
+      } catch (e: any) {
+        console.error(e);
+        alert(`Ошибка: ${e.message || JSON.stringify(e)}`);
+      }
+    };
+    // ЭЦП-подпись изменения состава бригады (локальная версия для электро-ветки)
+    const handleBrigadeChangeSign = async (index: number) => {
+      try {
+        // ИИН может отсутствовать в localStorage (старая сессия) — догружаем из БД
+        let me = currentUser;
+        if (!me.iin) {
+          try {
+            const token = localStorage.getItem('auth_token');
+            const res = await fetch(`/api/v1/users/?search=${encodeURIComponent(me.username || '')}`, {
+              headers: token ? { 'Authorization': `Token ${token}` } : {},
+            });
+            const data = await res.json();
+            const found = (Array.isArray(data) ? data : (data.results || [])).find((u: any) => String(u.id) === String(me.id));
+            if (found) {
+              me = { ...me, iin: found.iin, bin: found.bin };
+              localStorage.setItem('user_data', JSON.stringify(me));
+            }
+          } catch (e) { /* если не удалось — покажем ошибку ниже */ }
+        }
+        const signerIIN = me.iin;
+        if (!signerIIN) {
+          alert("Ошибка: Не найден ИИН пользователя.");
+          return;
+        }
+        const xmlToSign = `<WorkPermit><ID>${permit.permitId}</ID><Date>${new Date().toISOString()}</Date><Type>brigade_change</Type><Index>${index}</Index></WorkPermit>`;
+        const signedXml = await signXmlElec(xmlToSign, signerIIN, me.bin);
+        if (!signedXml) throw new Error("Получен пустой ответ от NCALayer");
+
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`/api/v1/permits/${permit.id}/sign_brigade_change/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
+          body: JSON.stringify({ signed_xml: signedXml, index }),
+        });
+
+        const resData = await response.json();
+        if (response.ok && resData.ok) {
+          alert(`✅ УСПЕХ! Подписано.`);
+          onRefresh?.();
+        } else {
+          alert(`❌ ОШИБКА: ${resData.error || 'Не удалось подписать'}`);
+        }
+      } catch (e: any) {
+        console.error(e);
+        alert(`Ошибка: ${e.message || JSON.stringify(e)}`);
+      }
+    };
+    const handleRenewExtension = async () => {
+      const ok = await confirmDialog({
+        title: 'Продление наряда',
+        message: 'Продлить наряд на 1 календарный день? Продление доступно только один раз.',
+        confirmText: 'Продлить',
+      });
+      if (!ok) return;
+      try {
+        const res = await fetch(`/api/v1/permits/${permit.id}/renew_extension/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Token ${localStorage.getItem('auth_token')}`
+          },
+          body: '{}'
+        });
+        const resData = await res.json();
+        if (res.ok && resData.ok) {
+          alert('✅ Наряд продлён на 1 день.');
+          onRefresh?.();
+        } else {
+          alert(resData.error || 'Не удалось продлить наряд.');
+        }
+      } catch (e) {
+        console.error(e);
+        alert('Ошибка сети');
+      }
+    };
+    const handleSignElecNew = async (role?: string) => {
+      try {
+        if (myPendingSteps.length > 1 && !role) {
+          const roleOptions = myPendingSteps.map((s: any) => ({
+            role: s.role,
+            display: s.role_label || s.role,
+            step_order: s.step_order
+          })).sort((a: any, b: any) => a.step_order - b.step_order);
+          const roleList = roleOptions.map((r: any, idx: number) =>
+            `${idx + 1}. ${r.display} (очередь ${r.step_order})`
+          ).join('\n');
+          const choice = prompt(`У вас несколько ролей для подписания:\n\n${roleList}\n\nВведите номер роли (1-${roleOptions.length}):`);
+          if (!choice) return;
+          const choiceNum = parseInt(choice);
+          if (isNaN(choiceNum) || choiceNum < 1 || choiceNum > roleOptions.length) {
+            alert("Неверный выбор.");
+            return;
+          }
+          role = roleOptions[choiceNum - 1].role;
+        } else if (myPendingSteps.length === 1 && !role) {
+          role = myPendingSteps[0].role;
+        }
+
+        const signerIIN = currentUser.iin || initiator.iin;
+        if (!signerIIN) {
+          alert("Ошибка: Не найден ИИН пользователя. Проверьте профиль.");
+          return;
+        }
+        const xmlToSign = `<WorkPermit><ID>${permit.permitId}</ID><Date>${new Date().toISOString()}</Date></WorkPermit>`;
+        const signedXml = await signXmlElec(xmlToSign, signerIIN, currentUser.bin);
+        if (!signedXml) throw new Error("Получен пустой ответ от NCALayer");
+
+        const requestBody: any = { signed_xml: signedXml };
+        if (role) requestBody.role = role;
+
+        const response = await fetch(`/api/v1/permits/${permit.id}/sign/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Token ${localStorage.getItem('auth_token')}`
+          },
+          body: JSON.stringify(requestBody)
+        });
+        const resData = await response.json();
+        if (response.ok && resData.ok) {
+          alert(`✅ ${resData.status || 'Наряд успешно подписан'}`);
+          onRefresh?.();
+        } else {
+          alert(`❌ ОШИБКА: ${resData.error || 'Не удалось подписать'}`);
+        }
+      } catch (e: any) {
+        console.error(e);
+        alert(`Ошибка: ${e.message || 'Сеть'}`);
+      }
+    };
     return (
       <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
         <button onClick={onBack} className="flex items-center text-gray-500 hover:text-gray-900 transition-colors w-fit text-lg font-medium">
@@ -563,7 +806,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 { id: 'team' as const, label: 'Бригада' },
                 { id: 'checklist' as const, label: 'Чек лист' },
                 { id: 'measures' as const, label: 'Меры подготовки' },
-                { id: 'loto' as const, label: 'LOTO' },
+                // LOTO — только если включён при создании (правила п.2: «LOTO, если требуется»)
+                ...(data.lotoEnabled ? [{ id: 'loto' as const, label: 'LOTO' }] : []),
                 { id: 'admission' as const, label: 'Разрешение на допуск' },
                 { id: 'daily' as const, label: 'Ежедневный допуск' },
                 { id: 'brigade_change' as const, label: 'Изменение бригады' },
@@ -594,15 +838,52 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                   </div>
                 </div>
 
+                {wellCoords && (
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2"><MapPin size={20} className="text-slate-400"/> Место проведения работ (карта)</h3>
+                    <div className="rounded-xl overflow-hidden border border-slate-200">
+                      <WellMap
+                        readOnly={true}
+                        pinnedCoords={wellCoords}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <ApprovalTracker steps={(permit as any).approvalSteps} />
 
                 <div>
                   <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><User size={20} className="text-slate-400"/> Ответственные лица</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Выдающий наряд</span><p className="font-medium text-gray-900">{renderRole(data.issuer)}</p></div>
-                    <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Ответственный руководитель работ</span><p className="font-medium text-gray-900">{renderRole(data.responsible)}</p></div>
-                    <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Допускающий</span><p className="font-medium text-gray-900">{renderRole(data.admitting)}</p></div>
-                    <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Производитель работ</span><p className="font-medium text-gray-900">{renderRole(data.producer)}</p></div>
+                    {[
+                      { label: 'Выдающий наряд', roleObj: data.issuer, step: issuerStep, ecpp: true },
+                      { label: 'Ответственный руководитель работ', roleObj: data.responsible, step: responsibleStep, ecpp: true },
+                      { label: 'Допускающий', roleObj: data.admitting, step: admittingStep, ecpp: false },
+                      { label: 'Производитель работ', roleObj: data.producer, step: producerStep, ecpp: false },
+                    ].map((r, i) => {
+                      const full = r.roleObj?.name || '';
+                      const m = full.match(/^(.*?)\s*\((.+)\)\s*$/);
+                      const fio = m ? m[1] : (full || '—');
+                      const pos = r.roleObj?.position || (m ? m[2] : '');
+                      // Допускающий и Производитель подписывают графически — подпись хранится в signer_details шага
+                      const graphic = !r.ecpp && r.step?.signer_details?.graphic_signature;
+                      return (
+                        <div key={i} className="p-4 border border-gray-200 rounded-lg">
+                          <span className="text-xs text-gray-400 uppercase font-bold">{r.label}</span>
+                          <p className="font-medium text-gray-900">{fio}</p>
+                          {pos && <p className="text-sm text-gray-500">{pos}</p>}
+                          {r.ecpp ? (
+                            r.step?.status === 'APPROVED' && (
+                              <span className="text-xs text-blue-600 font-medium mt-1 inline-block">✓ Подписано (ЭЦП)</span>
+                            )
+                          ) : (
+                            graphic && (
+                              <img src={getSignatureUrl(graphic)} alt="Графическая подпись" className="h-10 mt-1 object-contain"/>
+                            )
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -644,6 +925,20 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                     <p className="text-gray-900">{data.m5_10_additional}</p>
                   </div>
                 )}
+                {(permit as any).safety_document && (
+                  <div className="mt-5 p-4 border-l-4 border-blue-500 bg-blue-50/30 rounded-r-lg">
+                    <h4 className="font-bold text-gray-700 text-sm mb-2">Прикреплённый документ</h4>
+                    <a
+                      href={(permit as any).safety_document}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      <FileText size={18} />
+                      Открыть документ
+                    </a>
+                  </div>
+                )}
               </div>
             )}
 
@@ -663,29 +958,138 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                           <th className="px-4 py-3">Должность</th>
                           <th className="px-4 py-3">Инструктаж провел</th>
                           <th className="px-4 py-3">Дата</th>
+                          <th className="px-4 py-3 w-32">Подпись</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {(data.teamMembers || []).map((member: any, idx: number) => (
+                        {(data.teamMembers || []).map((member: any, idx: number) => {
+                          const memberSig = (data.brigade_signatures || [])[idx];
+                          return (
                           <tr key={idx} className="hover:bg-gray-50">
                             <td className="px-4 py-3 text-gray-400">{idx + 1}</td>
                             <td className="px-4 py-3 font-medium text-gray-900">{member.name}</td>
                             <td className="px-4 py-3 text-gray-600">{member.role}</td>
                             <td className="px-4 py-3 text-gray-600">{member.instructedBy || '—'}</td>
                             <td className="px-4 py-3 text-gray-500">{member.instructedAt ? new Date(member.instructedAt).toLocaleString() : '—'}</td>
+                            <td className="px-4 py-3">
+                              {memberSig ? (
+                                <img src={getSignatureUrl(memberSig)} alt="Подпись" className="h-8 object-contain"/>
+                              ) : (member.userId && String(member.userId) === currentUserId && isWorkActive) ? (
+                                <button
+                                  onClick={() => setBrigadeSignPadIdx(idx)}
+                                  className="px-2 py-1 bg-emerald-600 text-white text-[10px] font-medium rounded hover:bg-emerald-700"
+                                >
+                                  Подписать (графически)
+                                </button>
+                              ) : (
+                                <span className="text-gray-400 italic text-xs">Ожидает подписи</span>
+                              )}
+                            </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
                 ) : (
                   <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">Состав бригады не указан</div>
                 )}
+                {/* Выдающий наряд может дополнять состав бригады (правила п.1) */}
+                {!isAuditor && isIssuerUser && (isWorkActive || permit.status === 'RENEWED') && (
+                  <div className="mt-4">
+                    <button onClick={() => setShowAddMember(!showAddMember)} className="text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-full transition-colors">
+                      + Добавить члена бригады
+                    </button>
+                    {showAddMember && (
+                      <div className="mt-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                          <UserSearchInput
+                            value={newMember.name ? { userId: newMember.userId, name: newMember.name, position: newMember.role } : null}
+                            onChange={(sel) => setNewMember(sel ? { ...newMember, name: sel.name, role: sel.position, userId: sel.userId } : { ...newMember, name: '', role: '', userId: null })}
+                          />
+                          <input
+                            type="text"
+                            value={newMember.role}
+                            readOnly
+                            className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-100 text-gray-600"
+                            placeholder="Подставится из БД"
+                            title="Должность подставляется автоматически при выборе сотрудника из БД"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mb-3">Инструктаж провел: <span className="font-medium text-gray-700">{data.admitting?.name || 'Допускающий к работе'}</span> (заполняется автоматически)</p>
+                        <div className="flex gap-2">
+                          <button disabled={addingMember || !newMember.name.trim()} onClick={async () => {
+                            setAddingMember(true);
+                            try {
+                              const token = localStorage.getItem('auth_token');
+                              const res = await fetch(`/api/v1/permits/${permit.id}/add_brigade_member/`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Token ${token}` } : {}) },
+                                body: JSON.stringify(newMember),
+                              });
+                              if (res.ok) {
+                                setNewMember({ name: '', role: '', instructedBy: '', userId: null });
+                                setShowAddMember(false);
+                                onRefresh?.();
+                              } else {
+                                const err = await res.json().catch(() => ({}));
+                                alert(err.error || 'Ошибка');
+                              }
+                            } finally {
+                              setAddingMember(false);
+                            }
+                          }} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                            {addingMember ? 'Сохранение...' : 'Добавить'}
+                          </button>
+                          <button onClick={() => setShowAddMember(false)} className="px-4 py-2 border border-gray-300 text-gray-600 text-sm rounded-lg hover:bg-gray-100">
+                            Отмена
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
             {electricalNewTab === 'checklist' && (
               <div>
+                {/* Таблица анализа рисков (заполняется при создании наряда) */}
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertTriangle size={20} className="text-orange-500"/>
+                  <h3 className="text-lg font-bold text-slate-800">Таблица анализа рисков</h3>
+                </div>
+                {data.riskTable && data.riskTable.length > 0 ? (
+                  <div className="overflow-x-auto mb-8">
+                    <table className="w-full text-sm border border-gray-200 rounded-lg">
+                      <thead className="bg-gray-50 text-gray-600 font-semibold">
+                        <tr>
+                          <th className="px-3 py-2 text-left border-b">№</th>
+                          <th className="px-3 py-2 text-left border-b">Этап работы</th>
+                          <th className="px-3 py-2 text-left border-b">Опасности / Риски</th>
+                          <th className="px-3 py-2 text-left border-b">Меры управления</th>
+                          <th className="px-3 py-2 text-left border-b">Контроль</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {data.riskTable.map((row: any, idx: number) => (
+                          <tr key={row.id || idx} className="hover:bg-gray-50/50">
+                            <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
+                            <td className="px-3 py-2">{row.step || '—'}</td>
+                            <td className="px-3 py-2">{row.hazards || '—'}</td>
+                            <td className="px-3 py-2">{row.measures || '—'}</td>
+                            <td className="px-3 py-2">{row.isControlled || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200 mb-8">
+                    Таблица анализа рисков не заполнена
+                  </div>
+                )}
+
                 <div className="flex items-center gap-2 mb-4">
                   <ClipboardList size={20} className="text-orange-500"/>
                   <h3 className="text-lg font-bold text-slate-800">Чек-лист оценки риска</h3>
@@ -698,7 +1102,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
               </div>
             )}
 
-            {electricalNewTab === 'loto' && (
+            {electricalNewTab === 'loto' && data.lotoEnabled && (
               <div>
                 <IsolationMatrixForm
                   data={data.isolationMatrix || {}}
@@ -706,6 +1110,14 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                   readOnly={true}
                   lotoPhotoUrl={permit.loto_photo || null}
                 />
+              </div>
+            )}
+
+            {electricalNewTab === 'loto' && !data.lotoEnabled && (
+              <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                <Lock size={48} className="text-gray-300 mx-auto" />
+                <h3 className="text-base font-medium text-gray-900 mt-3">LOTO не применяется</h3>
+                <p className="text-gray-500 mt-1">Для этого наряда изоляционная матрица не заполнялась.</p>
               </div>
             )}
 
@@ -756,7 +1168,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                               : '—'}
                           </td>
                           <td className="px-2 py-2 border border-gray-300">
-                            {isAdmittingUser && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') ? (
+                            {isAdmittingUser && (isWorkActive) ? (
                               <input type="text" placeholder="Должность, ФИО"
                                 defaultValue={row.fromWhom || ''}
                                 onBlur={async (e) => {
@@ -807,7 +1219,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                 </div>
                                 {row.agreementSignature ? (
                                   <img src={getSignatureUrl(row.agreementSignature)} alt="Подпись" className="h-8 object-contain"/>
-                                ) : (isAdmittingUser || (row.agreementUser?.id && String(row.agreementUser.id) === currentUserId)) && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') ? (
+                                ) : (isAdmittingUser || (row.agreementUser?.id && String(row.agreementUser.id) === currentUserId)) && (isWorkActive) ? (
                                   <button onClick={() => {
                                     setAgreementPadIndex(idx);
                                     setAgreementPadOpen(true);
@@ -819,7 +1231,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                   <span className="text-xs text-amber-600 italic">Ожидает подписи</span>
                                 )}
                               </div>
-                            ) : isAdmittingUser && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') ? (
+                            ) : isAdmittingUser && (isWorkActive) ? (
                               <input type="text" placeholder="Поиск..."
                                 onChange={async (e) => {
                                   const q = e.target.value;
@@ -849,7 +1261,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 <div className="mt-6 text-sm text-gray-700 space-y-4">
                   <div>
                     <label className="font-medium block mb-1">Рабочие места подготовлены. Под напряжением остались:</label>
-                    {isAdmittingUser && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') ? (
+                    {isAdmittingUser && (isWorkActive) ? (
                       <textarea rows={3} placeholder="Укажите рабочие места..."
                         defaultValue={data.admissionVoltageNote || ''}
                         onBlur={async (e) => {
@@ -872,7 +1284,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                       <p className="font-medium">Допускающий</p>
                       {data.admissionSignature ? (
                         <img src={getSignatureUrl(data.admissionSignature)} alt="Подпись допускающего" className="h-12 mt-2 object-contain"/>
-                      ) : (isAdmittingUser && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED')) ? (
+                      ) : (isAdmittingUser && (isWorkActive)) ? (
                         <button onClick={() => setAdmissionPadOpen(true)} className="mt-2 px-4 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors">
                           Подписать
                         </button>
@@ -885,7 +1297,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                       <p className="font-medium">Ответственный руководитель работ</p>
                       {data.responsibleSignature ? (
                         <img src={getSignatureUrl(data.responsibleSignature)} alt="Подпись ответственного руководителя" className="h-12 mt-2 object-contain"/>
-                      ) : (isResponsibleUser && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED')) ? (
+                      ) : (isResponsibleUser && (isWorkActive)) ? (
                         <button onClick={() => setResponsiblePadOpen(true)} className="mt-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors">
                           Подписать
                         </button>
@@ -908,7 +1320,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                   <h3 className="text-lg font-bold text-slate-800">Ежедневный допуск к работе и время ее окончания</h3>
                   <span className="text-sm text-gray-400 ml-auto">Таблица 3</span>
                   <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200 font-medium leading-tight">Заполняет: Допускающий /<br/>Производитель работ</span>
-                  {(isAdmittingUser || isProducerUser) && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') && (
+                  {(isAdmittingUser || isProducerUser) && (isWorkActive) && (
                     (data.dailyAdmissions || []).length < 10 && (
                       <button onClick={async () => {
                         const token = localStorage.getItem('auth_token');
@@ -949,7 +1361,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                       {(data.dailyAdmissions || [{}]).map((row: any, idx: number) => (
                         <tr key={idx} className="hover:bg-gray-50/50">
                           <td className="px-2 py-2 border border-gray-300">
-                            {(isAdmittingUser || isProducerUser) && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') ? (
+                            {(isAdmittingUser || isProducerUser) && (isWorkActive) ? (
                               <input type="text" placeholder="Наименование..."
                                 defaultValue={row.workplace || ''}
                                 onBlur={async (e) => {
@@ -975,7 +1387,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                           <td className="px-2 py-2 border border-gray-300">
                             {row.admittingSignature ? (
                               <img src={getSignatureUrl(row.admittingSignature)} alt="Подпись допускающего" className="h-8 object-contain"/>
-                            ) : (isAdmittingUser && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED')) ? (
+                            ) : (isAdmittingUser && (isWorkActive)) ? (
                               <button onClick={() => { setDailyAdmitPadIndex(idx); setDailyAdmitPadOpen(true); }}
                                 className="px-2 py-0.5 bg-violet-600 text-white text-[10px] font-medium rounded hover:bg-violet-700">Подписать</button>
                             ) : <span className="text-gray-400 italic text-xs">—</span>}
@@ -983,7 +1395,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                           <td className="px-2 py-2 border border-gray-300">
                             {row.producerAdmissionSignature ? (
                               <img src={getSignatureUrl(row.producerAdmissionSignature)} alt="Подпись производителя" className="h-8 object-contain"/>
-                            ) : (isProducerUser && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED')) ? (
+                            ) : (isProducerUser && (isWorkActive)) ? (
                               <button onClick={() => { setDailyProdAdmitPadIndex(idx); setDailyProdAdmitPadOpen(true); }}
                                 className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-medium rounded hover:bg-emerald-700">Подписать</button>
                             ) : <span className="text-gray-400 italic text-xs">—</span>}
@@ -996,7 +1408,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                           <td className="px-2 py-2 border border-gray-300">
                             {row.producerCompletionSignature ? (
                               <img src={getSignatureUrl(row.producerCompletionSignature)} alt="Подпись производителя" className="h-8 object-contain"/>
-                            ) : (isProducerUser && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED')) ? (
+                            ) : (isProducerUser && (isWorkActive)) ? (
                               <button onClick={() => { setDailyProdCompPadIndex(idx); setDailyProdCompPadOpen(true); }}
                                 className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-medium rounded hover:bg-emerald-700">Подписать</button>
                             ) : <span className="text-gray-400 italic text-xs">—</span>}
@@ -1035,7 +1447,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                   <Users size={20} className="text-blue-600"/>
                   <h3 className="text-lg font-bold text-slate-800">Изменения в составе бригады</h3>
                   <span className="text-sm text-gray-400 ml-auto">Таблица 4</span>
-                  {isIssuerUser && (data.brigadeChanges || []).length < 10 && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') && (
+                  {isIssuerUser && (data.brigadeChanges || []).length < 10 && (isWorkActive) && (
                     <button onClick={async () => {
                       const token = localStorage.getItem('auth_token');
                       await fetch(`/api/v1/permits/${permit.id}/add_brigade_change/`, {
@@ -1128,7 +1540,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                 <span className="text-[10px] text-blue-600 font-medium block">✓ Подписано (ЭЦП)</span>
                                 <span className="text-[10px] text-gray-500 block">{row.signedBy || data.issuer?.name || '—'}</span>
                               </div>
-                            ) : isIssuerUser && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') ? (
+                            ) : isIssuerUser && (isWorkActive) ? (
                               <button onClick={() => handleBrigadeChangeSign(idx)}
                                 className="px-2 py-1 bg-blue-600 text-white text-[10px] font-medium rounded hover:bg-blue-700">
                                 Подписать (ЭЦП)
@@ -1175,13 +1587,13 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                   <span className="text-sm text-gray-400 ml-auto">Таблица 5</span>
                 </div>
                 <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                  <table className="w-full text-sm border-collapse">
+                  <table className="w-full text-sm border-collapse table-fixed">
                     <thead>
                       <tr>
-                        <th className="px-3 py-2 text-center font-medium text-gray-700 border border-gray-300 bg-blue-50 text-xs">
+                        <th className="w-1/2 px-3 py-2 text-center font-medium text-gray-700 border border-gray-300 bg-blue-50 text-xs">
                           Инструктаж провел
                         </th>
-                        <th className="px-3 py-2 text-center font-medium text-gray-700 border border-gray-300 bg-emerald-50 text-xs">
+                        <th className="w-1/2 px-3 py-2 text-center font-medium text-gray-700 border border-gray-300 bg-emerald-50 text-xs">
                           Инструктаж получил
                         </th>
                       </tr>
@@ -1196,11 +1608,11 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                             data.targetBriefing.row1.instructedBySignature.endsWith('.xml') ? (
                               <span className="text-[10px] text-blue-600 font-medium mt-1 block">✓ Подписано (ЭЦП)</span>
                             ) : (
-                              <img src={getSignatureUrl(data.targetBriefing.row1.instructedBySignature)} alt="Подпись" className="h-8 object-contain mt-1"/>
+                              <img src={getSignatureUrl(data.targetBriefing.row1.instructedBySignature)} alt="Подпись" className="h-12 object-contain mt-1"/>
                             )
                           ) : issuerStep?.status === 'APPROVED' ? (
                             <span className="text-[10px] text-blue-600 font-medium mt-1 block">✓ Подписано (ЭЦП)</span>
-                          ) : isIssuerUser && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') ? (
+                          ) : isIssuerUser && (isWorkActive) ? (
                             <button onClick={() => handleSign('ISSUER')}
                               className="mt-1 px-3 py-1 bg-blue-600 text-white text-[10px] font-medium rounded hover:bg-blue-700">
                               Подписать (ЭЦП)
@@ -1218,9 +1630,9 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                             data.targetBriefing.row1.receivedBySignature.endsWith('.xml') ? (
                               <span className="text-[10px] text-blue-600 font-medium mt-1 block">✓ Подписано (ЭЦП)</span>
                             ) : (
-                              <img src={getSignatureUrl(data.targetBriefing.row1.receivedBySignature)} alt="Подпись" className="h-8 object-contain mt-1"/>
+                              <img src={getSignatureUrl(data.targetBriefing.row1.receivedBySignature)} alt="Подпись" className="h-12 object-contain mt-1"/>
                             )
-                          ) : (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') ? (
+                          ) : (isWorkActive) ? (
                             data.responsible?.name ? (
                               isResponsibleUser ? (
                                 <button onClick={() => handleTargetBriefingEcpp('row1', 'receivedBy')}
@@ -1249,8 +1661,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                           <div className="text-xs font-medium text-gray-900 mb-1">Допускающий</div>
                           <div className="text-[11px] text-gray-700">{data.admitting?.name || '—'} {data.admitting?.position || ''}</div>
                           {data.targetBriefing?.row2?.instructedBySignature ? (
-                            <img src={getSignatureUrl(data.targetBriefing.row2.instructedBySignature)} alt="Подпись" className="h-8 object-contain mt-1"/>
-                          ) : isAdmittingUser && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') ? (
+                            <img src={getSignatureUrl(data.targetBriefing.row2.instructedBySignature)} alt="Подпись" className="h-12 object-contain mt-1"/>
+                          ) : isAdmittingUser && (isWorkActive) ? (
                             <button onClick={() => {
                               pendingTBRowRef.current = ('row2');
                               pendingTBSideRef.current = ('instructedBy');
@@ -1267,14 +1679,14 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                             <>
                               <div className="text-xs font-medium text-gray-900 mb-1">Ответственный руководитель работ</div>
                               <div className="text-[11px] text-gray-700">{data.responsible.name} {data.responsible.position || ''}</div>
-                              {data.targetBriefing?.row2?.receivedBySignature ? (
-                                data.targetBriefing.row2.receivedBySignature.endsWith('.xml') ? (
+                              {data.targetBriefing?.row2?.responsibleReceivedBySignature ? (
+                                data.targetBriefing.row2.responsibleReceivedBySignature.endsWith('.xml') ? (
                                   <span className="text-[10px] text-blue-600 font-medium mt-1 block">✓ Подписано (ЭЦП)</span>
                                 ) : (
-                                  <img src={getSignatureUrl(data.targetBriefing.row2.receivedBySignature)} alt="Подпись" className="h-8 object-contain mt-1"/>
+                                  <img src={getSignatureUrl(data.targetBriefing.row2.responsibleReceivedBySignature)} alt="Подпись" className="h-12 object-contain mt-1"/>
                                 )
-                              ) : (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') && isResponsibleUser ? (
-                                <button onClick={() => handleTargetBriefingEcpp('row2', 'receivedBy')}
+                              ) : (isWorkActive) && isResponsibleUser ? (
+                                <button onClick={() => handleTargetBriefingEcpp('row2', 'responsibleReceivedBy')}
                                   className="mt-1 px-3 py-1 bg-blue-600 text-white text-[10px] font-medium rounded hover:bg-blue-700">
                                   Подписать (ЭЦП)
                                 </button>
@@ -1287,32 +1699,23 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                           <div className="text-[11px] text-gray-700">
                             {data.producer?.name || '—'} {data.producer?.position || ''}
                           </div>
-                          {data.targetBriefing?.row2?.receivedBySignature ? (
-                            data.targetBriefing.row2.receivedBySignature.endsWith('.xml') ? (
+                          {data.targetBriefing?.row2?.producerReceivedBySignature ? (
+                            data.targetBriefing.row2.producerReceivedBySignature.endsWith('.xml') ? (
                               <span className="text-[10px] text-blue-600 font-medium mt-1 block">✓ Подписано (ЭЦП)</span>
                             ) : (
-                              <img src={getSignatureUrl(data.targetBriefing.row2.receivedBySignature)} alt="Подпись" className="h-8 object-contain mt-1"/>
+                              <img src={getSignatureUrl(data.targetBriefing.row2.producerReceivedBySignature)} alt="Подпись" className="h-12 object-contain mt-1"/>
                             )
-                          ) : (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') ? (
-                            data.responsible?.name ? (
-                              isResponsibleUser ? (
-                                <button onClick={() => handleTargetBriefingEcpp('row2', 'receivedBy')}
-                                  className="mt-1 px-3 py-1 bg-blue-600 text-white text-[10px] font-medium rounded hover:bg-blue-700">
-                                  Подписать (ЭЦП)
-                                </button>
-                              ) : <div className="w-32 border-b border-gray-400 mt-2"></div>
-                            ) : (
-                              isProducerUser ? (
-                                <button onClick={() => {
-                                  pendingTBRowRef.current = 'row2';
-                                  pendingTBSideRef.current = 'receivedBy';
-                                  setTargetBriefingPadOpen(true);
-                                }}
-                                  className="mt-1 px-3 py-1 bg-emerald-600 text-white text-[10px] font-medium rounded hover:bg-emerald-700">
-                                  Подписать (графически)
-                                </button>
-                              ) : <div className="w-32 border-b border-gray-400 mt-2"></div>
-                            )
+                          ) : (isWorkActive) ? (
+                            isProducerUser ? (
+                              <button onClick={() => {
+                                pendingTBRowRef.current = 'row2';
+                                pendingTBSideRef.current = 'producerReceivedBy';
+                                setTargetBriefingPadOpen(true);
+                              }}
+                                className="mt-1 px-3 py-1 bg-emerald-600 text-white text-[10px] font-medium rounded hover:bg-emerald-700">
+                                Подписать (графически)
+                              </button>
+                            ) : <div className="w-32 border-b border-gray-400 mt-2"></div>
                           ) : <div className="w-32 border-b border-gray-400 mt-2"></div>}
                           <div className="text-xs font-medium text-gray-900 mt-2 mb-1">Члены бригады</div>
                           <div className="space-y-1">
@@ -1323,8 +1726,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                   {member.role && <span className="text-[10px] text-gray-500">({member.role})</span>}
                                 </div>
                                 {data.targetBriefing?.[`received_${idx}`] ? (
-                                  <img src={getSignatureUrl(data.targetBriefing[`received_${idx}`])} alt="Подпись" className="h-5 object-contain"/>
-                                ) : (member.userId && String(member.userId) === currentUserId) && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') ? (
+                                  <img src={getSignatureUrl(data.targetBriefing[`received_${idx}`])} alt="Подпись" className="h-8 object-contain"/>
+                                ) : (member.userId && String(member.userId) === currentUserId) && (isWorkActive) ? (
                                   <button onClick={() => {
                                     pendingTBRowRef.current = 'row2';
                                     pendingTBSideRef.current = `received_${idx}`;
@@ -1349,8 +1752,12 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                             {data.responsible?.name || data.producer?.name || '—'} {data.responsible?.position || data.producer?.position || ''}
                           </div>
                           {data.targetBriefing?.row3?.instructedBySignature ? (
-                            <img src={getSignatureUrl(data.targetBriefing.row3.instructedBySignature)} alt="Подпись" className="h-8 object-contain mt-1"/>
-                          ) : (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') ? (
+                            data.targetBriefing.row3.instructedBySignature.endsWith('.xml') ? (
+                              <span className="text-[10px] text-blue-600 font-medium mt-1 block">✓ Подписано (ЭЦП)</span>
+                            ) : (
+                              <img src={getSignatureUrl(data.targetBriefing.row3.instructedBySignature)} alt="Подпись" className="h-12 object-contain mt-1"/>
+                            )
+                          ) : (isWorkActive) ? (
                             data.responsible?.name ? (
                               isResponsibleUser ? (
                                 <button onClick={() => handleTargetBriefingEcpp('row3', 'instructedBy')}
@@ -1385,8 +1792,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                   )}
                                 </div>
                                 {data.targetBriefing?.[`received_${idx}`] ? (
-                                  <img src={getSignatureUrl(data.targetBriefing[`received_${idx}`])} alt="Подпись" className="h-5 object-contain"/>
-                                ) : (member.userId && String(member.userId) === currentUserId) && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') ? (
+                                  <img src={getSignatureUrl(data.targetBriefing[`received_${idx}`])} alt="Подпись" className="h-8 object-contain"/>
+                                ) : (member.userId && String(member.userId) === currentUserId) && (isWorkActive) ? (
                                   <button onClick={() => {
                                     pendingTBRowRef.current = 'row3';
                                     pendingTBSideRef.current = `received_${idx}`;
@@ -1437,7 +1844,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                       <tr>
                         <td className="px-3 py-3 border border-gray-300">
                           <div className="text-xs font-medium text-gray-900 mb-1">Сообщено (кому)</div>
-                          {isProducerUser && !data.workCompletion?.producerSignature && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') ? (
+                          {isProducerUser && !data.workCompletion?.producerSignature && (isWorkActive) ? (
                             <UserSearchInput
                               value={data.workCompletion?.notifiedUser ? { userId: data.workCompletion.notifiedUser.userId, name: data.workCompletion.notifiedUser.name, position: data.workCompletion.notifiedUser.position } : null}
                               onChange={async (sel) => {
@@ -1464,7 +1871,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                         <td className="px-3 py-3 border border-gray-300">
                           {data.workCompletion?.producerSignature ? (
                             <img src={getSignatureUrl(data.workCompletion.producerSignature)} alt="Подпись" className="h-8 object-contain"/>
-                          ) : isProducerUser && (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') ? (
+                          ) : isProducerUser && (isWorkActive) ? (
                             <button onClick={() => {
                               setWorkCompletionField('producerSignature');
                               setWorkCompletionPadOpen(true);
@@ -1490,7 +1897,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                           <td className="px-3 py-3 border border-gray-300">
                             {data.workCompletion?.responsibleSignature ? (
                               <img src={getSignatureUrl(data.workCompletion.responsibleSignature)} alt="Подпись" className="h-8 object-contain"/>
-                            ) : (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') && isResponsibleUser ? (
+                            ) : (isWorkActive) && isResponsibleUser ? (
                               <button onClick={() => {
                                 setWorkCompletionField('responsibleSignature');
                                 setWorkCompletionPadOpen(true);
@@ -1516,7 +1923,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                         <td className="px-3 py-3 border border-gray-300">
                           {data.workCompletion?.admittingSignature ? (
                             <img src={getSignatureUrl(data.workCompletion.admittingSignature)} alt="Подпись" className="h-8 object-contain"/>
-                          ) : (permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED') && isAdmittingUser ? (
+                          ) : (isWorkActive) && isAdmittingUser ? (
                             <button onClick={() => {
                               setWorkCompletionField('admittingSignature');
                               setWorkCompletionPadOpen(true);
@@ -1570,8 +1977,351 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 Наряд не заполнен полностью. Откройте редактирование и заполните обязательные поля.
               </div>
             )}
+            {ncaErrorElec && <div className="flex-1 text-red-600 bg-red-50 border border-red-100 px-4 py-2 rounded-lg text-sm flex items-center"><AlertTriangle size={16} className="mr-2 shrink-0"/>{ncaErrorElec}</div>}
+            {showApprove && myPendingSteps.length > 1 && (
+              <div className="flex flex-col gap-2 w-full sm:w-auto">
+                {myPendingSteps
+                  .sort((a: any, b: any) => a.step_order - b.step_order)
+                  .map((step: any) => (
+                    isGraphicChainRole(step.role) ? (
+                      <button
+                        key={step.role}
+                        onClick={() => setChainPadRole(step.role)}
+                        className="px-6 py-2.5 rounded-lg text-white font-medium shadow-sm flex items-center justify-center gap-2 transition-all bg-emerald-600 hover:bg-emerald-700"
+                      >
+                        <FileSignature size={18} />
+                        Подписать (графически) как {step.role_label || step.role} (очередь {step.step_order})
+                      </button>
+                    ) : (
+                      <button
+                        key={step.role}
+                        onClick={() => handleSignElecNew(step.role)}
+                        disabled={signLoadingElec}
+                        className={`px-6 py-2.5 rounded-lg text-white font-medium shadow-sm flex items-center justify-center gap-2 transition-all
+                        ${signLoadingElec ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                      >
+                        {signLoadingElec ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <FileSignature size={18} />}
+                        Согласовать (ЭЦП) как {step.role_label || step.role} (очередь {step.step_order})
+                      </button>
+                    )
+                  ))}
+              </div>
+            )}
+            {showApprove && myPendingSteps.length === 1 && (isGraphicChainRole(myPendingSteps[0].role) ? (
+              <button
+                onClick={() => setChainPadRole(myPendingSteps[0].role)}
+                className="flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-white font-medium shadow-sm flex items-center justify-center gap-2 transition-all bg-emerald-600 hover:bg-emerald-700"
+              >
+                <FileSignature size={18} />
+                Подписать (графически) {myPendingSteps[0].role_label ? `как ${myPendingSteps[0].role_label}` : ''}
+              </button>
+            ) : (
+              <button
+                onClick={() => handleSignElecNew(myPendingSteps[0].role)}
+                disabled={signLoadingElec}
+                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-white font-medium shadow-sm flex items-center justify-center gap-2 transition-all
+                ${signLoadingElec ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+              >
+                {signLoadingElec ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <FileSignature size={18} />}
+                Согласовать (ЭЦП) {myPendingSteps[0].role_label ? `как ${myPendingSteps[0].role_label}` : ''}
+              </button>
+            ))}
+            {!isAuditor && isInitiator && (permit.status === 'APPROVED' || permit.status === 'RENEWED') && !data.extensionApproved && (
+              <button
+                onClick={handleRenewExtension}
+                className="flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-white font-medium shadow-sm flex items-center justify-center gap-2 transition-all bg-teal-600 hover:bg-teal-700"
+              >
+                <Clock size={18} />
+                Продлить на 1 день
+              </button>
+            )}
+            {showProducerClose && (
+              <button
+                onClick={handleProducerCloseElec}
+                className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center gap-2 shadow-sm"
+              >
+                <CheckCircle2 size={18} />
+                Закрыть наряд как Производитель работ
+              </button>
+            )}
+            {isWorkActive && !!permit.producer_closed && !isAdmittingUser && (
+              <div className="flex items-center text-sm text-amber-600 italic px-4 bg-amber-50 rounded-lg border border-amber-200 py-2.5 gap-2">
+                <Clock size={16} /> Ожидается закрытие Допускающим
+              </div>
+            )}
+            {showAdmittingClose && (
+              <button
+                onClick={handleAdmittingCloseElec}
+                className="px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium flex items-center gap-2 shadow-sm"
+              >
+                <CheckCircle2 size={18} />
+                Закрыть наряд как Допускающий
+              </button>
+            )}
+            {!showSubmitForApproval && !showApprove && permit.status === 'PENDING_APPROVAL' && (
+              <div className="flex items-center text-gray-500 text-sm italic px-4 bg-gray-50 rounded-lg border border-gray-100 py-2">
+                {mySteps.some((s: any) => s.status === 'APPROVED')
+                  ? <span className="text-green-600 flex items-center gap-2"><CheckCircle2 size={16}/> Вы уже подписали этот наряд{mySteps.filter((s: any) => s.status === 'APPROVED').length > 1 ? ` (${mySteps.filter((s: any) => s.status === 'APPROVED').length} роли)` : ''}</span>
+                  : <span className="flex items-center gap-2"><Clock size={16}/> Ожидайте своей очереди подписания</span>
+                }
+              </div>
+            )}
           </div>
         </div>
+
+        {chainPadRole && (
+          <SignaturePadModal
+            open={true}
+            memberLabel={(myPendingSteps.find((s: any) => s.role === chainPadRole)?.role_label || chainPadRole) + ' — подпись согласования'}
+            onClose={() => setChainPadRole(null)}
+            onConfirm={async (blob) => {
+              const token = localStorage.getItem('auth_token');
+              const form = new FormData();
+              form.append('role', chainPadRole);
+              form.append('signature', blob, 'signature.png');
+              const res = await fetch(`/api/v1/permits/${permit.id}/chain_graphic_signature/`, {
+                method: 'POST',
+                headers: token ? { 'Authorization': `Token ${token}` } : {},
+                body: form,
+              });
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                const msg = err.error || err.detail || `Ошибка ${res.status}`;
+                throw new Error(msg);
+              }
+              setChainPadRole(null);
+              onRefresh?.();
+            }}
+          />
+        )}
+
+        {/* ELECTRICAL_NEW: графическая подпись члена бригады (вкладка «Бригада») */}
+        {brigadeSignPadIdx !== null && (
+          <SignaturePadModal
+            open={true}
+            memberLabel={(data.teamMembers || [])[brigadeSignPadIdx]?.name || 'Член бригады'}
+            onClose={() => setBrigadeSignPadIdx(null)}
+            onConfirm={async (blob) => {
+              const token = localStorage.getItem('auth_token');
+              const form = new FormData();
+              form.append('signature', blob, 'signature.png');
+              form.append('member_index', String(brigadeSignPadIdx));
+              const res = await fetch(`/api/v1/permits/${permit.id}/brigade_signature/`, {
+                method: 'POST',
+                headers: token ? { 'Authorization': `Token ${token}` } : {},
+                body: form,
+              });
+              if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || err.detail || `Ошибка ${res.status}`); }
+              setBrigadeSignPadIdx(null);
+              onRefresh?.();
+            }}
+          />
+        )}
+
+    {/* ELECTRICAL_NEW: pad-модалки подписей разделов (были только в ветке опасных работ) */}
+    {admissionPadOpen && (
+      <SignaturePadModal
+        open={true}
+        memberLabel={data.admitting?.name || 'Допускающий'}
+        onClose={() => setAdmissionPadOpen(false)}
+        onConfirm={async (blob) => {
+          const token = localStorage.getItem('auth_token');
+          const form = new FormData();
+          form.append('signature', blob, 'signature.png');
+          const res = await fetch(`/api/v1/permits/${permit.id}/admission_signature/`, {
+            method: 'POST',
+            headers: token ? { 'Authorization': `Token ${token}` } : {},
+            body: form,
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || err.detail || `Ошибка ${res.status}`);
+          }
+          setAdmissionPadOpen(false);
+          onRefresh?.();
+        }}
+      />
+    )}
+
+
+    {agreementPadOpen && (
+      <SignaturePadModal
+        open={true}
+        memberLabel={data.admissionRows?.[agreementPadIndex]?.agreementUser?.name || 'Согласующий'}
+        onClose={() => setAgreementPadOpen(false)}
+        onConfirm={async (blob) => {
+          const token = localStorage.getItem('auth_token');
+          const form = new FormData();
+          form.append('signature', blob, 'signature.png');
+          form.append('index', String(agreementPadIndex));
+          const res = await fetch(`/api/v1/permits/${permit.id}/admission_agreement_signature/`, {
+            method: 'POST',
+            headers: token ? { 'Authorization': `Token ${token}` } : {},
+            body: form,
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || err.detail || `Ошибка ${res.status}`);
+          }
+          setAgreementPadOpen(false);
+          onRefresh?.();
+        }}
+      />
+    )}
+
+
+    {responsiblePadOpen && (
+      <SignaturePadModal
+        open={true}
+        memberLabel={data.responsible?.name || 'Ответственный руководитель работ'}
+        onClose={() => setResponsiblePadOpen(false)}
+        onConfirm={async (blob) => {
+          const token = localStorage.getItem('auth_token');
+          const form = new FormData();
+          form.append('signature', blob, 'signature.png');
+          const res = await fetch(`/api/v1/permits/${permit.id}/responsible_admission_signature/`, {
+            method: 'POST',
+            headers: token ? { 'Authorization': `Token ${token}` } : {},
+            body: form,
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || err.detail || `Ошибка ${res.status}`);
+          }
+          setResponsiblePadOpen(false);
+          onRefresh?.();
+        }}
+      />
+    )}
+
+
+    {dailyAdmitPadOpen && (
+      <SignaturePadModal
+        open={true}
+        memberLabel={data.admitting?.name || 'Допускающий'}
+        onClose={() => setDailyAdmitPadOpen(false)}
+        onConfirm={async (blob) => {
+          const token = localStorage.getItem('auth_token');
+          const form = new FormData();
+          form.append('signature', blob, 'signature.png');
+          form.append('index', String(dailyAdmitPadIndex));
+          form.append('signature_type', 'admitting');
+          const res = await fetch(`/api/v1/permits/${permit.id}/daily_admission_signature/`, {
+            method: 'POST',
+            headers: token ? { 'Authorization': `Token ${token}` } : {},
+            body: form,
+          });
+          if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || err.detail || `Ошибка ${res.status}`); }
+          setDailyAdmitPadOpen(false);
+          onRefresh?.();
+        }}
+      />
+    )}
+
+
+    {dailyProdAdmitPadOpen && (
+      <SignaturePadModal
+        open={true}
+        memberLabel={data.producer?.name || 'Производитель работ'}
+        onClose={() => setDailyProdAdmitPadOpen(false)}
+        onConfirm={async (blob) => {
+          const token = localStorage.getItem('auth_token');
+          const form = new FormData();
+          form.append('signature', blob, 'signature.png');
+          form.append('index', String(dailyProdAdmitPadIndex));
+          form.append('signature_type', 'producer_admission');
+          const res = await fetch(`/api/v1/permits/${permit.id}/daily_admission_signature/`, {
+            method: 'POST',
+            headers: token ? { 'Authorization': `Token ${token}` } : {},
+            body: form,
+          });
+          if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || err.detail || `Ошибка ${res.status}`); }
+          setDailyProdAdmitPadOpen(false);
+          onRefresh?.();
+        }}
+      />
+    )}
+
+
+    {dailyProdCompPadOpen && (
+      <SignaturePadModal
+        open={true}
+        memberLabel={data.producer?.name || 'Производитель работ'}
+        onClose={() => setDailyProdCompPadOpen(false)}
+        onConfirm={async (blob) => {
+          const token = localStorage.getItem('auth_token');
+          const form = new FormData();
+          form.append('signature', blob, 'signature.png');
+          form.append('index', String(dailyProdCompPadIndex));
+          form.append('signature_type', 'producer_completion');
+          const res = await fetch(`/api/v1/permits/${permit.id}/daily_admission_signature/`, {
+            method: 'POST',
+            headers: token ? { 'Authorization': `Token ${token}` } : {},
+            body: form,
+          });
+          if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || err.detail || `Ошибка ${res.status}`); }
+          setDailyProdCompPadOpen(false);
+          onRefresh?.();
+        }}
+      />
+    )}
+
+
+    {targetBriefingPadOpen && (
+      <SignaturePadModal
+        open={true}
+        memberLabel={currentUser.name || currentUser.username || 'Подпись'}
+        onClose={() => { setTargetBriefingPadOpen(false); pendingTBRowRef.current = ''; pendingTBSideRef.current = ''; }}
+        onConfirm={async (blob) => {
+          const row = pendingTBRowRef.current;
+          const side = pendingTBSideRef.current;
+          const token = localStorage.getItem('auth_token');
+          const form = new FormData();
+          form.append('signature', blob, 'signature.png');
+          form.append('row', row);
+          form.append('side', side);
+          const res = await fetch(`/api/v1/permits/${permit.id}/target_briefing_signature/`, {
+            method: 'POST',
+            headers: token ? { 'Authorization': `Token ${token}` } : {},
+            body: form,
+          });
+          if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || err.detail || `Ошибка ${res.status}`); }
+          setTargetBriefingPadOpen(false);
+          pendingTBRowRef.current = '';
+          pendingTBSideRef.current = '';
+          onRefresh?.();
+        }}
+      />
+    )}
+
+
+    {workCompletionPadOpen && (
+      <SignaturePadModal
+        open={true}
+        memberLabel={currentUser.name || currentUser.username || 'Подпись'}
+        onClose={() => { setWorkCompletionPadOpen(false); setWorkCompletionField(''); }}
+        onConfirm={async (blob) => {
+          const field = workCompletionField;
+          const token = localStorage.getItem('auth_token');
+          const form = new FormData();
+          form.append('signature', blob, 'signature.png');
+          form.append('field', field);
+          const res = await fetch(`/api/v1/permits/${permit.id}/work_completion_signature/`, {
+            method: 'POST',
+            headers: token ? { 'Authorization': `Token ${token}` } : {},
+            body: form,
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || err.detail || `Ошибка ${res.status}`);
+          }
+          setWorkCompletionPadOpen(false);
+          setWorkCompletionField('');
+          onRefresh?.();
+        }}
+      />
+    )}
+
       </div>
     );
   }
@@ -1750,13 +2500,29 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
   const handleTargetBriefingEcpp = async (row: string, side: string) => {
     try {
-      const signerIIN = currentUser.iin;
+      // ИИН может отсутствовать в localStorage (старая сессия) — догружаем из БД
+      let me = currentUser;
+      if (!me.iin) {
+        try {
+          const token = localStorage.getItem('auth_token');
+          const res = await fetch(`/api/v1/users/?search=${encodeURIComponent(me.username || '')}`, {
+            headers: token ? { 'Authorization': `Token ${token}` } : {},
+          });
+          const data = await res.json();
+          const found = (Array.isArray(data) ? data : (data.results || [])).find((u: any) => String(u.id) === String(me.id));
+          if (found) {
+            me = { ...me, iin: found.iin, bin: found.bin };
+            localStorage.setItem('user_data', JSON.stringify(me));
+          }
+        } catch (e) { /* если не удалось — покажем ошибку ниже */ }
+      }
+      const signerIIN = me.iin;
       if (!signerIIN) {
         alert("Ошибка: Не найден ИИН пользователя. Проверьте профиль.");
         return;
       }
       const xmlToSign = `<WorkPermit><ID>${permit.permitId}</ID><Date>${new Date().toISOString()}</Date><Type>target_briefing</Type><Row>${row}</Row><Side>${side}</Side></WorkPermit>`;
-      const signedXml = await signXml(xmlToSign, signerIIN, currentUser.bin);
+      const signedXml = await signXml(xmlToSign, signerIIN, me.bin);
       if (!signedXml) throw new Error("Получен пустой ответ от NCALayer");
 
       const token = localStorage.getItem('auth_token');
@@ -2315,7 +3081,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                      <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Users size={20} className="text-blue-500"/> Состав бригады</h3>
                      <div className="flex items-center gap-2">
                        <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">Всего: {data.teamMembers?.length || 0} чел.</span>
-                       {permit.status === 'APPROVED' && !isAuditor && (
+                       {(permit.status === 'APPROVED' || permit.status === 'RENEWED') && !isAuditor && (
                          <button onClick={() => setShowAddMember(!showAddMember)} className="text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-full transition-colors">
                            + Добавить
                          </button>
@@ -2325,8 +3091,18 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                    {showAddMember && permit.status === 'APPROVED' && (
                      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                         <input type="text" placeholder="ФИО" value={newMember.name} onChange={e => setNewMember({...newMember, name: e.target.value})} className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
-                         <input type="text" placeholder="Должность" value={newMember.role} onChange={e => setNewMember({...newMember, role: e.target.value})} className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
+                         <UserSearchInput
+                           value={newMember.name ? { userId: newMember.userId, name: newMember.name, position: newMember.role } : null}
+                           onChange={(sel) => setNewMember(sel ? { ...newMember, name: sel.name, role: sel.position, userId: sel.userId } : { ...newMember, name: '', role: '', userId: null })}
+                         />
+                         <input
+                           type="text"
+                           value={newMember.role}
+                           readOnly
+                           className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-100 text-gray-600"
+                           placeholder="Подставится из БД"
+                           title="Должность подставляется автоматически при выборе сотрудника из БД"
+                         />
                        </div>
                        <p className="text-xs text-gray-500 mb-3">Инструктаж провел: <span className="font-medium text-gray-700">{data.admitting?.name || 'Допускающий к работе'}</span> (заполняется автоматически)</p>
                        <div className="flex gap-2">
@@ -2340,7 +3116,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                body: JSON.stringify(newMember),
                              });
                              if (res.ok) {
-                               setNewMember({ name: '', role: '', instructedBy: '' });
+                               setNewMember({ name: '', role: '', instructedBy: '', userId: null });
                                setShowAddMember(false);
                                onRefresh?.();
                              } else {
@@ -2351,7 +3127,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                          }} className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
                            {addingMember ? 'Сохранение...' : 'Сохранить'}
                          </button>
-                         <button onClick={() => { setShowAddMember(false); setNewMember({ name: '', role: '', instructedBy: '' }); }} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-300">
+                         <button onClick={() => { setShowAddMember(false); setNewMember({ name: '', role: '', instructedBy: '', userId: null }); }} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-300">
                            Отмена
                          </button>
                        </div>
@@ -2367,7 +3143,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                  <th className="px-4 py-3">Должность</th>
                                  <th className="px-4 py-3">Инструктаж провел</th>
                                  <th className="px-4 py-3">Дата</th>
-                                 {permit.status === 'APPROVED' && <th className="px-4 py-3 w-32">Подпись</th>}
+                                 {(permit.status === 'APPROVED' || permit.status === 'RENEWED') && <th className="px-4 py-3 w-32">Подпись</th>}
                                </tr>
                              </thead>
                              <tbody className="divide-y divide-gray-100">
@@ -2820,7 +3596,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
             )}
 
             {/* Ожидание: Производитель подтвердил, ждём Допускающего */}
-            {permit.status === 'APPROVED' && !!permit.producer_closed && !isAdmittingUser && (
+            {(permit.status === 'APPROVED' || permit.status === 'RENEWED') && !!permit.producer_closed && !isAdmittingUser && (
                 <div className="flex items-center text-sm text-amber-600 italic px-4 bg-amber-50 rounded-lg border border-amber-200 py-2 gap-2">
                     <Clock size={16} /> Ожидается закрытие Допускающим
                 </div>

@@ -5,6 +5,7 @@ export enum PermitStatus {
   DRAFT = 'DRAFT',
   PENDING_APPROVAL = 'PENDING_APPROVAL',
   APPROVED = 'APPROVED',
+  RENEWED = 'RENEWED',
   ACTIVE = 'ACTIVE', // Work in progress
   REJECTED = 'REJECTED',
   CLOSED = 'CLOSED',

@@ -64,6 +64,7 @@
     "DRAFT": "Жоба",
     "PENDING_APPROVAL": "Келісуде",
     "APPROVED": "Келісілді",
+    "RENEWED": "Ұзартылды",
     "ACTIVE": "Орындалуда",
     "REJECTED": "Қабылданбады",
     "CLOSED": "Жабылды",

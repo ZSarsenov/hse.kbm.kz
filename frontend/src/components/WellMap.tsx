@@ -306,11 +306,15 @@ export const WellMap: React.FC<WellMapProps> = ({ onSelectWell, selectedWell, re
         COLOR_OK,
       ]);
       map.setPaintProperty('wells-unclustered', 'circle-radius', [
-        'case',
-        ['==', ['get', 'well_no'], selectedWell || null],
-        ['interpolate', ['linear'], ['zoom'], 10, 5, 12, 8, 15, 14],
-        ['interpolate', ['linear'], ['zoom'], 10, 2.5, 12, 5, 15, 8],
+        'interpolate', ['linear'], ['zoom'], 10, 2.5, 12, 5, 15, 8,
       ]);
+      // Выбранная скважина выделяется обводкой (константы — zoom внутри case запрещён)
+      map.setPaintProperty('wells-unclustered', 'circle-stroke-width', [
+        'case',
+        ['==', ['get', 'well_no'], selectedWell || null], 3,
+        0,
+      ]);
+      map.setPaintProperty('wells-unclustered', 'circle-stroke-color', '#2563eb');
     } catch {}
   }, [selectedWell, mapLoaded]);
 

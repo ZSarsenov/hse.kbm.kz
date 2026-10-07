@@ -45,14 +45,18 @@ class ApprovalStepSerializer(serializers.ModelSerializer):
     approver_name = serializers.SerializerMethodField()
     role_label = serializers.CharField(source='get_role_display', read_only=True)
     approver_id = serializers.SerializerMethodField()
+    approver_username = serializers.SerializerMethodField()
 
     class Meta:
         model = ApprovalStep
-        fields = ('id', 'step_order', 'approver_id', 'approver_name', 'role', 'role_label', 'status', 'signed_at',
+        fields = ('id', 'step_order', 'approver_id', 'approver_username', 'approver_name', 'role', 'role_label', 'status', 'signed_at',
                   'signed_xml', 'signer_details', 'rejection_reason')
 
     def get_approver_id(self, obj):
         return obj.approver_id
+
+    def get_approver_username(self, obj):
+        return obj.approver.username if obj.approver_id else None
 
     def get_approver_name(self, obj):
         return _approver_name_for_step(obj)
@@ -97,6 +101,12 @@ class PermitSerializer(serializers.ModelSerializer):
     templateType = serializers.CharField(source='template.name', read_only=True)
     location_name = serializers.CharField(source='location.name', read_only=True)
 
+    # Файлы отдаём корневыми URL (/permits_scans/...), а не абсолютными от Host запроса:
+    # при работе через прокси (Vite dev / nginx) абсолютные ссылки указывают не на тот хост.
+    scan_file = serializers.SerializerMethodField()
+    safety_document = serializers.SerializerMethodField()
+    loto_photo = serializers.SerializerMethodField()
+
     class Meta:
         model = WorkPermit
         fields = (
@@ -120,6 +130,24 @@ class PermitSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ('id', 'permit_id', 'created_at', 'initiator', 'status', 'approval_steps', 'template',
                             'templateType', 'location_name')
+
+    def _file_url(self, obj, field_name):
+        field = getattr(obj, field_name)
+        if not field:
+            return None
+        try:
+            return field.url
+        except Exception:
+            return None
+
+    def get_scan_file(self, obj):
+        return self._file_url(obj, 'scan_file')
+
+    def get_safety_document(self, obj):
+        return self._file_url(obj, 'safety_document')
+
+    def get_loto_photo(self, obj):
+        return self._file_url(obj, 'loto_photo')
 
 
     def create(self, validated_data):
@@ -170,6 +198,29 @@ class PermitListSerializer(serializers.ModelSerializer):
     templateType = serializers.CharField(source='template.name', read_only=True)
     location_name = serializers.CharField(source='location.name', read_only=True)
     data = serializers.SerializerMethodField()
+
+    # Корневые URL файлов (см. комментарий в PermitSerializer)
+    scan_file = serializers.SerializerMethodField()
+    safety_document = serializers.SerializerMethodField()
+    loto_photo = serializers.SerializerMethodField()
+
+    def _file_url(self, obj, field_name):
+        field = getattr(obj, field_name)
+        if not field:
+            return None
+        try:
+            return field.url
+        except Exception:
+            return None
+
+    def get_scan_file(self, obj):
+        return self._file_url(obj, 'scan_file')
+
+    def get_safety_document(self, obj):
+        return self._file_url(obj, 'safety_document')
+
+    def get_loto_photo(self, obj):
+        return self._file_url(obj, 'loto_photo')
 
     # Ключи, которые сохраняются в data при выдаче списка.
     LIST_DATA_KEYS = (

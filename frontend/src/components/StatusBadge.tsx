@@ -33,6 +33,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
         return 'bg-amber-100 text-amber-700 border-amber-200';
       case PermitStatus.APPROVED:
         return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case PermitStatus.RENEWED:
+        return 'bg-teal-100 text-teal-700 border-teal-200';
       case PermitStatus.REJECTED:
         return 'bg-rose-100 text-rose-700 border-rose-200';
       case PermitStatus.CLOSED:
