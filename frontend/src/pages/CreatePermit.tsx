@@ -9,79 +9,6 @@ import { UserSearchSelect } from '../components/UserSearchSelect';
 import { SearchableSelect } from  "../components/SearchableSelect"
 import ChecklistSection, { ChecklistData, validateRequiredChecklists } from '../components/ChecklistSection';
 
-// Локальный поиск сотрудника по БД (для таблицы бригады): вводятся первые буквы ФИО —
-// из БД подтягиваются ФИО и должность (должность подставляется автоматически)
-const TeamMemberSearchInput: React.FC<{
-  value: { name: string } | null;
-  onChange: (val: { userId: number; name: string; position: string } | null) => void;
-}> = ({ value, onChange }) => {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<any[]>([]);
-  const [showResults, setShowResults] = useState(false);
-
-  useEffect(() => {
-    if (value) return;
-    const q = query.trim();
-    if (q.length < 2) { setResults([]); setShowResults(false); return; }
-    const timer = setTimeout(async () => {
-      try {
-        const token = localStorage.getItem('auth_token');
-        const res = await fetch(`/api/v1/users/?search=${encodeURIComponent(q)}`, {
-          headers: { 'Authorization': `Token ${token}` },
-        });
-        const data = await res.json();
-        setResults((Array.isArray(data) ? data : (data.results || [])).slice(0, 8));
-        setShowResults(true);
-      } catch { /* игнорируем сетевые ошибки поиска */ }
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [query, value]);
-
-  return (
-    <div className="relative">
-      <input
-        type="text"
-        className="w-full bg-[#f7f7f7] border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 border focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
-        placeholder="Введите ФИО..."
-        value={value ? value.name : query}
-        onChange={(e) => { setQuery(e.target.value); if (value) onChange(null); }}
-      />
-      {showResults && !value && results.length > 0 && (
-        <div className="absolute z-40 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-          {results.map((u: any) => (
-            <button key={u.id} type="button"
-              onClick={() => { onChange({ userId: u.id, name: u.name || u.username, position: u.position || '' }); setQuery(''); setShowResults(false); }}
-              className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm">
-              <span className="text-gray-900 font-medium">{u.name || u.username}</span>
-              {u.position && <span className="text-gray-400 ml-1">({u.position})</span>}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-// Карта тяжёлая (maplibre-gl) — грузим лениво, отдельным чанком, только при показе
-const WellMap = React.lazy(() => import('../components/WellMap').then(m => ({ default: m.WellMap })));
-
-
-// Интерфейс для объекта пользователя в роли
-interface RoleUser {
-    id: number | null;
-    name: string;
-    role?: string;
-    position?: string;
-    external?: boolean;
-}
-
-interface CreatePermitProps {
-  category: PermitCategory;
-  onCancel: () => void;
-  onSubmit: () => void;
-  initialData?: WorkPermit | null; // 👈 Для редактирования
-}
-
-// Step icons (labels are translated inside component)
 const STEP_ICONS = [FileText, Users, AlertTriangle, Lock];
 
 export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, onSubmit, initialData }) => {
@@ -1404,23 +1331,23 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                           <tr key={member.id} className="group hover:bg-gray-50/50">
                              <td className="px-3 py-1.5 text-center text-gray-400">{idx + 1}</td>
                              <td className="px-3 py-1.5">
-                               <TeamMemberSearchInput
-                                 value={member.name ? { name: member.name } : null}
-                                 onChange={(sel) => {
-                                   setTeamMembers(teamMembers.map(m => m.id === member.id
-                                     ? (sel ? { ...m, name: sel.name, role: sel.position, userId: sel.userId } : { ...m, name: '', role: '', userId: undefined })
-                                     : m) as any);
-                                 }}
+                               {/* Опасные работы: бригада заполняется вручную.
+                                   Поиск из БД — только в электро-нарядах (карточка, «+ Добавить члена бригады»). */}
+                               <input
+                                 type="text"
+                                 value={member.name}
+                                 onChange={(e) => updateTeamMember(member.id, 'name', e.target.value)}
+                                 className="w-full bg-[#f7f7f7] border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 border focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
+                                 placeholder={t('create.brigade.namePlaceholder')}
                                />
                              </td>
                              <td className="px-3 py-1.5">
                                <input
                                  type="text"
                                  value={member.role}
-                                 readOnly
-                                 className="w-full bg-gray-100 border-gray-200 rounded px-2 py-1.5 text-sm text-gray-600 border cursor-not-allowed"
-                                 placeholder="Подставится из БД"
-                                 title="Должность подставляется автоматически при выборе сотрудника из БД"
+                                 onChange={(e) => updateTeamMember(member.id, 'role', e.target.value)}
+                                 className="w-full bg-[#f7f7f7] border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 border focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
+                                 placeholder={t('create.brigade.positionPlaceholder')}
                                />
                              </td>
                              <td className="px-3 py-1.5 text-center">
