@@ -74,7 +74,7 @@ const renderPieLegend = ({ payload }: any) => {
   const entries: any[] = payload || [];
   const total = entries.reduce((sum, e) => sum + (e.payload?.count || 0), 0);
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm pt-2 min-w-0">
+    <div className="grid grid-cols-1 gap-y-1.5 text-sm pt-2 min-w-0">
       {entries.map((entry) => {
         const count: number = entry.payload?.count || 0;
         const pct = total ? (count / total) * 100 : 0;
