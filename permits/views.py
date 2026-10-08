@@ -804,6 +804,50 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(permits, many=True)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['get'], url_path='loto_reports')
+    def loto_reports(self, request):
+        """Лёгкий эндпоинт для страницы LOTO-отчётов.
+
+        Раньше страница грузила ВСЕ страницы общего списка /permits/ (по 20 штук,
+        последовательно) и фильтровала по data.lotoEnabled на клиенте — в prod
+        это сотни запросов и десятки мегабайт. Здесь: фильтрация на бэкенде
+        (только наряды с включённым LOTO, с учётом видимости пользователя) и
+        только поля, которые реально рисует таблица LOTO."""
+        qs = self.get_queryset().filter(data__lotoEnabled=True)
+        items = []
+        for p in qs:
+            data = p.data or {}
+            matrix = data.get('isolationMatrix') or {}
+            admitting = data.get('admitting') or {}
+            items.append({
+                'permit_id': str(p.id),
+                'id_str': p.permit_id or f'#{p.id}',
+                'status_raw': p.status,
+                'equipmentTag': matrix.get('techNumber') or '—',
+                'isolationPoint': matrix.get('installLocation') or '—',
+                'lockedBy': (admitting.get('name') or '—') if isinstance(admitting, dict) else '—',
+                'lockedAt': matrix.get('dateDeveloped') or (p.created_at.isoformat() if p.created_at else ''),
+                'signatureStatus': 'VALID' if p.status in ('APPROVED', 'RENEWED', 'CLOSED') else 'PENDING',
+                'lotoPhotoUrl': (p.loto_photo.url if p.loto_photo else None),
+                'matrixData': {
+                    'department': matrix.get('department') or '',
+                    'site': matrix.get('site') or '',
+                    'dateDeveloped': matrix.get('dateDeveloped') or '',
+                    'dateRevised': matrix.get('dateRevised') or '',
+                    'equipmentName': matrix.get('equipmentName') or '',
+                    'techNumber': matrix.get('techNumber') or '',
+                    'energySourceCount': matrix.get('energySourceCount') or 1,
+                    'energyType': matrix.get('energyType') or '',
+                    'lockType': matrix.get('lockType') or '',
+                    'installLocation': matrix.get('installLocation') or '',
+                    'checkResidualEnergy': matrix.get('checkResidualEnergy') or False,
+                    'checkLockDevice': matrix.get('checkLockDevice') or False,
+                    'checkPadlock': matrix.get('checkPadlock') or False,
+                    'checkTag': matrix.get('checkTag') or False,
+                },
+            })
+        return Response(items)
+
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def duplicate(self, request, pk=None):
         """
