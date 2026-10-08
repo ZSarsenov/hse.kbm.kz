@@ -2369,9 +2369,9 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // 👇 ФУНКЦИЯ КОПИРОВАНИЯ
   const handleDuplicate = async () => {
       const ok = await confirmDialog({
-        title: 'Новый черновик',
-        message: 'Создать новый черновик на основе этого наряда?',
-        confirmText: 'Создать черновик',
+        title: 'Новый проект',
+        message: 'Создать новый проект на основе этого наряда?',
+        confirmText: 'Создать проект',
       });
       if (!ok) return;
 
@@ -2386,7 +2386,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
           const resData = await response.json();
           if (response.ok && resData.ok) {
-             alert(`✅ Копия создана! Новый черновик доступен в меню "Главное".`);
+             alert(`✅ Копия создана! Новый проект доступен в меню "Главное".`);
              onBack(); // Возвращаемся в список, там уже будет новый наряд сверху
           } else {
              alert(`Ошибка: ${resData.error || 'Не удалось скопировать'}`);

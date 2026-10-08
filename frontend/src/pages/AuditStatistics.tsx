@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  LineChart, Line, PieChart, Pie, Cell, Legend
+  LineChart, Line, PieChart, Pie, Cell, Legend, LabelList
 } from 'recharts';
 import { Calendar, BarChart3, TrendingUp, MapPin, Building2, ClipboardList, Lock } from 'lucide-react';
 
@@ -35,11 +35,81 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const PIE_COLORS = ['#2563eb', '#16a34a', '#f59e0b', '#ef4444', '#94a3b8'];
-const MAX_AXIS_LABEL_LEN = 42;
+// При fontSize 12 кириллица ~6.7px/символ: 32 симв. ≈ 215px — влезает
+// в ширину оси 240px с запасом (при 42 символах текст вылезал на бары).
+const MAX_AXIS_LABEL_LEN = 32;
 
 const truncateLabel = (value: string, max = MAX_AXIS_LABEL_LEN) => {
   if (!value) return '';
   return value.length > max ? `${value.slice(0, max - 1)}...` : value;
+};
+
+// Компактные метки периода для X-оси динамики: "2026-09-28" -> "28.09",
+// "2026-09" -> "09.26". Полное значение остаётся в Tooltip.
+const formatPeriodTick = (period: string, groupBy: 'day' | 'week' | 'month') => {
+  if (!period) return '';
+  if (groupBy === 'month') {
+    const [y, m] = period.split('-');
+    return m && y ? `${m}.${y.slice(2)}` : period;
+  }
+  const m = period.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}.${m[2]}` : period;
+};
+
+// Подписи долей пирога: только проценты и только у долей >= 4% —
+// у мелких соседних долей полные подписи накладывались друг на друга.
+const renderPieLabel = ({ percent, x, y }: any) => {
+  if (!percent || percent < 0.04) return null;
+  return (
+    <text x={x} y={y} textAnchor="middle" dominantBaseline="middle" fill="#475569" fontSize={12}>
+      {`${Math.round(percent * 100)}%`}
+    </text>
+  );
+};
+
+// Статичная легенда пирога: цвет + статус + число нарядов + доля.
+// Числа видны всегда, а не только в Tooltip при наведении — при доминирующем
+// статусе (например, 1547 закрытых) мелкие доли иначе «терялись».
+const renderPieLegend = ({ payload }: any) => {
+  const entries: any[] = payload || [];
+  const total = entries.reduce((sum, e) => sum + (e.payload?.count || 0), 0);
+  return (
+    <div className="grid grid-cols-1 gap-y-1.5 text-sm pt-2 min-w-0">
+      {entries.map((entry) => {
+        const count: number = entry.payload?.count || 0;
+        const pct = total ? (count / total) * 100 : 0;
+        // Мелкие доли (1547 из 1600) при округлении дают 0% — им нужен знак после запятой
+        const pctStr = pct >= 10 ? String(Math.round(pct)) : pct.toFixed(1);
+        return (
+          <div key={entry.value} className="flex items-center gap-2 min-w-0">
+            <span className="w-3 h-3 rounded-[3px] shrink-0" style={{ backgroundColor: entry.color }} />
+            <span className="text-gray-600 truncate">{entry.value}</span>
+            <span className="ml-auto font-semibold text-slate-900 tabular-nums">{count}</span>
+            <span className="text-gray-400 tabular-nums w-12 text-right">{pctStr}%</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// Многострочная метка X-оси: длинные названия статусов ("На согласовании")
+// переносятся на вторую строку вместо наложения друг на друга.
+// dy первой строки уводит текст ПОД линию оси — иначе ось проходила
+// сквозь текст и подписи «с lipались» с нижней кромкой столбцов.
+const TwoLineTick = ({ x, y, payload }: any) => {
+  const text = String(payload?.value ?? '');
+  const words = text.split(' ');
+  const lines = words.length > 1 ? [words[0], words.slice(1).join(' ')] : [text];
+  return (
+    <text x={x} y={y} textAnchor="middle" fill="#334155" fontSize={16} fontWeight={700}>
+      {lines.map((line, i) => (
+        <tspan key={i} x={x} dy={i === 0 ? 16 : 19}>
+          {line}
+        </tspan>
+      ))}
+    </text>
+  );
 };
 
 const formatDurationHours = (hours: number, t: (key: string) => string) => {
@@ -100,6 +170,10 @@ export const AuditStatistics: React.FC = () => {
     [stats, t]
   );
 
+  // Для столбчатой диаграммы переводим статус заранее: кастомный тик
+  // (TwoLineTick) получает payload.value как есть и tickFormatter игнорирует.
+  const statusBarData = statusData;
+
   const topWorkTypesData = useMemo(
     () =>
       (stats?.top_work_types || []).map((item) => ({
@@ -120,6 +194,23 @@ export const AuditStatistics: React.FC = () => {
 
   return (
     <div className="space-y-6 ">
+      {/* Локальные стили страницы: глобальный index.css в этот бандл
+          не попадает (стили идут через tailwind CDN в index.html). */}
+      <style>{`
+        /* Нажатие/наведение на элемент диаграммы — подсветка обводкой
+           вместо всплывающего окна (числа и так видны постоянно). */
+        .recharts-wrapper .recharts-bar-rectangle:hover rect,
+        .recharts-wrapper .recharts-pie-sector:hover path {
+          stroke: #1e293b;
+          stroke-width: 2;
+          cursor: pointer;
+        }
+        /* Tooltip нужен recharts для интерактивности, но всплывающее окно
+           показываем только в карточке Динамики (.with-tooltip). */
+        .chart-card:not(.with-tooltip) .recharts-tooltip-wrapper {
+          display: none;
+        }
+      `}</style>
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">{t('auditStats.title')}</h1>
@@ -215,11 +306,16 @@ export const AuditStatistics: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <ChartCard title={t('auditStats.trendTitle')}>
+            <ChartCard title={t('auditStats.trendTitle')} keepTooltip>
               <ResponsiveContainer width="100%" height={320}>
                 <LineChart data={stats?.permits_trend || []} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="period" tick={{ fontSize: 12 }} />
+                  <XAxis
+                    dataKey="period"
+                    tick={{ fontSize: 11 }}
+                    interval="preserveStartEnd"
+                    tickFormatter={(v: string) => formatPeriodTick(v, groupBy)}
+                  />
                   <YAxis allowDecimals={false} />
                   <Tooltip />
                   <Line type="monotone" dataKey="count" stroke="#2563eb" strokeWidth={3} dot={{ r: 3 }} />
@@ -228,22 +324,32 @@ export const AuditStatistics: React.FC = () => {
             </ChartCard>
 
             <ChartCard title={t('auditStats.statusTitle')}>
-              <ResponsiveContainer width="100%" height={320}>
+              <ResponsiveContainer width="100%" height={400}>
                 <PieChart>
-                  <Pie data={statusData} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={100} label>
+                  <Pie
+                    data={statusData}
+                    dataKey="count"
+                    nameKey="label"
+                    cx="50%"
+                    cy="54%"
+                    outerRadius={95}
+                    minAngle={3}
+                    label={renderPieLabel}
+                    labelLine={false}
+                  >
                     {statusData.map((entry, index) => (
                       <Cell key={entry.status} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip />
-                  <Legend />
+                  <Legend content={renderPieLegend} />
                 </PieChart>
               </ResponsiveContainer>
             </ChartCard>
 
             <ChartCard title={t('auditStats.topWorkTypesTitle')}>
               <ResponsiveContainer width="100%" height={380}>
-                <BarChart data={topWorkTypesData} layout="vertical" margin={{ top: 8, right: 12, left: 20, bottom: 8 }}>
+                <BarChart data={topWorkTypesData} layout="vertical" margin={{ top: 8, right: 34, left: 20, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" allowDecimals={false} />
                   <YAxis type="category" dataKey="shortName" width={240} tick={{ fontSize: 12 }} />
@@ -251,14 +357,16 @@ export const AuditStatistics: React.FC = () => {
                     formatter={(value: any) => [value, t('auditStats.permits')]}
                     labelFormatter={(_: any, payload: any) => payload?.[0]?.payload?.name || ''}
                   />
-                  <Bar dataKey="count" fill="#2563eb" radius={[0, 6, 6, 0]} />
+                  <Bar dataKey="count" fill="#2563eb" radius={[0, 6, 6, 0]}>
+                    <LabelList dataKey="count" position="right" fill="#334155" fontSize={13} fontWeight={600} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
 
             <ChartCard title={t('auditStats.topLocationsTitle')}>
               <ResponsiveContainer width="100%" height={380}>
-                <BarChart data={topLocationsData} layout="vertical" margin={{ top: 8, right: 12, left: 20, bottom: 8 }}>
+                <BarChart data={topLocationsData} layout="vertical" margin={{ top: 8, right: 34, left: 20, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" allowDecimals={false} />
                   <YAxis type="category" dataKey="shortName" width={240} tick={{ fontSize: 12 }} />
@@ -266,7 +374,9 @@ export const AuditStatistics: React.FC = () => {
                     formatter={(value: any) => [value, t('auditStats.permits')]}
                     labelFormatter={(_: any, payload: any) => payload?.[0]?.payload?.name || ''}
                   />
-                  <Bar dataKey="count" fill="#16a34a" radius={[0, 6, 6, 0]} />
+                  <Bar dataKey="count" fill="#16a34a" radius={[0, 6, 6, 0]}>
+                    <LabelList dataKey="count" position="right" fill="#334155" fontSize={13} fontWeight={600} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
@@ -274,15 +384,17 @@ export const AuditStatistics: React.FC = () => {
 
           <ChartCard title={t('auditStats.statusBarTitle')}>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={stats?.status_distribution || []}>
+              <BarChart data={statusBarData} margin={{ top: 28, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="status" tickFormatter={(v) => t(`status.${v}` as any)} />
+                <XAxis dataKey="label" interval={0} height={72} tick={<TwoLineTick />} />
                 <YAxis allowDecimals={false} />
-                <Tooltip formatter={(value: any) => [value, t('auditStats.permits')]} labelFormatter={(v) => t(`status.${v}` as any)} />
+                <Tooltip formatter={(value: any) => [value, t('auditStats.permits')]} />
                 <Bar dataKey="count">
-                  {(stats?.status_distribution || []).map((entry) => (
+                  {statusBarData.map((entry) => (
                     <Cell key={entry.status} fill={STATUS_COLORS[entry.status] || '#2563eb'} />
                   ))}
+                  {/* Число нарядов над столбцом — видно всегда, без наведения */}
+                  <LabelList dataKey="count" position="top" fill="#1e293b" fontSize={20} fontWeight={700} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -303,8 +415,11 @@ const KpiCard: React.FC<{ icon: React.ReactNode; title: string; value: string | 
   </div>
 );
 
-const ChartCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div className="bg-white border border-gray-200 rounded-xl p-4 md:p-5 shadow-sm">
+// keepTooltip: у Динамики всплывающее окно остаётся (значения по точкам
+// иначе не увидеть). В остальных карточках Tooltip нужен recharts для
+// интерактивности/рендера, но окно скрыто CSS (.chart-card:not(.with-tooltip)).
+const ChartCard: React.FC<{ title: string; keepTooltip?: boolean; children: React.ReactNode }> = ({ title, keepTooltip, children }) => (
+  <div className={`chart-card bg-white border border-gray-200 rounded-xl p-4 md:p-5 shadow-sm ${keepTooltip ? 'with-tooltip' : ''}`}>
     <h3 className="text-base font-semibold text-slate-900 mb-3">{title}</h3>
     {children}
   </div>

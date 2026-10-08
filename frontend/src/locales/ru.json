@@ -61,7 +61,7 @@
     "cancel": "Отмена"
   },
   "status": {
-    "DRAFT": "Черновик",
+    "DRAFT": "Проект",
     "PENDING_APPROVAL": "На согласовании",
     "APPROVED": "Согласован",
     "RENEWED": "Продлён",
@@ -86,7 +86,7 @@
     "allStatuses": "Все статусы",
     "closed": "Закрыт",
     "rejected": "Отклонено",
-    "draft": "Черновик",
+    "draft": "Проект",
     "pending": "На согласовании",
     "approved": "Согласовано",
     "dateFrom": "С",
@@ -288,7 +288,7 @@
       "workPlace": "Место работ",
       "company": "Компания",
       "permitNo": "№ Наряда-допуска",
-      "draftNoNumber": "Черновик (б/н)",
+      "draftNoNumber": "Проект (б/н)",
       "date": "Дата",
       "workTask": "Работа / Задание",
       "notSpecified": "Не указано",

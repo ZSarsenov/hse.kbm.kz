@@ -9,79 +9,8 @@ import { UserSearchSelect } from '../components/UserSearchSelect';
 import { SearchableSelect } from  "../components/SearchableSelect"
 import ChecklistSection, { ChecklistData, validateRequiredChecklists } from '../components/ChecklistSection';
 
-// Локальный поиск сотрудника по БД (для таблицы бригады): вводятся первые буквы ФИО —
-// из БД подтягиваются ФИО и должность (должность подставляется автоматически)
-const TeamMemberSearchInput: React.FC<{
-  value: { name: string } | null;
-  onChange: (val: { userId: number; name: string; position: string } | null) => void;
-}> = ({ value, onChange }) => {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<any[]>([]);
-  const [showResults, setShowResults] = useState(false);
-
-  useEffect(() => {
-    if (value) return;
-    const q = query.trim();
-    if (q.length < 2) { setResults([]); setShowResults(false); return; }
-    const timer = setTimeout(async () => {
-      try {
-        const token = localStorage.getItem('auth_token');
-        const res = await fetch(`/api/v1/users/?search=${encodeURIComponent(q)}`, {
-          headers: { 'Authorization': `Token ${token}` },
-        });
-        const data = await res.json();
-        setResults((Array.isArray(data) ? data : (data.results || [])).slice(0, 8));
-        setShowResults(true);
-      } catch { /* игнорируем сетевые ошибки поиска */ }
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [query, value]);
-
-  return (
-    <div className="relative">
-      <input
-        type="text"
-        className="w-full bg-[#f7f7f7] border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 border focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
-        placeholder="Введите ФИО..."
-        value={value ? value.name : query}
-        onChange={(e) => { setQuery(e.target.value); if (value) onChange(null); }}
-      />
-      {showResults && !value && results.length > 0 && (
-        <div className="absolute z-40 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-          {results.map((u: any) => (
-            <button key={u.id} type="button"
-              onClick={() => { onChange({ userId: u.id, name: u.name || u.username, position: u.position || '' }); setQuery(''); setShowResults(false); }}
-              className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm">
-              <span className="text-gray-900 font-medium">{u.name || u.username}</span>
-              {u.position && <span className="text-gray-400 ml-1">({u.position})</span>}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-// Карта тяжёлая (maplibre-gl) — грузим лениво, отдельным чанком, только при показе
 const WellMap = React.lazy(() => import('../components/WellMap').then(m => ({ default: m.WellMap })));
 
-
-// Интерфейс для объекта пользователя в роли
-interface RoleUser {
-    id: number | null;
-    name: string;
-    role?: string;
-    position?: string;
-    external?: boolean;
-}
-
-interface CreatePermitProps {
-  category: PermitCategory;
-  onCancel: () => void;
-  onSubmit: () => void;
-  initialData?: WorkPermit | null; // 👈 Для редактирования
-}
-
-// Step icons (labels are translated inside component)
 const STEP_ICONS = [FileText, Users, AlertTriangle, Lock];
 
 export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, onSubmit, initialData }) => {
@@ -196,6 +125,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
   // Производитель работ выбирается только из БД (сотрудники с учётной записью)
   /** Основной согласующий без ЭЦП — аналогично, графическая подпись на согласовании */
   const [supervisorIsExternal, setSupervisorIsExternal] = useState(false);
+  // Исполнитель без ЭЦП (только наряд повышенной опасности): ФИО и должность вручную,
+  // подписывает графически — вносит Выдающий или Допускающий со своей учётной записи
+  const [producerIsExternal, setProducerIsExternal] = useState(false);
 
   // Редактирование во время согласования: блок подписантов полностью заблокирован
   const isApprovalEdit = isEditing && initialData?.status === 'PENDING_APPROVAL';
@@ -246,11 +178,13 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
   };
 
   const buildApiPayload = () => {
-    const producerPayload: RoleUser = (() => {
-      const p = { ...roles.producer };
-      delete (p as { external?: boolean }).external;
-      return p;
-    })();
+    const producerPayload: RoleUser | { id: null; external: true; name: string } = producerIsExternal
+      ? { id: null, external: true, name: roles.producer.name.trim() }
+      : (() => {
+          const p = { ...roles.producer };
+          delete (p as { external?: boolean }).external;
+          return p;
+        })();
 
     const supervisorPayload: RoleUser | { id: null; external: true; name: string } = supervisorIsExternal
       ? { id: null, external: true, name: roles.supervisor.name.trim() }
@@ -264,6 +198,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       ...formData,
       ...roles,
       producer: producerPayload,
+      ...(producerIsExternal && roles.producer.name.trim()
+        ? { completionHandOverName: roles.producer.name.trim() }
+        : {}),
       supervisor: supervisorPayload,
       additionalCoordinators: additionalCoordinators.filter(c => c.id || c.external),
       // Очищаем instructedAt при сохранении — поле заполняется автоматически в момент подписи члена бригады
@@ -465,6 +402,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
           if (savedData.callFirePost) setCallFirePost(true);
           // Восстанавливаем точку на карте — иначе следующий autosave затрёт wellCoords
           setWellCoords(savedData.wellCoords || null);
+          // Восстанавливаем режим «исполнитель без ЭЦП», если в сохранённом наряде он был
+          setProducerIsExternal(
+            !!(savedData.producer && typeof savedData.producer === 'object' && (savedData.producer as RoleUser).external)
+          );
 
       } else if (!isEditing) {
           // --- РЕЖИМ СОЗДАНИЯ: поле "Наряд выдал" оставляем пустым — выбирает сам создатель
@@ -578,7 +519,11 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       if (!roles.issuer.id && !roles.issuer.name) {
           alert("Укажите, кто выдал наряд (поле «Наряд выдал (Выдающий)»)."); setIsSubmitting(false); return;
       }
-      if (!roles.producer.id) {
+      if (producerIsExternal) {
+          if (!roles.producer.name.trim()) {
+            alert("Введите ФИО и должность производителя работ — исполнителя без ЭЦП (одной строкой)."); setIsSubmitting(false); return;
+          }
+      } else if (!roles.producer.id) {
           alert("Не заполнен Производитель работ! Выберите его из списка сотрудников."); setIsSubmitting(false); return;
       }
        if (!roles.admitting.id && !roles.admitting.name) {
@@ -670,7 +615,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
         }
 
         if (result?.id) setDraftPermitId(Number(result.id));
-        alert(isEditing ? '✅ Наряд успешно обновлен!' : '✅ Черновик наряда сохранён. Номер будет присвоен при отправке на согласование.');
+        alert(isEditing ? '✅ Наряд успешно обновлен!' : '✅ Проект наряда сохранён. Номер будет присвоен при отправке на согласование.');
         onSubmit();
       } else {
         // Пробуем прочитать JSON-ошибку, если не получится — читаем текст
@@ -970,22 +915,65 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                    />
                  </div>
 
-                  {/* 4. Производитель работ (исполнитель работ) — только выбор из БД */}
+                  {/* 4. Производитель работ (исполнитель работ) */}
                   <div className="flex flex-col min-w-0">
-                    <UserSearchSelect
-                      label={t('create.roles.producer')}
-                      value={roles.producer.name}
-                      requiredRole="WORK_PRODUCER"
-                      onChange={(user) => {
-                        const displayName = user ? `${user.name} (${user.position || t('create.roles.positionNotSet')})` : '';
-                        const userData = user
-                          ? { id: user.id, name: displayName, role: user.role }
-                          : { id: null, name: '' };
-                        setRoles((prev) => ({ ...prev, producer: userData }));
-                        if (user) updateForm('completionHandOverName', displayName);
-                      }}
-                      placeholder={t('create.roles.searchPlaceholder')}
-                    />
+                    {producerIsExternal ? (
+                      <>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">
+                          {t('create.roles.producer')}
+                          <span className="text-red-500 ml-1">*</span>
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={roles.producer.name}
+                          onChange={(e) => {
+                            setRoles((prev) => ({
+                              ...prev,
+                              producer: { id: null, name: e.target.value, external: true },
+                            }));
+                            updateForm('completionHandOverName', e.target.value);
+                          }}
+                          placeholder={t('create.roles.externalPlaceholder')}
+                          className={commonInputClasses}
+                        />
+                      </>
+                    ) : (
+                      <UserSearchSelect
+                        label={t('create.roles.producer')}
+                        value={roles.producer.name}
+                        requiredRole="WORK_PRODUCER"
+                        onChange={(user) => {
+                          const displayName = user ? `${user.name} (${user.position || t('create.roles.positionNotSet')})` : '';
+                          const userData = user
+                            ? { id: user.id, name: displayName, role: user.role }
+                            : { id: null, name: '' };
+                          setRoles((prev) => ({ ...prev, producer: userData }));
+                          if (user) updateForm('completionHandOverName', displayName);
+                        }}
+                        placeholder={t('create.roles.searchPlaceholder')}
+                      />
+                    )}
+                    {/* Переключатель «без ЭЦП» — только для наряда повышенной опасности */}
+                    {!isElectricalNew && (
+                      <div className="flex justify-end mt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (producerIsExternal) {
+                              setProducerIsExternal(false);
+                              setRoles((prev) => ({ ...prev, producer: { id: null, name: '' } }));
+                            } else {
+                              setProducerIsExternal(true);
+                              setRoles((prev) => ({ ...prev, producer: { id: null, name: '', external: true } }));
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          <Plus size={14} className="shrink-0" />
+                          {producerIsExternal ? t('create.roles.selectFromDb') : t('create.roles.externalProducer')}
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* 5. Согласующий (необязательный — без звёздочки) */}
@@ -1345,23 +1333,23 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                           <tr key={member.id} className="group hover:bg-gray-50/50">
                              <td className="px-3 py-1.5 text-center text-gray-400">{idx + 1}</td>
                              <td className="px-3 py-1.5">
-                               <TeamMemberSearchInput
-                                 value={member.name ? { name: member.name } : null}
-                                 onChange={(sel) => {
-                                   setTeamMembers(teamMembers.map(m => m.id === member.id
-                                     ? (sel ? { ...m, name: sel.name, role: sel.position, userId: sel.userId } : { ...m, name: '', role: '', userId: undefined })
-                                     : m) as any);
-                                 }}
+                               {/* Опасные работы: бригада заполняется вручную.
+                                   Поиск из БД — только в электро-нарядах (карточка, «+ Добавить члена бригады»). */}
+                               <input
+                                 type="text"
+                                 value={member.name}
+                                 onChange={(e) => updateTeamMember(member.id, 'name', e.target.value)}
+                                 className="w-full bg-[#f7f7f7] border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 border focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
+                                 placeholder={t('create.brigade.namePlaceholder')}
                                />
                              </td>
                              <td className="px-3 py-1.5">
                                <input
                                  type="text"
                                  value={member.role}
-                                 readOnly
-                                 className="w-full bg-gray-100 border-gray-200 rounded px-2 py-1.5 text-sm text-gray-600 border cursor-not-allowed"
-                                 placeholder="Подставится из БД"
-                                 title="Должность подставляется автоматически при выборе сотрудника из БД"
+                                 onChange={(e) => updateTeamMember(member.id, 'role', e.target.value)}
+                                 className="w-full bg-[#f7f7f7] border-gray-300 rounded px-2 py-1.5 text-sm text-gray-900 border focus:ring-1 focus:ring-blue-500 placeholder-gray-400"
+                                 placeholder={t('create.brigade.positionPlaceholder')}
                                />
                              </td>
                              <td className="px-3 py-1.5 text-center">

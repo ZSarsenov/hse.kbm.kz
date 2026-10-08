@@ -35,7 +35,7 @@ export interface RawPermit {
  */
 export const formatPermit = (p: RawPermit): WorkPermit => ({
   id: p.id,
-  permitId: p.permit_id || 'Черновик',
+  permitId: p.permit_id || 'Проект',
   templateType: p.templateType || 'Наряд повышенной опасности',
   status: p.status,
   scan_file: p.scan_file,
