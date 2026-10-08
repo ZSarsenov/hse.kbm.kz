@@ -17,6 +17,7 @@ type StatsResponse = {
     reject_rate_percent: number;
     avg_close_time_hours: number;
     loto_open_count: number;
+    loto_total_count: number;
   };
   status_distribution: Array<{ status: string; count: number }>;
   permits_trend: Array<{ period: string; count: number }>;
@@ -205,6 +206,11 @@ export const AuditStatistics: React.FC = () => {
               icon={<Lock size={18} />}
               title={t('auditStats.kpiLotoOpen')}
               value={stats?.kpi.loto_open_count ?? 0}
+            />
+            <KpiCard
+              icon={<Lock size={18} />}
+              title={t('auditStats.kpiLotoTotal')}
+              value={stats?.kpi.loto_total_count ?? 0}
             />
           </div>
 

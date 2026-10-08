@@ -404,6 +404,10 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 'loto_open_count': WorkPermit.objects.filter(
                     data__lotoEnabled=True,
                 ).exclude(status__in=['CLOSED', 'REJECTED']).count(),
+                # Всего LOTO: все наряды с включённым LOTO
+                'loto_total_count': WorkPermit.objects.filter(
+                    data__lotoEnabled=True,
+                ).count(),
             },
             'status_distribution': status_distribution,
             'permits_trend': permits_trend,
