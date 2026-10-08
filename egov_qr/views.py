@@ -18,6 +18,7 @@ import logging
 import xml.etree.ElementTree as ET
 from datetime import timezone as dt_timezone
 from io import BytesIO
+from urllib.parse import quote
 from xml.sax.saxutils import escape
 
 import qrcode
@@ -89,6 +90,19 @@ def _signed_content_matches(signed_xml, expected_xml):
 def _expiry_iso(dt):
     dt = dt.astimezone(dt_timezone.utc)
     return dt.strftime('%Y-%m-%dT%H:%M:%S.') + f'{dt.microsecond // 1000:03d}Z'
+
+
+def _cross_sign_links(init_url):
+    """
+    Динамические ссылки «кросс-подписания» по документации eGov Mobile
+    («Документация по QR/Кросс подписанию в приложении eGov Mobile», 2025):
+    в параметр link подставляется API №1 (с закодированными ?, &, =), остальные параметры статичны.
+    """
+    link = quote(init_url, safe=':/')
+    return {
+        "mobile_link_ios": f"https://mgovsign.page.link/?link={link}&isi=1476128386&ibi=kz.egov.mobile",
+        "mobile_link_android": f"https://mgovsign.page.link/?link={link}&apn=kz.mobile.mgov",
+    }
 
 
 def _is_graphic_only_step(permit, step):
@@ -171,8 +185,9 @@ def start_egov_qr_session(request, permit_id):
         xml_to_sign=_build_step_xml(permit),
     )
 
+    init_url = f"{_base_url()}/api/v1/egov_qr/init/{egov_session.id}/"
     qr = qrcode.QRCode(box_size=8, border=2)
-    qr.add_data(f"mobileSign:{_base_url()}/api/v1/egov_qr/init/{egov_session.id}/")
+    qr.add_data(f"mobileSign:{init_url}")
     qr.make(fit=True)
     buf = BytesIO()
     qr.make_image(fill_color="black", back_color="white").save(buf, format='PNG')
@@ -182,6 +197,8 @@ def start_egov_qr_session(request, permit_id):
         "session_id": str(egov_session.id),
         "qr_code_base64": base64.b64encode(buf.getvalue()).decode('ascii'),
         "expires_at": egov_session.expires_at.isoformat(),
+        # Кросс-подписание: сайт открыт на самом телефоне — ссылка сразу открывает eGov Mobile
+        **_cross_sign_links(init_url),
     })
 
 
@@ -300,7 +317,7 @@ class EgovQrDocView(APIView):
             if not _signed_content_matches(signed_xml, egov_session.xml_to_sign):
                 return fail("Подписанный документ не совпадает с выданным на подпись.")
 
-            # ---- Те же проверки ЭЦП, что в permits.views.WorkPermitViewSet.sign ----
+            # ---- Проверки ЭЦП как в permits.views.WorkPermitViewSet.sign (кроме обязательного БИН — см. ниже) ----
             try:
                 cert_info = parse_xml_signature_info(signed_xml)
             except Exception as e:
@@ -310,11 +327,13 @@ class EgovQrDocView(APIView):
             if not sign_iin or sign_iin != user.iin:
                 return fail(f"ИИН в ЭЦП ({sign_iin}) не совпадает с вашим ({user.iin}).", 403)
 
+            # Через eGov Mobile подписывают личной ЭЦП физлица (в сертификате нет БИН) —
+            # это разрешено, личность подтверждает ИИН. В отличие от NCALayer (permits.sign),
+            # ЭЦП организации не обязательна; но если подписали ЭЦП организации (eGov Business),
+            # БИН должен быть своей организации.
             sign_bin = cert_info.get('bin')
             target_bin = user.bin if user.bin else '000000000000'
-            if not sign_bin:
-                return fail("Нужна ЭЦП юридического лица (GOST) с БИН.")
-            if sign_bin != target_bin:
+            if sign_bin and sign_bin != target_bin:
                 return fail(f"БИН организации не совпадает ({sign_bin} != {target_bin}).")
 
             not_after = cert_info.get('not_after')
@@ -333,6 +352,7 @@ class EgovQrDocView(APIView):
                 "org_name": cert_info.get('org_name'),
                 "date": now.isoformat(),
                 "via": "egov_mobile_qr",
+                "cert_type": "legal" if sign_bin else "personal",
             }
             step.save()
 
