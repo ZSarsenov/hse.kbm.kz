@@ -100,9 +100,9 @@ const TwoLineTick = ({ x, y, payload }: any) => {
   const words = text.split(' ');
   const lines = words.length > 1 ? [words[0], words.slice(1).join(' ')] : [text];
   return (
-    <text x={x} y={y} textAnchor="middle" fill="#64748b" fontSize={12}>
+    <text x={x} y={y} textAnchor="middle" fill="#475569" fontSize={16}>
       {lines.map((line, i) => (
-        <tspan key={i} x={x} dy={i === 0 ? 0 : 14}>
+        <tspan key={i} x={x} dy={i === 0 ? 0 : 19}>
           {line}
         </tspan>
       ))}
@@ -365,9 +365,9 @@ export const AuditStatistics: React.FC = () => {
 
           <ChartCard title={t('auditStats.statusBarTitle')}>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={statusBarData} margin={{ top: 20, right: 8, left: 0, bottom: 0 }}>
+              <BarChart data={statusBarData} margin={{ top: 28, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" interval={0} height={56} tick={<TwoLineTick />} />
+                <XAxis dataKey="label" interval={0} height={64} tick={<TwoLineTick />} />
                 <YAxis allowDecimals={false} />
                 <Tooltip formatter={(value: any) => [value, t('auditStats.permits')]} />
                 <Bar dataKey="count">
@@ -375,7 +375,7 @@ export const AuditStatistics: React.FC = () => {
                     <Cell key={entry.status} fill={STATUS_COLORS[entry.status] || '#2563eb'} />
                   ))}
                   {/* Число нарядов над столбцом — видно всегда, без наведения */}
-                  <LabelList dataKey="count" position="top" fill="#334155" fontSize={13} fontWeight={600} />
+                  <LabelList dataKey="count" position="top" fill="#1e293b" fontSize={20} fontWeight={700} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
