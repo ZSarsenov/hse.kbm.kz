@@ -307,15 +307,15 @@ export const AuditStatistics: React.FC = () => {
             </ChartCard>
 
             <ChartCard title={t('auditStats.statusTitle')}>
-              <ResponsiveContainer width="100%" height={320}>
+              <ResponsiveContainer width="100%" height={400}>
                 <PieChart>
                   <Pie
                     data={statusData}
                     dataKey="count"
                     nameKey="label"
                     cx="50%"
-                    cy="50%"
-                    outerRadius={100}
+                    cy="54%"
+                    outerRadius={95}
                     minAngle={3}
                     label={renderPieLabel}
                     labelLine={false}
