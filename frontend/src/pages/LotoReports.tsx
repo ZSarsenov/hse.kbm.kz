@@ -35,8 +35,16 @@ export const LotoReports: React.FC<LotoReportsProps> = ({ onNavigateToPermit }) 
       if (!res.ok) throw new Error('Ошибка загрузки');
       const items: any[] = await res.json();
       setReports((Array.isArray(items) ? items : []).map((i: any) => ({
-        ...i,
+        id: i.id_str,
+        permitId: i.permit_id,
         status: mapPermitStatus(i.status_raw),
+        equipmentTag: i.equipmentTag,
+        isolationPoint: i.isolationPoint,
+        lockedBy: i.lockedBy,
+        lockedAt: i.lockedAt,
+        signatureStatus: i.signatureStatus,
+        lotoPhotoUrl: i.lotoPhotoUrl,
+        matrixData: i.matrixData,
       })));
     } catch (error) {
       console.error("Ошибка загрузки LOTO:", error);
