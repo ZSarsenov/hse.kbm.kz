@@ -8,6 +8,7 @@ import { ConfirmDialog, confirm as confirmDialog } from './components/ConfirmDia
 import { Toasts, toast } from './components/Toasts';
 import { CardErrorBoundary } from './components/ErrorBoundary';
 import { formatPermit } from './utils/formatPermit';
+import { scrollToAppTop } from './utils/scroll';
 import { ModuleSelector } from './components/ModuleSelector';
 import { ListSkeleton } from './components/Skeleton';
 import { WorkPermit, PageView, PermitCategory } from './types';
@@ -207,7 +208,7 @@ function App() {
   const handleSelectPermit = (id: string) => {
     setSelectedPermitId(id);
     setCurrentView('DETAIL');
-    window.scrollTo(0, 0);
+    scrollToAppTop();
   };
 
   // Навигация
@@ -263,7 +264,7 @@ function App() {
       // мгновение и заменит state.
       setEditingPermit(permit);
       setCurrentView('CREATE');
-      window.scrollTo(0, 0);
+      scrollToAppTop();
       try {
           const response = await fetch(`/api/v1/permits/${permit.id}/`, {
               headers: { 'Authorization': `Token ${token}` }
@@ -325,7 +326,7 @@ function App() {
     setSelectedCategory(category);
     setIsTypeSelectorOpen(false);
     setCurrentView('CREATE');
-    window.scrollTo(0, 0);
+    scrollToAppTop();
   };
 
   const handleCloseCreate = () => {

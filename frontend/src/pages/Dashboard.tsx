@@ -4,6 +4,7 @@ import { Calendar, MapPin, Search, Download, Plus, ChevronRight, Building2, Slid
 import { WorkPermit, PermitStatus } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { getPageItems } from '../utils/pagination';
+import { scrollToAppTop } from '../utils/scroll';
 
 interface DashboardProps {
   permits: WorkPermit[];
@@ -90,7 +91,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
   const goToPage = (pageNumber: number) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {
       setCurrentPage(pageNumber);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      scrollToAppTop();
     }
   };
 
