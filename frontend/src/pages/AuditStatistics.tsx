@@ -67,32 +67,6 @@ const renderPieLabel = ({ percent, x, y }: any) => {
   );
 };
 
-// Статичная легенда пирога: цвет + статус + число нарядов + доля.
-// Числа видны всегда, а не только в Tooltip при наведении — при доминирующем
-// статусе (например, 1547 закрытых) мелкие доли иначе «терялись».
-const renderPieLegend = ({ payload }: any) => {
-  const entries: any[] = payload || [];
-  const total = entries.reduce((sum, e) => sum + (e.payload?.count || 0), 0);
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm pt-2 min-w-0">
-      {entries.map((entry) => {
-        const count: number = entry.payload?.count || 0;
-        const pct = total ? (count / total) * 100 : 0;
-        // Мелкие доли (1547 из 1600) при округлении дают 0% — им нужен знак после запятой
-        const pctStr = pct >= 10 ? String(Math.round(pct)) : pct.toFixed(1);
-        return (
-          <div key={entry.value} className="flex items-center gap-2 min-w-0">
-            <span className="w-3 h-3 rounded-[3px] shrink-0" style={{ backgroundColor: entry.color }} />
-            <span className="text-gray-600 truncate">{entry.value}</span>
-            <span className="ml-auto font-semibold text-slate-900 tabular-nums">{count}</span>
-            <span className="text-gray-400 tabular-nums w-12 text-right">{pctStr}%</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
 // Многострочная метка X-оси: длинные названия статусов ("На согласовании")
 // переносятся на вторую строку вместо наложения друг на друга.
 const TwoLineTick = ({ x, y, payload }: any) => {
@@ -310,7 +284,6 @@ export const AuditStatistics: React.FC = () => {
                     cx="50%"
                     cy="50%"
                     outerRadius={100}
-                    minAngle={3}
                     label={renderPieLabel}
                     labelLine={false}
                   >
@@ -319,7 +292,7 @@ export const AuditStatistics: React.FC = () => {
                     ))}
                   </Pie>
                   <Tooltip />
-                  <Legend content={renderPieLegend} />
+                  <Legend />
                 </PieChart>
               </ResponsiveContainer>
             </ChartCard>
