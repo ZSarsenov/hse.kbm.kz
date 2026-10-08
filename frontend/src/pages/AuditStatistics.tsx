@@ -168,6 +168,10 @@ export const AuditStatistics: React.FC = () => {
     [stats, t]
   );
 
+  // Для столбчатой диаграммы переводим статус заранее: кастомный тик
+  // (TwoLineTick) получает payload.value как есть и tickFormatter игнорирует.
+  const statusBarData = statusData;
+
   const topWorkTypesData = useMemo(
     () =>
       (stats?.top_work_types || []).map((item) => ({
@@ -357,19 +361,13 @@ export const AuditStatistics: React.FC = () => {
 
           <ChartCard title={t('auditStats.statusBarTitle')}>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={stats?.status_distribution || []}>
+              <BarChart data={statusBarData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="status"
-                  interval={0}
-                  height={56}
-                  tick={<TwoLineTick />}
-                  tickFormatter={(v) => t(`status.${v}` as any)}
-                />
+                <XAxis dataKey="label" interval={0} height={56} tick={<TwoLineTick />} />
                 <YAxis allowDecimals={false} />
-                <Tooltip formatter={(value: any) => [value, t('auditStats.permits')]} labelFormatter={(v) => t(`status.${v}` as any)} />
+                <Tooltip formatter={(value: any) => [value, t('auditStats.permits')]} />
                 <Bar dataKey="count">
-                  {(stats?.status_distribution || []).map((entry) => (
+                  {statusBarData.map((entry) => (
                     <Cell key={entry.status} fill={STATUS_COLORS[entry.status] || '#2563eb'} />
                   ))}
                 </Bar>
