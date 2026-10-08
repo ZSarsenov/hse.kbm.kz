@@ -117,6 +117,54 @@ class EgovQrFlowTests(TestCase):
         res = self.client.post(f'/api/v1/egov_qr/start/{self.permit.id}/', {'role': 'ISSUER'}, format='json')
         self.assertEqual(res.status_code, 403)
 
+    def test_personal_certificate_without_bin_is_accepted(self):
+        # Личная ЭЦП из eGov Mobile: сертификат физлица, БИН нет
+        session = self._start()
+        with mock.patch('egov_qr.views.parse_xml_signature_info', return_value=_cert_info(bin_=None)):
+            res = self._put(session, _signed(session.xml_to_sign))
+        self.assertEqual(res.status_code, 200, res.data)
+        self.step.refresh_from_db()
+        self.assertEqual(self.step.status, 'APPROVED')
+        self.assertEqual(self.step.signer_details['cert_type'], 'personal')
+
+    def test_other_organisation_certificate_is_rejected(self):
+        session = self._start()
+        with mock.patch('egov_qr.views.parse_xml_signature_info', return_value=_cert_info(bin_='111111111111')):
+            res = self._put(session, _signed(session.xml_to_sign))
+        self.assertEqual(res.status_code, 400)
+        self.step.refresh_from_db()
+        self.assertEqual(self.step.status, 'PENDING')
+
+    def test_start_returns_cross_sign_links(self):
+        res = self.client.post(f'/api/v1/egov_qr/start/{self.permit.id}/', {'role': 'ISSUER'}, format='json')
+        init_url = f'https://example.kz/api/v1/egov_qr/init/{res.data["session_id"]}/'
+        self.assertEqual(
+            res.data['mobile_link_ios'],
+            f'https://mgovsign.page.link/?link={init_url}&isi=1476128386&ibi=kz.egov.mobile',
+        )
+        self.assertEqual(
+            res.data['mobile_link_android'],
+            f'https://mgovsign.page.link/?link={init_url}&apn=kz.mobile.mgov',
+        )
+
+    def test_electrical_graphic_roles_cannot_use_qr(self):
+        # В ELECTRICAL_NEW Допускающий и Производитель подписывают графически — QR для них запрещён
+        self.permit.data = {'category': 'ELECTRICAL_NEW'}
+        self.permit.save()
+        self.step.role = 'ADMITTING'
+        self.step.save()
+        res = self.client.post(f'/api/v1/egov_qr/start/{self.permit.id}/', {'role': 'ADMITTING'}, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(EgovQrSession.objects.exists())
+
+    def test_electrical_issuer_can_use_qr(self):
+        self.permit.data = {'category': 'ELECTRICAL_NEW'}
+        self.permit.save()
+        session = self._start()
+        with mock.patch('egov_qr.views.parse_xml_signature_info', return_value=_cert_info()):
+            res = self._put(session, _signed(session.xml_to_sign))
+        self.assertEqual(res.status_code, 200, res.data)
+
 
 class EgovQrDisabledTests(TestCase):
     """По умолчанию функция выключена: публичные эндпоинты не отвечают."""
