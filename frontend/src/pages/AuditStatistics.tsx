@@ -324,7 +324,6 @@ export const AuditStatistics: React.FC = () => {
                       <Cell key={entry.status} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip />
                   <Legend content={renderPieLegend} />
                 </PieChart>
               </ResponsiveContainer>
@@ -336,10 +335,6 @@ export const AuditStatistics: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" allowDecimals={false} />
                   <YAxis type="category" dataKey="shortName" width={240} tick={{ fontSize: 12 }} />
-                  <Tooltip
-                    formatter={(value: any) => [value, t('auditStats.permits')]}
-                    labelFormatter={(_: any, payload: any) => payload?.[0]?.payload?.name || ''}
-                  />
                   <Bar dataKey="count" fill="#2563eb" radius={[0, 6, 6, 0]}>
                     <LabelList dataKey="count" position="right" fill="#334155" fontSize={13} fontWeight={600} />
                   </Bar>
@@ -353,10 +348,6 @@ export const AuditStatistics: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" allowDecimals={false} />
                   <YAxis type="category" dataKey="shortName" width={240} tick={{ fontSize: 12 }} />
-                  <Tooltip
-                    formatter={(value: any) => [value, t('auditStats.permits')]}
-                    labelFormatter={(_: any, payload: any) => payload?.[0]?.payload?.name || ''}
-                  />
                   <Bar dataKey="count" fill="#16a34a" radius={[0, 6, 6, 0]}>
                     <LabelList dataKey="count" position="right" fill="#334155" fontSize={13} fontWeight={600} />
                   </Bar>
@@ -371,7 +362,6 @@ export const AuditStatistics: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="label" interval={0} height={72} tick={<TwoLineTick />} />
                 <YAxis allowDecimals={false} />
-                <Tooltip formatter={(value: any) => [value, t('auditStats.permits')]} />
                 <Bar dataKey="count">
                   {statusBarData.map((entry) => (
                     <Cell key={entry.status} fill={STATUS_COLORS[entry.status] || '#2563eb'} />
