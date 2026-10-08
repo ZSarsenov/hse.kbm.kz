@@ -196,6 +196,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
   // Производитель работ выбирается только из БД (сотрудники с учётной записью)
   /** Основной согласующий без ЭЦП — аналогично, графическая подпись на согласовании */
   const [supervisorIsExternal, setSupervisorIsExternal] = useState(false);
+  // Исполнитель без ЭЦП (только наряд повышенной опасности): ФИО и должность вручную,
+  // подписывает графически — вносит Выдающий или Допускающий со своей учётной записи
+  const [producerIsExternal, setProducerIsExternal] = useState(false);
 
   // Редактирование во время согласования: блок подписантов полностью заблокирован
   const isApprovalEdit = isEditing && initialData?.status === 'PENDING_APPROVAL';
@@ -246,11 +249,13 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
   };
 
   const buildApiPayload = () => {
-    const producerPayload: RoleUser = (() => {
-      const p = { ...roles.producer };
-      delete (p as { external?: boolean }).external;
-      return p;
-    })();
+    const producerPayload: RoleUser | { id: null; external: true; name: string } = producerIsExternal
+      ? { id: null, external: true, name: roles.producer.name.trim() }
+      : (() => {
+          const p = { ...roles.producer };
+          delete (p as { external?: boolean }).external;
+          return p;
+        })();
 
     const supervisorPayload: RoleUser | { id: null; external: true; name: string } = supervisorIsExternal
       ? { id: null, external: true, name: roles.supervisor.name.trim() }
@@ -264,6 +269,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       ...formData,
       ...roles,
       producer: producerPayload,
+      ...(producerIsExternal && roles.producer.name.trim()
+        ? { completionHandOverName: roles.producer.name.trim() }
+        : {}),
       supervisor: supervisorPayload,
       additionalCoordinators: additionalCoordinators.filter(c => c.id || c.external),
       // Очищаем instructedAt при сохранении — поле заполняется автоматически в момент подписи члена бригады
@@ -465,6 +473,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
           if (savedData.callFirePost) setCallFirePost(true);
           // Восстанавливаем точку на карте — иначе следующий autosave затрёт wellCoords
           setWellCoords(savedData.wellCoords || null);
+          // Восстанавливаем режим «исполнитель без ЭЦП», если в сохранённом наряде он был
+          setProducerIsExternal(
+            !!(savedData.producer && typeof savedData.producer === 'object' && (savedData.producer as RoleUser).external)
+          );
 
       } else if (!isEditing) {
           // --- РЕЖИМ СОЗДАНИЯ: поле "Наряд выдал" оставляем пустым — выбирает сам создатель
@@ -578,7 +590,11 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       if (!roles.issuer.id && !roles.issuer.name) {
           alert("Укажите, кто выдал наряд (поле «Наряд выдал (Выдающий)»)."); setIsSubmitting(false); return;
       }
-      if (!roles.producer.id) {
+      if (producerIsExternal) {
+          if (!roles.producer.name.trim()) {
+            alert("Введите ФИО и должность производителя работ — исполнителя без ЭЦП (одной строкой)."); setIsSubmitting(false); return;
+          }
+      } else if (!roles.producer.id) {
           alert("Не заполнен Производитель работ! Выберите его из списка сотрудников."); setIsSubmitting(false); return;
       }
        if (!roles.admitting.id && !roles.admitting.name) {
@@ -970,22 +986,65 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                    />
                  </div>
 
-                  {/* 4. Производитель работ (исполнитель работ) — только выбор из БД */}
+                  {/* 4. Производитель работ (исполнитель работ) */}
                   <div className="flex flex-col min-w-0">
-                    <UserSearchSelect
-                      label={t('create.roles.producer')}
-                      value={roles.producer.name}
-                      requiredRole="WORK_PRODUCER"
-                      onChange={(user) => {
-                        const displayName = user ? `${user.name} (${user.position || t('create.roles.positionNotSet')})` : '';
-                        const userData = user
-                          ? { id: user.id, name: displayName, role: user.role }
-                          : { id: null, name: '' };
-                        setRoles((prev) => ({ ...prev, producer: userData }));
-                        if (user) updateForm('completionHandOverName', displayName);
-                      }}
-                      placeholder={t('create.roles.searchPlaceholder')}
-                    />
+                    {producerIsExternal ? (
+                      <>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">
+                          {t('create.roles.producer')}
+                          <span className="text-red-500 ml-1">*</span>
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={roles.producer.name}
+                          onChange={(e) => {
+                            setRoles((prev) => ({
+                              ...prev,
+                              producer: { id: null, name: e.target.value, external: true },
+                            }));
+                            updateForm('completionHandOverName', e.target.value);
+                          }}
+                          placeholder={t('create.roles.externalPlaceholder')}
+                          className={commonInputClasses}
+                        />
+                      </>
+                    ) : (
+                      <UserSearchSelect
+                        label={t('create.roles.producer')}
+                        value={roles.producer.name}
+                        requiredRole="WORK_PRODUCER"
+                        onChange={(user) => {
+                          const displayName = user ? `${user.name} (${user.position || t('create.roles.positionNotSet')})` : '';
+                          const userData = user
+                            ? { id: user.id, name: displayName, role: user.role }
+                            : { id: null, name: '' };
+                          setRoles((prev) => ({ ...prev, producer: userData }));
+                          if (user) updateForm('completionHandOverName', displayName);
+                        }}
+                        placeholder={t('create.roles.searchPlaceholder')}
+                      />
+                    )}
+                    {/* Переключатель «без ЭЦП» — только для наряда повышенной опасности */}
+                    {!isElectricalNew && (
+                      <div className="flex justify-end mt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (producerIsExternal) {
+                              setProducerIsExternal(false);
+                              setRoles((prev) => ({ ...prev, producer: { id: null, name: '' } }));
+                            } else {
+                              setProducerIsExternal(true);
+                              setRoles((prev) => ({ ...prev, producer: { id: null, name: '', external: true } }));
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          <Plus size={14} className="shrink-0" />
+                          {producerIsExternal ? t('create.roles.selectFromDb') : t('create.roles.externalProducer')}
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* 5. Согласующий (необязательный — без звёздочки) */}

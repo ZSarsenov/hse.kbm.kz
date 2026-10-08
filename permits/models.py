@@ -181,11 +181,9 @@ class WorkPermit(models.Model):
         if prod_id:
             steps_config.append({'role': 'WORK_PRODUCER', 'user_id': prod_id})
         elif external_line:
-            # Производитель работ выбирается только из БД (сотрудники с учётной записью)
-            raise ValidationError(
-                "Производитель работ должен быть выбран из списка сотрудников. "
-                "Исполнители без ЭЦП больше не поддерживаются."
-            )
+            # Исполнитель без ЭЦП (наряд повышенной опасности): шаг без учётной записи,
+            # подписывает графически — вносит Выдающий или Допускающий со своей учётки
+            steps_config.append({'role': 'WORK_PRODUCER', 'external': True})
         elif is_electrical_new:
             raise ValidationError("Для электроустановок обязательно укажите «Производитель работ».")
 
