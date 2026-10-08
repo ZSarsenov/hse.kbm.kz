@@ -16,6 +16,18 @@ interface DashboardProps {
 
 const ITEMS_PER_PAGE = 10;
 
+// Компактная дата для журнальных колонок: «08.10.26, 14:59» (15 симв.)
+// влезает в колонку 150px одной строкой — полный формат с 4-значным годом
+// переносился на ~6 строк и раздувал высоту строк таблицы до 132px,
+// из-за чего при листании страниц низ таблицы «прыгал».
+const formatDtCompact = (s: string | undefined, locale: string) => {
+  if (!s) return '—';
+  try {
+    const d = new Date(s);
+    return d.toLocaleString(locale, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+  } catch { return '—'; }
+};
+
 export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, onCreateNew, isArchiveView = false, isBackgroundLoading = false }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language?.startsWith('kk') ? 'kk-KZ' : 'ru-RU';
@@ -75,7 +87,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
   }, [permits, isArchiveView, filterStatus, categoryFilter, searchQuery, dateFrom, dateTo]);
 
   // Pagination Logic
-  const totalPages = Math.ceil(filteredPermits.length / ITEMS_PER_PAGE);
+  // Пока идёт фоновая догрузка остальных страниц, счётчик «Показано … из N»
+  // и кнопки страниц не пересчитываем на каждом пришедшем куске данных —
+  // иначе футер пагинации дёргается. Снимок фиксируется на время загрузки
+  // и обновляется один раз по её завершении (или при смене фильтров).
+  const [stableTotal, setStableTotal] = useState<number | null>(null);
+  useEffect(() => {
+    if (isBackgroundLoading) {
+      setStableTotal(filteredPermits.length);
+    } else {
+      setStableTotal(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBackgroundLoading, filterStatus, categoryFilter, searchQuery, dateFrom, dateTo, isArchiveView]);
+
+  const displayTotal = stableTotal ?? filteredPermits.length;
+  const totalPages = Math.ceil(displayTotal / ITEMS_PER_PAGE);
   const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
   const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
   const currentItems = filteredPermits.slice(indexOfFirstItem, indexOfLastItem);
@@ -298,8 +325,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                 {isArchiveView ? (
                   <>
                     <th className="px-4 py-3 w-12">{t('dashboard.colNo')}</th>
-                    <th className="px-4 py-3 w-[140px]">{t('dashboard.colPrimary')}</th>
-                    <th className="px-4 py-3 w-[140px]">{t('dashboard.colSecondary')}</th>
+                    <th className="px-4 py-3 w-[150px]">{t('dashboard.colPrimary')}</th>
+                    <th className="px-4 py-3 w-[150px]">{t('dashboard.colSecondary')}</th>
                     <th className="px-4 py-3 w-36">{t('dashboard.colPermitNo')}</th>
                     <th className="px-4 py-3 w-[320px]">{t('dashboard.colWorkshop')}</th>
                     <th className="px-4 py-3 w-[240px]">{t('dashboard.colIssuer')}</th>
@@ -340,13 +367,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                       className="group cursor-pointer transition-colors even:bg-slate-50/50 hover:bg-blue-50/60"
                     >
                       <td className="px-4 py-3 font-medium text-gray-700">{indexOfFirstItem + index + 1}</td>
-                      <td className="px-4 py-3 text-gray-600 text-sm">
-                        <div className="leading-tight">{t('dashboard.startShort')} {formatDt(permit.validFrom || permit.createdAt)}</div>
-                        <div className="leading-tight mt-0.5">{t('dashboard.endShort')} {formatDt(permit.validTo)}</div>
+                      <td className="px-4 py-3">
+                        <div className="text-xs text-gray-400 leading-tight">{t('dashboard.startLabel')}</div>
+                        <div className="text-sm text-gray-700 whitespace-nowrap tabular-nums leading-tight">{formatDtCompact(permit.validFrom || permit.createdAt, dateLocale)}</div>
+                        <div className="text-xs text-gray-400 leading-tight mt-1.5">{t('dashboard.endLabel')}</div>
+                        <div className="text-sm text-gray-700 whitespace-nowrap tabular-nums leading-tight">{formatDtCompact(permit.validTo, dateLocale)}</div>
                       </td>
-                      <td className="px-4 py-3 text-gray-400 text-sm">
-                        <div className="leading-tight">{t('dashboard.startShort')} —</div>
-                        <div className="leading-tight mt-0.5">{t('dashboard.endShort')} —</div>
+                      <td className="px-4 py-3">
+                        <div className="text-xs text-gray-400 leading-tight">{t('dashboard.startLabel')}</div>
+                        <div className="text-sm text-gray-400 whitespace-nowrap leading-tight">—</div>
+                        <div className="text-xs text-gray-400 leading-tight mt-1.5">{t('dashboard.endLabel')}</div>
+                        <div className="text-sm text-gray-400 whitespace-nowrap leading-tight">—</div>
                       </td>
                       <td className="px-4 py-3 font-mono font-medium text-blue-600 group-hover:text-blue-800">{permit.permitId}</td>
                       <td
@@ -432,7 +463,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 border-t border-gray-200 bg-white">
             <div className="text-base text-gray-500 flex items-center gap-3">
               <span>
-                {t('dashboard.shown')} <span className="font-medium text-gray-900">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredPermits.length)}</span> {t('dashboard.of')} <span className="font-medium text-gray-900">{filteredPermits.length}</span>
+                {t('dashboard.shown')} <span className="font-medium text-gray-900">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, displayTotal)}</span> {t('dashboard.of')} <span className="font-medium text-gray-900">{displayTotal}</span>
               </span>
               {isBackgroundLoading && (
                 <span className="flex items-center gap-1.5 text-blue-600 text-sm">

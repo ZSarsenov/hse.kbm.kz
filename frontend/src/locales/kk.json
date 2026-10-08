@@ -125,7 +125,9 @@
     "openCard": "Картаны ашу",
     "back": "Артқа",
     "next": "Алға",
-    "defaultTemplate": "Жоғары қауіпті жұмыс бұйрығы"
+    "defaultTemplate": "Жоғары қауіпті жұмыс бұйрығы",
+    "startLabel": "Басталуы",
+    "endLabel": "Аяқталуы"
   },
   "auditStats": {
     "title": "Аудитор статистикасы",

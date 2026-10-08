@@ -125,7 +125,9 @@
     "openCard": "Открыть карточку",
     "back": "Назад",
     "next": "Далее",
-    "defaultTemplate": "Наряд повышенной опасности"
+    "defaultTemplate": "Наряд повышенной опасности",
+    "startLabel": "Начало",
+    "endLabel": "Окончание"
   },
   "auditStats": {
     "title": "Статистика для аудитора",
