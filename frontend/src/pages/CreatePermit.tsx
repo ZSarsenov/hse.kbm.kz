@@ -9,6 +9,8 @@ import { UserSearchSelect } from '../components/UserSearchSelect';
 import { SearchableSelect } from  "../components/SearchableSelect"
 import ChecklistSection, { ChecklistData, validateRequiredChecklists } from '../components/ChecklistSection';
 
+const WellMap = React.lazy(() => import('../components/WellMap').then(m => ({ default: m.WellMap })));
+
 const STEP_ICONS = [FileText, Users, AlertTriangle, Lock];
 
 export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, onSubmit, initialData }) => {
