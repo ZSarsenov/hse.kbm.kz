@@ -95,14 +95,16 @@ const renderPieLegend = ({ payload }: any) => {
 
 // Многострочная метка X-оси: длинные названия статусов ("На согласовании")
 // переносятся на вторую строку вместо наложения друг на друга.
+// dy первой строки уводит текст ПОД линию оси — иначе ось проходила
+// сквозь текст и подписи «с lipались» с нижней кромкой столбцов.
 const TwoLineTick = ({ x, y, payload }: any) => {
   const text = String(payload?.value ?? '');
   const words = text.split(' ');
   const lines = words.length > 1 ? [words[0], words.slice(1).join(' ')] : [text];
   return (
-    <text x={x} y={y} textAnchor="middle" fill="#475569" fontSize={16}>
+    <text x={x} y={y} textAnchor="middle" fill="#334155" fontSize={16} fontWeight={700}>
       {lines.map((line, i) => (
-        <tspan key={i} x={x} dy={i === 0 ? 0 : 19}>
+        <tspan key={i} x={x} dy={i === 0 ? 16 : 19}>
           {line}
         </tspan>
       ))}
@@ -367,7 +369,7 @@ export const AuditStatistics: React.FC = () => {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={statusBarData} margin={{ top: 28, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" interval={0} height={64} tick={<TwoLineTick />} />
+                <XAxis dataKey="label" interval={0} height={72} tick={<TwoLineTick />} />
                 <YAxis allowDecimals={false} />
                 <Tooltip formatter={(value: any) => [value, t('auditStats.permits')]} />
                 <Bar dataKey="count">
