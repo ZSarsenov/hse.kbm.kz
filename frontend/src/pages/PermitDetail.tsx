@@ -1613,10 +1613,21 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                           ) : issuerStep?.status === 'APPROVED' ? (
                             <span className="text-[10px] text-blue-600 font-medium mt-1 block">✓ Подписано (ЭЦП)</span>
                           ) : isIssuerUser && (isWorkActive) ? (
-                            <button onClick={() => handleSign('ISSUER')}
+                            <div className="flex flex-wrap gap-1">
+                            <button onClick={() => handleSignElecNew('ISSUER')}
                               className="mt-1 px-3 py-1 bg-blue-600 text-white text-[10px] font-medium rounded hover:bg-blue-700">
                               Подписать (ЭЦП)
                             </button>
+                            <EgovQrSignButton
+                              compact
+                              permitId={permit.id}
+                              role="ISSUER"
+                              onSigned={() => {
+                                alert('✅ УСПЕХ! Подписано через eGov Mobile.');
+                                onRefresh?.();
+                              }}
+                            />
+                            </div>
                           ) : <div className="w-32 border-b border-gray-400 mt-2"></div>}
                         </td>
                         <td className="px-3 py-3 border border-gray-300">
@@ -1993,8 +2004,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                         Подписать (графически) как {step.role_label || step.role} (очередь {step.step_order})
                       </button>
                     ) : (
+                      <div key={step.role} className="flex flex-col sm:flex-row gap-2">
                       <button
-                        key={step.role}
                         onClick={() => handleSignElecNew(step.role)}
                         disabled={signLoadingElec}
                         className={`px-6 py-2.5 rounded-lg text-white font-medium shadow-sm flex items-center justify-center gap-2 transition-all
@@ -2003,6 +2014,16 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                         {signLoadingElec ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <FileSignature size={18} />}
                         Согласовать (ЭЦП) как {step.role_label || step.role} (очередь {step.step_order})
                       </button>
+                      <EgovQrSignButton
+                        permitId={permit.id}
+                        role={step.role}
+                        disabled={signLoadingElec}
+                        onSigned={() => {
+                          alert(`✅ УСПЕХ! Подписано через eGov Mobile за роль "${step.role_label || step.role}".`);
+                          onRefresh?.();
+                        }}
+                      />
+                      </div>
                     )
                   ))}
               </div>
@@ -2016,6 +2037,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 Подписать (графически) {myPendingSteps[0].role_label ? `как ${myPendingSteps[0].role_label}` : ''}
               </button>
             ) : (
+              <>
               <button
                 onClick={() => handleSignElecNew(myPendingSteps[0].role)}
                 disabled={signLoadingElec}
@@ -2025,6 +2047,16 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 {signLoadingElec ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <FileSignature size={18} />}
                 Согласовать (ЭЦП) {myPendingSteps[0].role_label ? `как ${myPendingSteps[0].role_label}` : ''}
               </button>
+              <EgovQrSignButton
+                permitId={permit.id}
+                role={myPendingSteps[0].role}
+                disabled={signLoadingElec}
+                onSigned={() => {
+                  alert('✅ УСПЕХ! Подписано через eGov Mobile.');
+                  onRefresh?.();
+                }}
+              />
+              </>
             ))}
             {!isAuditor && isInitiator && (permit.status === 'APPROVED' || permit.status === 'RENEWED') && !data.extensionApproved && (
               <button

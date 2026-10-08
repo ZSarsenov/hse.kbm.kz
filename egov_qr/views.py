@@ -91,6 +91,11 @@ def _expiry_iso(dt):
     return dt.strftime('%Y-%m-%dT%H:%M:%S.') + f'{dt.microsecond // 1000:03d}Z'
 
 
+def _is_graphic_only_step(permit, step):
+    """В электро-нарядах Допускающий и Производитель работ подписывают графически (как в permits.sign)."""
+    return (permit.data or {}).get('category') == 'ELECTRICAL_NEW' and step.role in ('ADMITTING', 'WORK_PRODUCER')
+
+
 def _get_session_or_404(session_id):
     try:
         return EgovQrSession.objects.select_related('approval_step__permit').get(pk=session_id)
@@ -156,6 +161,9 @@ def start_egov_qr_session(request, permit_id):
             {"ok": False, "error": "У вас несколько активных ролей для подписания. Укажите параметр 'role'."},
             status=400,
         )
+
+    if _is_graphic_only_step(permit, step):
+        return Response({"ok": False, "error": "Этот шаг подписывается графически, без ЭЦП."}, status=400)
 
     egov_session = EgovQrSession.objects.create(
         approval_step=step,
@@ -285,6 +293,9 @@ class EgovQrDocView(APIView):
             # Шаг мог измениться, пока QR был на экране (отклонён, подписан через NCALayer и т.п.)
             if step.status != 'PENDING' or step.approver_id != user.id or permit.status == 'DRAFT':
                 return fail("Этот шаг согласования уже неактивен. Обновите страницу наряда.", 409)
+
+            if _is_graphic_only_step(permit, step):
+                return fail("Этот шаг подписывается графически, без ЭЦП.")
 
             if not _signed_content_matches(signed_xml, egov_session.xml_to_sign):
                 return fail("Подписанный документ не совпадает с выданным на подпись.")

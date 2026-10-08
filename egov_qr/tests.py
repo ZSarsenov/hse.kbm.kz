@@ -117,6 +117,24 @@ class EgovQrFlowTests(TestCase):
         res = self.client.post(f'/api/v1/egov_qr/start/{self.permit.id}/', {'role': 'ISSUER'}, format='json')
         self.assertEqual(res.status_code, 403)
 
+    def test_electrical_graphic_roles_cannot_use_qr(self):
+        # В ELECTRICAL_NEW Допускающий и Производитель подписывают графически — QR для них запрещён
+        self.permit.data = {'category': 'ELECTRICAL_NEW'}
+        self.permit.save()
+        self.step.role = 'ADMITTING'
+        self.step.save()
+        res = self.client.post(f'/api/v1/egov_qr/start/{self.permit.id}/', {'role': 'ADMITTING'}, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(EgovQrSession.objects.exists())
+
+    def test_electrical_issuer_can_use_qr(self):
+        self.permit.data = {'category': 'ELECTRICAL_NEW'}
+        self.permit.save()
+        session = self._start()
+        with mock.patch('egov_qr.views.parse_xml_signature_info', return_value=_cert_info()):
+            res = self._put(session, _signed(session.xml_to_sign))
+        self.assertEqual(res.status_code, 200, res.data)
+
 
 class EgovQrDisabledTests(TestCase):
     """По умолчанию функция выключена: публичные эндпоинты не отвечают."""
