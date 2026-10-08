@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   LineChart, Line, PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { Calendar, BarChart3, TrendingUp, MapPin, Building2, ClipboardList } from 'lucide-react';
+import { Calendar, BarChart3, TrendingUp, MapPin, Building2, ClipboardList, Lock } from 'lucide-react';
 
 type StatsResponse = {
   filters: { date_from?: string; date_to?: string; group_by: 'day' | 'week' | 'month' };
@@ -16,6 +16,7 @@ type StatsResponse = {
     close_rate_percent: number;
     reject_rate_percent: number;
     avg_close_time_hours: number;
+    loto_open_count: number;
   };
   status_distribution: Array<{ status: string; count: number }>;
   permits_trend: Array<{ period: string; count: number }>;
@@ -199,6 +200,11 @@ export const AuditStatistics: React.FC = () => {
               icon={<Calendar size={18} />}
               title={t('auditStats.kpiAvgCloseTime')}
               value={formatDurationHours(stats?.kpi.avg_close_time_hours ?? 0, t)}
+            />
+            <KpiCard
+              icon={<Lock size={18} />}
+              title={t('auditStats.kpiLotoOpen')}
+              value={stats?.kpi.loto_open_count ?? 0}
             />
           </div>
 

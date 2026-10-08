@@ -147,6 +147,7 @@
     "kpiClosed": "Кезеңде жабылған",
     "kpiRejected": "Кезеңде қабылданбаған",
     "kpiAvgCloseTime": "Жабудың орташа уақыты",
+    "kpiLotoOpen": "Ашық LOTO саны",
     "hoursShort": "сағ",
     "daysShort": "к",
     "trendTitle": "Құрылған нарядтар динамикасы",

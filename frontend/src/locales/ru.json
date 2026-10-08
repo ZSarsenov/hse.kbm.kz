@@ -147,6 +147,7 @@
     "kpiClosed": "Закрыто за период",
     "kpiRejected": "Отклонено за период",
     "kpiAvgCloseTime": "Среднее время закрытия",
+    "kpiLotoOpen": "Количество открытых LOTO",
     "hoursShort": "ч",
     "daysShort": "д",
     "trendTitle": "Динамика созданных нарядов",

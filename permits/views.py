@@ -400,6 +400,10 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 'close_rate_percent': close_rate,
                 'reject_rate_percent': reject_rate,
                 'avg_close_time_hours': avg_close_time_hours,
+                # Открытые LOTO: наряды с включённым LOTO, которые ещё не закрыты/не отклонены
+                'loto_open_count': WorkPermit.objects.filter(
+                    data__lotoEnabled=True,
+                ).exclude(status__in=['CLOSED', 'REJECTED']).count(),
             },
             'status_distribution': status_distribution,
             'permits_trend': permits_trend,
