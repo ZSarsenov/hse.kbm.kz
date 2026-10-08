@@ -18,6 +18,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language?.startsWith('kk') ? 'kk-KZ' : 'ru-RU';
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -41,13 +42,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
       }
 
       const matchesStatus = filterStatus === 'ALL' || p.status === filterStatus;
+      // Фильтр по типу наряда: Все / Повышенной опасности / Электроустановки
+      let matchesCategory = true;
+      if (categoryFilter === 'DANGEROUS') {
+        matchesCategory = p.category !== 'ELECTRICAL_NEW' && p.category !== 'ELECTRICAL';
+      } else if (categoryFilter === 'ELECTRICAL') {
+        matchesCategory = p.category === 'ELECTRICAL_NEW' || p.category === 'ELECTRICAL';
+      }
       const query = searchQuery.toLowerCase();
       const matchesSearch =
         (p.permitId?.toLowerCase() || '').includes(query) ||
         (p.initiator?.name?.toLowerCase() || '').includes(query) ||
         (p.location?.name?.toLowerCase() || '').includes(query) ||
         (p.data?.workName?.toLowerCase() || '').includes(query);
-      return matchesStatus && matchesSearch;
+      return matchesStatus && matchesCategory && matchesSearch;
     });
 
     // В Журнале: дополнительный фильтр по периоду (С / По)
@@ -62,7 +70,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
       });
     }
     return result;
-  }, [permits, isArchiveView, filterStatus, searchQuery, dateFrom, dateTo]);
+  }, [permits, isArchiveView, filterStatus, categoryFilter, searchQuery, dateFrom, dateTo]);
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredPermits.length / ITEMS_PER_PAGE);
@@ -70,7 +78,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
   const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
   const currentItems = filteredPermits.slice(indexOfFirstItem, indexOfLastItem);
 
-  useEffect(() => { setCurrentPage(1); }, [filterStatus, searchQuery, dateFrom, dateTo, isArchiveView]);
+  useEffect(() => { setCurrentPage(1); }, [filterStatus, categoryFilter, searchQuery, dateFrom, dateTo, isArchiveView]);
 
   const goToPage = (pageNumber: number) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {
@@ -94,7 +102,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
           </p>
         </div>
         <div className="flex gap-3">
-          {/* Кнопка "Экспорт отчета" только во вкладке Журнал */}
           {isArchiveView && (
             <button
               onClick={async () => {
@@ -139,6 +146,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
         </div>
       </div>
 
+      {/* Вкладки по типу наряда: Все / Повышенной опасности / Электроустановки */}
+      <div className="flex gap-1 overflow-x-auto border-b border-gray-200">
+        {[
+          { id: 'ALL', label: t('dashboard.catAll') },
+          { id: 'DANGEROUS', label: t('dashboard.catDangerous') },
+          { id: 'ELECTRICAL', label: t('dashboard.catElectrical') },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setCategoryFilter(tab.id)}
+            className={`pb-3 pt-1 px-4 text-sm font-bold uppercase tracking-wide border-b-2 transition-colors whitespace-nowrap ${
+              categoryFilter === tab.id
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Filters Section */}
       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
         <div className="flex items-center gap-2 mb-4 text-base font-semibold text-gray-700">
@@ -170,6 +198,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                         <option value={PermitStatus.DRAFT}>{t('dashboard.draft')}</option>
                         <option value={PermitStatus.PENDING_APPROVAL}>{t('dashboard.pending')}</option>
                         <option value={PermitStatus.APPROVED}>{t('dashboard.approved')}</option>
+                        <option value={PermitStatus.RENEWED}>{t('status.RENEWED')}</option>
                     </>
                 )}
               </select>

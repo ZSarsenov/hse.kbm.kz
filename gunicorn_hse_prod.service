@@ -10,6 +10,7 @@ ExecStart=/home/sadmin/web/prod/venv/bin/gunicorn \
           --access-logfile /home/sadmin/web/prod/gunicorn-access.log \
           --error-logfile /home/sadmin/web/prod/gunicorn-error.log \
           --workers 3 \
+          --timeout 300 \
           --bind unix:/home/sadmin/web/prod/hse_project.sock \
           config.wsgi:application
 

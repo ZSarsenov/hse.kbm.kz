@@ -42,6 +42,30 @@ class DynamicPageSizePagination(PageNumberPagination):
     max_page_size = 200
 
 
+def _instructed_by_name(permit):
+    """ФИО того, кто проводит инструктаж бригады: Допускающий (шаг или data), иначе Выдающий наряд."""
+    import re
+    def _clean(name):
+        # убираем «(должность)» из конца имени для единообразия
+        return re.sub(r'\s*\(.*\)\s*$', '', (name or '').strip()).strip()
+
+    step = permit.approval_steps.filter(role='ADMITTING').first()
+    if step and step.approver:
+        return step.approver.get_full_name()
+    data = permit.data or {}
+    adm = data.get('admitting') or {}
+    if isinstance(adm, dict):
+        name = _clean(adm.get('name'))
+        if name:
+            return name
+    iss = data.get('issuer') or {}
+    if isinstance(iss, dict):
+        name = _clean(iss.get('name'))
+        if name:
+            return name
+    return ''
+
+
 def _issuer_admitting_approved_users(permit):
     """Пользователи, уже подписавшие шаги Выдающий и Допускающий (для уведомлений о графической подписи производителя)."""
     users = []
@@ -172,12 +196,12 @@ def _advance_after_approval_step(permit, completed_step, acting_user):
             print(f"🔔 Уведомление отправлено пользователю {next_step.approver.get_full_name()}")
     else:
         permit.approve_final()
-        # ELECTRICAL_NEW: 7 дней от даты согласования (например 13.09 — по 20.09)
+        # ELECTRICAL_NEW: период работ — один календарный день от даты утверждения (продление — отдельная операция)
         if (permit.data or {}).get('category') == 'ELECTRICAL_NEW':
             from datetime import timedelta
             today = timezone.now().date()
             permit.valid_from = datetime.combine(today, datetime.min.time(), tzinfo=timezone.get_current_timezone())
-            to_date = today + timedelta(days=7)
+            to_date = today
             permit.valid_to = datetime.combine(to_date, datetime.max.time(), tzinfo=timezone.get_current_timezone())
             permit.save(update_fields=['valid_from', 'valid_to'])
         Notification.objects.create(
@@ -238,6 +262,12 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         if user.is_admin or user.is_auditor:
             return base_qs
         q = Q(initiator=user) | Q(approval_steps__approver=user)
+        # Члены бригады (электро-наряды): userId в data.teamMembers — им наряд тоже виден,
+        # иначе по уведомлению/«Моим задачам» они получают 404
+        brigade_q = Q()
+        for i in range(10):
+            brigade_q |= Q(**{f'data__teamMembers__{i}__userId': user.id})
+        q = q | brigade_q
         if user.username == 'dispatcher_semser':
             q = q | Q(data__notifyFireService=True)
         return base_qs.filter(q).distinct()
@@ -370,6 +400,14 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 'close_rate_percent': close_rate,
                 'reject_rate_percent': reject_rate,
                 'avg_close_time_hours': avg_close_time_hours,
+                # Открытые LOTO: наряды с включённым LOTO, которые ещё не закрыты/не отклонены
+                'loto_open_count': WorkPermit.objects.filter(
+                    data__lotoEnabled=True,
+                ).exclude(status__in=['CLOSED', 'REJECTED']).count(),
+                # Всего LOTO: все наряды с включённым LOTO
+                'loto_total_count': WorkPermit.objects.filter(
+                    data__lotoEnabled=True,
+                ).count(),
             },
             'status_distribution': status_distribution,
             'permits_trend': permits_trend,
@@ -389,7 +427,17 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         my_pending_steps = ApprovalStep.objects.filter(approver=user, status='PENDING')
 
         # Получаем ID нарядов из этих шагов
-        permit_ids = my_pending_steps.values_list('permit_id', flat=True)
+        permit_ids = list(my_pending_steps.values_list('permit_id', flat=True))
+
+        # Наряды, где я — член бригады без графической подписи (электро-наряды)
+        qs = WorkPermit.objects.filter(
+            data__category__in=['ELECTRICAL_NEW'],
+            status__in=['PENDING_APPROVAL', 'APPROVED', 'RENEWED'],
+        ).exclude(id__in=permit_ids)
+        for p in qs:
+            team = (p.data or {}).get('teamMembers') or []
+            if any(m.get('userId') == user.id and not m.get('instructedAt') for m in team):
+                permit_ids.append(p.id)
 
         permits = WorkPermit.objects.filter(id__in=permit_ids)
         serializer = self.get_serializer(permits, many=True)
@@ -493,6 +541,14 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         if permit.status == 'DRAFT':
             return Response(
                 {"ok": False, "error": "Сначала нажмите «Отправить на согласование» на странице наряда."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # В электро-нарядах Допускающий и Производитель работ подписывают графически, без ЭЦП
+        if (permit.data or {}).get('category') == 'ELECTRICAL_NEW' \
+                and (request.data.get('role') or '') in ('ADMITTING', 'WORK_PRODUCER'):
+            return Response(
+                {"ok": False, "error": "Этот шаг подписывается графически, без ЭЦП."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -607,6 +663,87 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             "next_step": next_for_response.role if next_for_response else "Согласование завершено",
         })
 
+    # --- ГРАФИЧЕСКОЕ ПОДПИСАНИЕ ШАГА ЦЕПОЧКИ (электро-наряды: Допускающий, Производитель работ) ---
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated], url_path='chain_graphic_signature')
+    def chain_graphic_signature(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+        role = request.data.get('role', '')
+
+        if (permit.data or {}).get('category') != 'ELECTRICAL_NEW':
+            return Response({'ok': False, 'error': 'Графическое подписание шага доступно только в нарядах по электроустановкам.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if role not in ('ADMITTING', 'WORK_PRODUCER'):
+            return Response({'ok': False, 'error': 'Этот шаг подписывается через ЭЦП.'}, status=status.HTTP_400_BAD_REQUEST)
+        if permit.status != 'PENDING_APPROVAL':
+            return Response({'ok': False, 'error': 'Наряд не находится на согласовании.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            current_step = ApprovalStep.objects.get(permit=permit, approver=user, role=role, status='PENDING')
+        except ApprovalStep.DoesNotExist:
+            return Response({'ok': False, 'error': 'Вы не можете подписать этот наряд (нет активного шага).'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        image_file = request.FILES.get('signature')
+        if not image_file:
+            return Response({'ok': False, 'error': 'Приложите подпись.'}, status=status.HTTP_400_BAD_REQUEST)
+        if image_file.size > 2 * 1024 * 1024:
+            return Response({'ok': False, 'error': 'Размер файла не более 2 МБ.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        rel_dir = os.path.join('chain_signatures', str(permit.pk))
+        dest_dir = os.path.join(settings.MEDIA_ROOT, rel_dir)
+        os.makedirs(dest_dir, exist_ok=True)
+        fname = f'{role.lower()}_graphic.png'
+        rel_path = os.path.join(rel_dir, fname).replace('\\', '/')
+        with open(os.path.join(settings.MEDIA_ROOT, rel_dir, fname), 'wb') as f:
+            for chunk in image_file.chunks():
+                f.write(chunk)
+
+        current_step.status = 'APPROVED'
+        current_step.signed_at = timezone.now()
+        current_step.signer_details = {
+            'graphic_signature': rel_path,
+            'iin': user.iin,
+            'fio': user.get_full_name(),
+            'date': timezone.now().isoformat(),
+        }
+        current_step.save()
+
+        _advance_after_approval_step(permit, current_step, user)
+        permit.save()
+
+        return Response({'ok': True, 'status': 'Наряд успешно подписан', 'signature_path': rel_path})
+
+    # --- ПРОДЛЕНИЕ ЭЛЕКТРО-НАРЯДА (ровно одно, +1 календарный день) ---
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated], url_path='renew_extension')
+    def renew_extension(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+
+        if (permit.data or {}).get('category') != 'ELECTRICAL_NEW':
+            return Response({'ok': False, 'error': 'Продление доступно только для нарядов по электроустановкам.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if not (permit.initiator_id == user.id or user.is_admin):
+            return Response({'ok': False, 'error': 'Продлить может только Выдающий наряд.'}, status=status.HTTP_403_FORBIDDEN)
+        if permit.status not in ('APPROVED', 'RENEWED'):
+            return Response({'ok': False, 'error': 'Продлить можно только согласованный наряд.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        data = dict(permit.data) if permit.data else {}
+        if data.get('extensionApproved'):
+            return Response({'ok': False, 'error': 'Продление уже использовано (допускается только одно).'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        from datetime import timedelta
+        if permit.status == 'APPROVED':
+            permit.renew()
+        new_to = (permit.valid_to or timezone.now()) + timedelta(days=1)
+        permit.valid_to = new_to
+        data['extensionApproved'] = True
+        data['extensionApprovedAt'] = timezone.now().isoformat()
+        permit.data = data
+        permit.save(update_fields=['status', 'valid_to', 'data'])
+
+        return Response({'ok': True, 'status': permit.status, 'valid_to': new_to.isoformat()})
+
     # --- МЕТОД ОТКЛОНЕНИЯ ---
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def reject(self, request, pk=None):
@@ -655,13 +792,69 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def my_tasks(self, request):
+        """Активное определение (второе в классе): шаги PENDING + наряды с моей неподписанной графикой в бригаде."""
         user = request.user
         # Находим шаги, где я - approver И статус - PENDING
         my_steps = ApprovalStep.objects.filter(approver=user, status='PENDING')
-        permit_ids = my_steps.values_list('permit_id', flat=True)
+        permit_ids = list(my_steps.values_list('permit_id', flat=True))
+
+        # Наряды, где я — член бригады без графической подписи (электро-наряды)
+        qs = WorkPermit.objects.filter(
+            data__category__in=['ELECTRICAL_NEW'],
+            status__in=['PENDING_APPROVAL', 'APPROVED', 'RENEWED'],
+        ).exclude(id__in=permit_ids)
+        for p in qs:
+            team = (p.data or {}).get('teamMembers') or []
+            if any(m.get('userId') == user.id and not m.get('instructedAt') for m in team):
+                permit_ids.append(p.id)
+
         permits = WorkPermit.objects.filter(id__in=permit_ids)
         serializer = self.get_serializer(permits, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='loto_reports')
+    def loto_reports(self, request):
+        """Лёгкий эндпоинт для страницы LOTO-отчётов.
+
+        Раньше страница грузила ВСЕ страницы общего списка /permits/ (по 20 штук,
+        последовательно) и фильтровала по data.lotoEnabled на клиенте — в prod
+        это сотни запросов и десятки мегабайт. Здесь: фильтрация на бэкенде
+        (только наряды с включённым LOTO, с учётом видимости пользователя) и
+        только поля, которые реально рисует таблица LOTO."""
+        qs = self.get_queryset().filter(data__lotoEnabled=True)
+        items = []
+        for p in qs:
+            data = p.data or {}
+            matrix = data.get('isolationMatrix') or {}
+            admitting = data.get('admitting') or {}
+            items.append({
+                'permit_id': str(p.id),
+                'id_str': p.permit_id or f'#{p.id}',
+                'status_raw': p.status,
+                'equipmentTag': matrix.get('techNumber') or '—',
+                'isolationPoint': matrix.get('installLocation') or '—',
+                'lockedBy': (admitting.get('name') or '—') if isinstance(admitting, dict) else '—',
+                'lockedAt': matrix.get('dateDeveloped') or (p.created_at.isoformat() if p.created_at else ''),
+                'signatureStatus': 'VALID' if p.status in ('APPROVED', 'RENEWED', 'CLOSED') else 'PENDING',
+                'lotoPhotoUrl': (p.loto_photo.url if p.loto_photo else None),
+                'matrixData': {
+                    'department': matrix.get('department') or '',
+                    'site': matrix.get('site') or '',
+                    'dateDeveloped': matrix.get('dateDeveloped') or '',
+                    'dateRevised': matrix.get('dateRevised') or '',
+                    'equipmentName': matrix.get('equipmentName') or '',
+                    'techNumber': matrix.get('techNumber') or '',
+                    'energySourceCount': matrix.get('energySourceCount') or 1,
+                    'energyType': matrix.get('energyType') or '',
+                    'lockType': matrix.get('lockType') or '',
+                    'installLocation': matrix.get('installLocation') or '',
+                    'checkResidualEnergy': matrix.get('checkResidualEnergy') or False,
+                    'checkLockDevice': matrix.get('checkLockDevice') or False,
+                    'checkPadlock': matrix.get('checkPadlock') or False,
+                    'checkTag': matrix.get('checkTag') or False,
+                },
+            })
+        return Response(items)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def duplicate(self, request, pk=None):
@@ -783,9 +976,10 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         Только для наряда в статусе Согласован. Тело: member_index (int), signature (image file).
         """
         permit = self.get_object()
-        if permit.status != 'APPROVED':
+        # Графические подписи членов бригады: согласование, согласован, продлён
+        if permit.status not in ('PENDING_APPROVAL', 'APPROVED', 'RENEWED'):
             return Response(
-                {'error': 'Подписи бригады принимаются только для согласованного наряда.'},
+                {'error': 'Подписи бригады принимаются на согласовании и для согласованного (или продлённого) наряда.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         member_index = request.data.get('member_index')
@@ -798,6 +992,12 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         team = permit.data.get('teamMembers') or []
         if member_index < 0 or member_index >= len(team):
             return Response({'error': 'Недопустимый номер члена бригады.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Подписать может сам член бригады со своей учётной записи (или админ)
+        member_user_id = team[member_index].get('userId')
+        if member_user_id and member_user_id != request.user.id and not request.user.is_admin:
+            return Response({'error': 'Подписать может только сам член бригады.'}, status=status.HTTP_403_FORBIDDEN)
+
         image_file = request.FILES.get('signature')
         if not image_file:
             return Response({'error': 'Приложите файл подписи (signature).'}, status=status.HTTP_400_BAD_REQUEST)
@@ -831,6 +1031,9 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             # Дата/время инструктажа всегда фиксируется по моменту подписи члена бригады
             if member_index < len(team):
                 team[member_index]['instructedAt'] = timezone.now().isoformat()
+                # Если ФИО проводившего инструктаж не записано (например, член добавлен позже) — заполняем
+                if not (team[member_index].get('instructedBy') or '').strip():
+                    team[member_index]['instructedBy'] = _instructed_by_name(permit)
                 data['teamMembers'] = team
             permit.data = data
             permit.save(update_fields=['data'])
@@ -843,24 +1046,22 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='add_brigade_member')
     def add_brigade_member(self, request, pk=None):
-        """Добавление члена бригады к согласованному наряду."""
+        """Добавление члена бригады: на согласовании — только Выдающий наряд, после согласования — любой участник."""
         permit = self.get_object()
-        if permit.status != 'APPROVED':
-            return Response({'error': 'Добавить члена бригады можно только к согласованному наряду.'}, status=400)
+        user = request.user
+        is_issuer = permit.approval_steps.filter(role='ISSUER', approver=user).exists() or user.is_admin
+        if permit.status == 'PENDING_APPROVAL':
+            if not is_issuer:
+                return Response({'error': 'На этапе согласования добавить члена бригады может только Выдающий наряд.'}, status=403)
+        elif permit.status not in ('APPROVED', 'RENEWED'):
+            return Response({'error': 'Добавить члена бригады можно к наряду на согласовании, согласованному или продлённому.'}, status=400)
 
         name = (request.data.get('name') or '').strip()
         role = (request.data.get('role') or '').strip()
         if not name:
             return Response({'error': 'Укажите ФИО члена бригады.'}, status=400)
 
-        admitting_step = permit.approval_steps.filter(role='ADMITTING').first()
-        admitting_name = ''
-        if admitting_step and admitting_step.approver:
-            admitting_name = admitting_step.approver.get_full_name()
-        elif permit.data:
-            adm = permit.data.get('admitting') or {}
-            if isinstance(adm, dict):
-                admitting_name = adm.get('name', '')
+        admitting_name = _instructed_by_name(permit)
 
         data = dict(permit.data) if permit.data else {}
         team = data.get('teamMembers') or []
@@ -870,10 +1071,25 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             'instructedBy': admitting_name,
             # instructedAt НЕ заполняем при добавлении — дата ставится по моменту подписи члена бригады
             'instructedAt': '',
+            # Привязка к учётной записи (для подписей инструктажа членом бригады)
+            'userId': request.data.get('userId'),
         })
         data['teamMembers'] = team
         permit.data = data
         permit.save(update_fields=['data'])
+
+        # Уведомляем нового члена бригады: требуется графическая подпись инструктажа
+        member_user_id = request.data.get('userId')
+        if member_user_id:
+            from django.contrib.auth import get_user_model
+            member_user = get_user_model().objects.filter(id=member_user_id, is_active=True).first()
+            if member_user:
+                Notification.objects.create(
+                    user=member_user,
+                    permit_id=permit.id,
+                    title="Вы включены в бригаду",
+                    message=f"Наряд №{permit.permit_id}: требуется ваша графическая подпись (инструктаж).",
+                )
 
         return Response({'ok': True, 'member_index': len(team) - 1, 'total': len(team)})
 
@@ -1578,6 +1794,359 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
         return doc
 
+    # ============================================================
+    # ELECTRICAL_NEW: рендер по шаблону electrical_permit_rus_kk.docx
+    # (правила: ELECTRICAL_PERMIT_RULES_PROMPT.txt п.11)
+    # ============================================================
+    def _sig_value(self, doc, path, height_mm=8):
+        """Значение для плейсхолдера подписи: PNG — картинка, XML — отметка «Подписано (ЭЦП)»."""
+        from docxtpl import InlineImage
+        from docx.shared import Mm
+        from io import BytesIO
+        if not path:
+            return ''
+        p = str(path)
+        if p.endswith('.xml'):
+            return 'Подписано (ЭЦП)'
+        full = os.path.join(settings.MEDIA_ROOT, p)
+        if os.path.isfile(full):
+            try:
+                with open(full, 'rb') as f:
+                    return InlineImage(doc, BytesIO(f.read()), height=Mm(height_mm))
+            except Exception:
+                return ''
+        return ''
+
+    def _assert_no_duplicate_zip_entries(self, docx_bytes):
+        """Проверка DOCX на дублирующиеся ZIP-записи (правила п.11)."""
+        import zipfile
+        import io
+        with zipfile.ZipFile(io.BytesIO(docx_bytes)) as z:
+            names = z.namelist()
+        if len(names) != len(set(names)):
+            dupes = sorted({n for n in names if names.count(n) > 1})
+            raise ValueError(f'Дублирующиеся записи в DOCX: {dupes}')
+
+    def _get_rendered_doc_electrical(self, permit, qr_url):
+        """Собирает DOCX электро-наряда по отдельному шаблону. Возвращает DocxTemplate или None."""
+        from django.conf import settings
+        from docxtpl import DocxTemplate, InlineImage
+        from docx.shared import Mm
+        import qrcode
+        from io import BytesIO
+        from zoneinfo import ZoneInfo
+        from datetime import datetime as _dt
+
+        kz_tz = ZoneInfo('Asia/Almaty')
+        template_path = os.path.join(settings.BASE_DIR, 'templates', 'docx', 'electrical_permit_rus_kk.docx')
+        if not os.path.exists(template_path):
+            return None
+        doc = DocxTemplate(template_path)
+
+        data = permit.data or {}
+
+        # --- QR-код верификации ---
+        qr = qrcode.QRCode(box_size=10, border=1)
+        qr.add_data(qr_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        img_buffer = BytesIO()
+        img.save(img_buffer, format='PNG')
+        img_buffer.seek(0)
+        qr_image = InlineImage(doc, img_buffer, width=Mm(25))
+
+        def fmt_dt(value):
+            if not value:
+                return ''
+            try:
+                if isinstance(value, str):
+                    value = _dt.fromisoformat(value.replace('Z', '+00:00'))
+                return value.astimezone(kz_tz).strftime('%d.%m.%Y %H:%M')
+            except Exception:
+                return str(value)
+
+        def split_lines(text, max_lines=3, width=110):
+            text = (text or '').strip()
+            if not text:
+                return [''] * max_lines
+            words, lines, cur = text.split(), [], ''
+            for w in words:
+                if cur and len(cur) + 1 + len(w) > width:
+                    lines.append(cur)
+                    cur = w
+                    if len(lines) == max_lines:
+                        break
+                else:
+                    cur = f'{cur} {w}'.strip()
+            if len(lines) < max_lines and cur:
+                lines.append(cur)
+            return (lines + [''] * max_lines)[:max_lines]
+
+        def person_from_step(role):
+            step = permit.approval_steps.filter(role=role).first()
+            if step and step.approver:
+                u = step.approver
+                return {
+                    'name': u.get_full_name(),
+                    'job': getattr(u, 'position', '') or '',
+                    'date': fmt_dt(step.signed_at) if step.status == 'APPROVED' and step.signed_at else '',
+                    'step': step,
+                }
+            return {'name': '', 'job': '', 'date': '', 'step': step}
+
+        issuer_p = person_from_step('ISSUER')
+        responsible_p = person_from_step('RESPONSIBLE')
+        admitting_p = person_from_step('ADMITTING')
+        producer_p = person_from_step('WORK_PRODUCER')
+
+        def role_name(p):
+            n = p['name']
+            if not n and p['job']:
+                n = p['job']
+            return n or ''
+
+        def display_role(p, data_key):
+            """Имя роли: из шага, иначе из data (напр. producer)."""
+            if p['name']:
+                return f"{p['name']} ({p['job']})" if p['job'] else p['name']
+            r = data.get(data_key) or {}
+            if isinstance(r, dict):
+                return (r.get('name') or '').strip()
+            return ''
+
+        # --- Основные сведения ---
+        organization = (data.get('organization') or 'АО «Каражанбасмунай»').strip()
+        department = (data.get('department') or '').strip()
+        observer = data.get('observer') or data.get('brigadeObserver') or {}
+        observer_name = (observer.get('name') or '').strip() if isinstance(observer, dict) else str(observer)
+
+        raw_team = data.get('teamMembers') or []
+        brigade_lines = []
+        for i, m in enumerate(raw_team, start=1):
+            if isinstance(m, dict):
+                name = (m.get('name') or '').strip()
+                role = (m.get('role') or '').strip()
+                group = (m.get('group') or '').strip()
+                if not name:
+                    continue
+                parts = [f'{i}. {name}']
+                if role:
+                    parts.append(f'({role})')
+                if group:
+                    parts.append(f'гр. {group}')
+                brigade_lines.append(' '.join(parts))
+        if len(brigade_lines) > 3 and len(raw_team) > 4:
+            rest = len(brigade_lines) - 3
+            brigade_lines = brigade_lines[:3] + [f'и ещё {rest} чел. (полный список в системе)']
+        while len(brigade_lines) < 4:
+            brigade_lines.append('')
+
+        assignment = (data.get('content') or data.get('assignment') or '').strip()
+        assignment_lines = split_lines(assignment, 3)
+        sep_lines = split_lines(data.get('separateInstructions'), 2, 120)
+
+        valid_from = permit.valid_from.astimezone(kz_tz) if permit.valid_from else None
+        valid_to = permit.valid_to.astimezone(kz_tz) if permit.valid_to else None
+
+        # --- Цепочка: Выдающий (ЭЦП) ---
+        issuer_step = issuer_p['step']
+        issuer_signature = ''
+        if issuer_step:
+            if issuer_step.status == 'APPROVED' and issuer_step.signed_xml and str(issuer_step.signed_xml).endswith('.xml'):
+                issuer_signature = 'Подписано (ЭЦП)'
+            elif issuer_step.status == 'APPROVED':
+                issuer_signature = 'Подписано'
+        issuer_last_name = issuer_p['name'].split(' ')[0] if issuer_p['name'] else ''
+
+        # --- Продление ---
+        extensions = data.get('extensions') or []
+        ext0 = extensions[0] if extensions else None
+        if ext0:
+            extension_date = fmt_dt(ext0.get('extensionDate'))
+            extension_time = (ext0.get('extensionTime') or '').strip()
+            extension_signature = self._sig_value(doc, ext0.get('extensionSignature'))
+            extension_last_name = (ext0.get('extensionLastName') or '').strip()
+        elif data.get('extensionApproved'):
+            extension_date = fmt_dt(data.get('extensionApprovedAt'))
+            extension_time = fmt_dt(data.get('extensionApprovedAt')).split(' ')[-1] if data.get('extensionApprovedAt') else ''
+            extension_signature = ''
+            extension_last_name = permit.initiator.get_full_name() if permit.initiator else ''
+        else:
+            extension_date = extension_time = extension_last_name = ''
+            extension_signature = ''
+
+        # --- Разрешение на допуск ---
+        admission_rows = data.get('admissionRows') or []
+        adm0 = admission_rows[0] if admission_rows else {}
+        from_whom = (adm0.get('fromWhom') or '').strip()
+        agr = adm0.get('agreementUser') or {}
+        if isinstance(agr, dict) and agr.get('name'):
+            from_whom = f'{from_whom}; {agr.get("name")}' if from_whom else agr.get('name')
+        admission_datetime = fmt_dt(data.get('admissionDateTime'))
+        admission_signature = self._sig_value(doc, data.get('admissionSignature'))
+        voltage_remains_at = (data.get('admissionVoltageNote') or data.get('voltageRemainsAt') or '').strip()
+
+        # --- Целевой инструктаж ---
+        tb = data.get('targetBriefing') or {}
+        row1 = tb.get('row1') or {}
+        row2 = tb.get('row2') or {}
+        row3 = tb.get('row3') or {}
+
+        def briefing_sig(value):
+            # подпись может быть png (графическая) или xml (ЭЦП)
+            if not value:
+                return ''
+            if str(value).endswith('.xml'):
+                return 'Подписано (ЭЦП)'
+            return self._sig_value(doc, value)
+
+        briefing_conducted_by_issuer = briefing_sig(row1.get('instructedBySignature'))
+        briefing_conducted_by_admitter = briefing_sig(row2.get('instructedBySignature'))
+        briefing_conducted_by_manager = briefing_sig(row3.get('instructedBySignature'))
+        # Получили: Ответственный (ЭЦП, row1/row2), Производитель (графически, row2), члены бригады (графически)
+        briefing_received_by_manager = briefing_sig(
+            row1.get('receivedBySignature') or row2.get('responsibleReceivedBySignature'))
+        briefing_received_by_producer = briefing_sig(
+            row2.get('producerReceivedBySignature') or (row2.get('receivedBySignature') if str(row2.get('receivedBySignature') or '').endswith('.png') else ''))
+
+        member_lines = []
+        for i, m in enumerate(raw_team):
+            if not isinstance(m, dict) or not (m.get('name') or '').strip():
+                continue
+            mark = ''
+            if tb.get(f'received_{i}'):
+                when = ''
+                if tb.get(f'received_{i}_date'):
+                    when = f' ({fmt_dt(tb.get(f"received_{i}_date"))})'
+                mark = f' — подписано{when}'
+            member_lines.append(f'{(m.get("name") or "").strip()}{mark}')
+        briefing_received_by_members = '; '.join(member_lines)
+
+        # --- Окончание работы ---
+        wc = data.get('workCompletion') or {}
+        notified = wc.get('notifiedUser') or {}
+        completion_notified_to = (notified.get('name') or '').strip() if isinstance(notified, dict) else str(notified or '')
+        completion_date = fmt_dt(wc.get('producerSignedAt') or wc.get('completionDateTime'))
+        completion_time = fmt_dt(wc.get('producerSignedAt') or wc.get('completionDateTime')).split(' ')[-1] if (wc.get('producerSignedAt') or wc.get('completionDateTime')) else ''
+        completion_producer_signature = self._sig_value(doc, wc.get('producerSignature'))
+        completion_manager_signature = briefing_sig(wc.get('responsibleSignature'))
+        completion_admitter_signature = self._sig_value(doc, wc.get('admittingSignature'))
+
+        # --- Меры подготовки рабочего места (только непустые строки) ---
+        safety_measures = []
+        for m in (data.get('electricalDisconnects') or []):
+            if not isinstance(m, dict):
+                continue
+            inst = (m.get('installationName') or '').strip()
+            act = (m.get('actionRequired') or '').strip()
+            if not inst and not act:
+                continue
+            safety_measures.append({'installation_name': inst, 'action_required': act})
+
+        # --- Ежедневный допуск (только непустые строки) ---
+        daily_admissions = []
+        for row in (data.get('dailyAdmissions') or []):
+            if not isinstance(row, dict):
+                continue
+            has_any = any([
+                (row.get('workplace') or '').strip(),
+                row.get('admittingSignature'),
+                row.get('producerAdmissionSignature'),
+                row.get('producerCompletionSignature'),
+            ])
+            if not has_any:
+                continue
+            daily_admissions.append({
+                'workplace_name': (row.get('workplace') or '').strip(),
+                'admission_datetime': fmt_dt(row.get('admissionDateTime')),
+                'admitter_signature': self._sig_value(doc, row.get('admittingSignature')),
+                'producer_signature': self._sig_value(doc, row.get('producerAdmissionSignature')),
+                'end_datetime': fmt_dt(row.get('completionDateTime')),
+                'producer_end_signature': self._sig_value(doc, row.get('producerCompletionSignature')),
+            })
+
+        # --- Изменение состава бригады (только непустые строки) ---
+        def change_val(row, *keys):
+            for k in keys:
+                v = row.get(k)
+                if isinstance(v, dict):
+                    v = v.get('name')
+                if v:
+                    return str(v).strip()
+            return ''
+
+        brigade_changes = []
+        for row in (data.get('brigadeChanges') or []):
+            if not isinstance(row, dict):
+                continue
+            introduced = change_val(row, 'addedUser', 'introducedMember', 'added')
+            removed = change_val(row, 'removedUser', 'removedMember', 'removed')
+            if not introduced and not removed:
+                continue
+            brigade_changes.append({
+                'introduced_member': introduced,
+                'removed_member': removed,
+                'datetime': fmt_dt(row.get('dateTime')),
+                'authorized_by': change_val(row, 'authorizedBy', 'authorized_by'),
+            })
+
+        context = {
+            'qr_code': qr_image,
+            'permit_number': permit.permit_id or '',
+            'organization': organization,
+            'department': department,
+            'work_manager_name': display_role(responsible_p, 'responsible'),
+            'admitting_name': display_role(admitting_p, 'admitting'),
+            'producer_name': display_role(producer_p, 'producer'),
+            'observer_name': observer_name,
+            'brigade_line1': brigade_lines[0],
+            'brigade_line2': brigade_lines[1],
+            'brigade_line3': brigade_lines[2],
+            'brigade_line4': brigade_lines[3],
+            'work_category': (data.get('workCategory') or '').strip(),
+            'assignment_line1': assignment_lines[0],
+            'assignment_line2': assignment_lines[1],
+            'assignment_line3': assignment_lines[2],
+            'start_date': valid_from.strftime('%d.%m.%Y') if valid_from else '',
+            'start_time': valid_from.strftime('%H:%M') if valid_from else '',
+            'end_date': valid_to.strftime('%d.%m.%Y') if valid_to else '',
+            'end_time': valid_to.strftime('%H:%M') if valid_to else '',
+            'emergency_readiness_time': (data.get('emergencyReadinessTime') or '').strip(),
+            'separate_instructions_line1': sep_lines[0],
+            'separate_instructions_line2': sep_lines[1],
+            'issuer_date': valid_from.strftime('%d.%m.%Y') if valid_from else '',
+            'issuer_time': valid_from.strftime('%H:%M') if valid_from else '',
+            'issuer_signature': issuer_signature,
+            'issuer_last_name': issuer_last_name,
+            'extension_date': extension_date,
+            'extension_time': extension_time,
+            'extension_signature': extension_signature,
+            'extension_last_name': extension_last_name,
+            'voltage_remains_at': voltage_remains_at,
+            'admission_datetime': admission_datetime,
+            'admission_from_whom': from_whom,
+            'admission_permit_signer': display_role(admitting_p, 'admitting'),
+            'admission_signature': admission_signature,
+            'briefing_conducted_by_issuer': briefing_conducted_by_issuer,
+            'briefing_conducted_by_admitter': briefing_conducted_by_admitter,
+            'briefing_conducted_by_manager': briefing_conducted_by_manager,
+            'briefing_received_by_manager': briefing_received_by_manager,
+            'briefing_received_by_producer': briefing_received_by_producer,
+            'briefing_received_by_members': briefing_received_by_members,
+            'completion_notified_to': completion_notified_to,
+            'completion_date': completion_date,
+            'completion_time': completion_time,
+            'completion_producer_signature': completion_producer_signature,
+            'completion_manager_signature': completion_manager_signature,
+            'completion_admitter_signature': completion_admitter_signature,
+            'safety_measures': safety_measures,
+            'daily_admissions': daily_admissions,
+            'brigade_changes': brigade_changes,
+        }
+
+        doc.render(context)
+        return doc
+
     def _convert_docx_to_pdf(self, docx_bytes):
         """
         Конвертирует DOCX (bytes) в PDF через LibreOffice.
@@ -1623,7 +2192,11 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         """Собирает DOCX по наряду и возвращает HttpResponse (DOCX)."""
         from django.http import HttpResponse
 
-        doc = self._get_rendered_doc(permit, qr_url)
+        # Электро-наряды собираются по отдельному шаблону
+        if (permit.data or {}).get('category') == 'ELECTRICAL_NEW':
+            doc = self._get_rendered_doc_electrical(permit, qr_url)
+        else:
+            doc = self._get_rendered_doc(permit, qr_url)
         if doc is None:
             return None
         response = HttpResponse(
@@ -2118,7 +2691,11 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         base = getattr(settings, 'HSE_BASE_URL', 'https://hse.kbm.kz')
         qr_url = f"{base}/api/v1/verify/{permit.verify_token}/"
         try:
-            doc = self._get_rendered_doc(permit, qr_url)
+            # Электро-наряды собираются по отдельному шаблону (ELECTRICAL_PERMIT_RULES_PROMPT.txt п.11)
+            if (permit.data or {}).get('category') == 'ELECTRICAL_NEW':
+                doc = self._get_rendered_doc_electrical(permit, qr_url)
+            else:
+                doc = self._get_rendered_doc(permit, qr_url)
             if doc is None:
                 return Response({"error": "Шаблон не найден"}, status=500)
 
@@ -2126,6 +2703,9 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             doc.save(buffer)
             buffer.seek(0)
             docx_bytes = buffer.getvalue()
+
+            # Правила п.11: проверять DOCX на дублирующиеся ZIP-записи перед скачиванием
+            self._assert_no_duplicate_zip_entries(docx_bytes)
 
             pdf_bytes = self._convert_docx_to_pdf(docx_bytes)
             if pdf_bytes:
@@ -2331,9 +2911,8 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         permit = self.get_object()
         user = request.user
 
-        if permit.status != 'APPROVED':
-            return Response({'error': 'Закрыть можно только согласованный наряд.'}, status=400)
-
+        if permit.status not in ('APPROVED', 'RENEWED'):
+            return Response({'error': 'Закрыть можно только согласованный (или продлённый) наряд.'}, status=400)
         if permit.producer_closed:
             return Response({'error': 'Производитель работ уже подтвердил закрытие.'}, status=400)
 
@@ -2434,9 +3013,9 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         permit = self.get_object()
         user = request.user
 
-        # 1. Проверка статуса
-        if permit.status != 'APPROVED':
-            return Response({'error': 'Закрыть можно только согласованный наряд.'}, status=400)
+        # 1. Проверка статуса (продлённый наряд тоже закрывается)
+        if permit.status not in ('APPROVED', 'RENEWED'):
+            return Response({'error': 'Закрыть можно только согласованный (или продлённый) наряд.'}, status=400)
 
         # 2. Производитель должен подтвердить первым
         if not permit.producer_closed:
@@ -2467,7 +3046,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         permit = self.get_object()
         user = request.user
 
-        if permit.status not in ('PENDING_APPROVAL', 'APPROVED'):
+        if permit.status not in ('PENDING_APPROVAL', 'APPROVED', 'RENEWED'):
             return Response({'error': 'Подпись доступна только на этапе согласования или после.'}, status=400)
 
         admit_step = permit.approval_steps.filter(
@@ -2549,7 +3128,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         permit = self.get_object()
         user = request.user
 
-        if permit.status not in ('PENDING_APPROVAL', 'APPROVED'):
+        if permit.status not in ('PENDING_APPROVAL', 'APPROVED', 'RENEWED'):
             return Response({'error': 'Подпись доступна только на этапе согласования или после.'}, status=400)
 
         resp_step = permit.approval_steps.filter(
@@ -2755,7 +3334,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         permit = self.get_object()
         user = request.user
 
-        if permit.status not in ('PENDING_APPROVAL', 'APPROVED'):
+        if permit.status not in ('PENDING_APPROVAL', 'APPROVED', 'RENEWED'):
             return Response({'error': 'Подпись доступна только на этапе согласования или после.'}, status=400)
 
         field = request.data.get('field', '')
@@ -2814,10 +3393,12 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
         if not signed_xml:
             return Response({'error': 'Нет данных подписи.'}, status=400)
-        if row not in ('row1', 'row2', 'row3') or side not in ('instructedBy', 'receivedBy'):
+        if row not in ('row1', 'row2', 'row3') or side not in (
+            'instructedBy', 'receivedBy', 'responsibleReceivedBy', 'producerReceivedBy',
+        ):
             return Response({'error': 'Неверные параметры row/side.'}, status=400)
 
-        if permit.status not in ('PENDING_APPROVAL', 'APPROVED'):
+        if permit.status not in ('PENDING_APPROVAL', 'APPROVED', 'RENEWED'):
             return Response({'error': 'Подпись доступна только на этапе согласования или после.'}, status=400)
 
         try:
@@ -2893,7 +3474,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         permit = self.get_object()
         user = request.user
 
-        if permit.status not in ('PENDING_APPROVAL', 'APPROVED'):
+        if permit.status not in ('PENDING_APPROVAL', 'APPROVED', 'RENEWED'):
             return Response({'error': 'Подпись доступна только на этапе согласования или после.'}, status=400)
 
         row = request.data.get('row', '')
@@ -3034,7 +3615,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         permit = self.get_object()
         user = request.user
 
-        if permit.status not in ('PENDING_APPROVAL', 'APPROVED'):
+        if permit.status not in ('PENDING_APPROVAL', 'APPROVED', 'RENEWED'):
             return Response({'error': 'Подпись доступна только на этапе согласования или после.'}, status=400)
 
         sig_type = request.data.get('signature_type', '')

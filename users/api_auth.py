@@ -32,4 +32,7 @@ class CustomUserToken(ObtainAuthToken):
             'position': user.position,
             'is_admin': user.is_admin,
             'is_auditor': user.is_auditor,
+            # ИИН/БИН нужны на фронте для подписания через NCALayer
+            'iin': user.iin,
+            'bin': user.bin,
         })
