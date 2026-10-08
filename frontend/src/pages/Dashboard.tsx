@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Calendar, MapPin, Search, Download, Plus, ChevronRight, Building2, SlidersHorizontal, User, ChevronLeft, Filter } from 'lucide-react';
 import { WorkPermit, PermitStatus } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
+import { getPageItems } from '../utils/pagination';
 
 interface DashboardProps {
   permits: WorkPermit[];
@@ -71,6 +72,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
   const currentItems = filteredPermits.slice(indexOfFirstItem, indexOfLastItem);
 
   useEffect(() => { setCurrentPage(1); }, [filterStatus, searchQuery, dateFrom, dateTo, isArchiveView]);
+
+  // Список может уменьшиться (фильтр по дате, удаление, фоновый рефетч) —
+  // зажимаем страницу, иначе пользователь остаётся на пустой странице.
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) setCurrentPage(totalPages);
+  }, [totalPages, currentPage]);
 
   const goToPage = (pageNumber: number) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {
@@ -392,7 +399,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
 
         {/* Pagination Footer */}
         {filteredPermits.length > 0 && (
-          <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 border-t border-gray-200 bg-white">
             <div className="text-base text-gray-500 flex items-center gap-3">
               <span>
                 {t('dashboard.shown')} <span className="font-medium text-gray-900">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredPermits.length)}</span> {t('dashboard.of')} <span className="font-medium text-gray-900">{filteredPermits.length}</span>
@@ -414,26 +421,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                 <ChevronLeft size={22} />
               </button>
 
-              <div className="flex items-center gap-1 mx-2">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
-                  <button
-                    key={number}
-                    onClick={() => goToPage(number)}
-                    className={`
-                      w-11 h-11 flex items-center justify-center rounded-lg text-base font-semibold transition-colors
-                      ${currentPage === number
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-                        : 'text-gray-600 hover:bg-gray-100'}
-                    `}
-                  >
-                    {number}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center justify-center gap-1 mx-2">
+                {/* Не рисуем все страницы подряд: при сотнях нарядов в Журнале
+                    ряд кнопок шире карточки и обрезался overflow-hidden */}
+                {getPageItems(currentPage, totalPages).map((item) =>
+                  typeof item === 'number' ? (
+                    <button
+                      key={item}
+                      onClick={() => goToPage(item)}
+                      className={`
+                        w-11 h-11 flex items-center justify-center rounded-lg text-base font-semibold transition-colors
+                        ${currentPage === item
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                          : 'text-gray-600 hover:bg-gray-100'}
+                      `}
+                    >
+                      {item}
+                    </button>
+                  ) : (
+                    <span key={item} className="w-8 h-11 flex items-center justify-center text-gray-400 select-none" aria-hidden>
+                      …
+                    </span>
+                  )
+                )}
               </div>
 
               <button
                 onClick={() => goToPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
+                disabled={currentPage >= totalPages}
                 className="p-2.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight size={22} />
@@ -541,7 +556,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
             </span>
              <button
                 onClick={() => goToPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
+                disabled={currentPage >= totalPages}
                 className="flex-1 py-4 px-4 bg-white border border-gray-200 rounded-lg text-gray-700 font-medium disabled:opacity-50 shadow-sm text-lg"
               >
                 {t('dashboard.next')}
