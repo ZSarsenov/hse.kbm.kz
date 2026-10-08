@@ -194,6 +194,23 @@ export const AuditStatistics: React.FC = () => {
 
   return (
     <div className="space-y-6 ">
+      {/* Локальные стили страницы: глобальный index.css в этот бандл
+          не попадает (стили идут через tailwind CDN в index.html). */}
+      <style>{`
+        /* Нажатие/наведение на элемент диаграммы — подсветка обводкой
+           вместо всплывающего окна (числа и так видны постоянно). */
+        .recharts-wrapper .recharts-bar-rectangle:hover rect,
+        .recharts-wrapper .recharts-pie-sector:hover path {
+          stroke: #1e293b;
+          stroke-width: 2;
+          cursor: pointer;
+        }
+        /* Tooltip нужен recharts для интерактивности, но всплывающее окно
+           показываем только в карточке Динамики (.with-tooltip). */
+        .chart-card:not(.with-tooltip) .recharts-tooltip-wrapper {
+          display: none;
+        }
+      `}</style>
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">{t('auditStats.title')}</h1>
@@ -289,7 +306,7 @@ export const AuditStatistics: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <ChartCard title={t('auditStats.trendTitle')}>
+            <ChartCard title={t('auditStats.trendTitle')} keepTooltip>
               <ResponsiveContainer width="100%" height={320}>
                 <LineChart data={stats?.permits_trend || []} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -324,6 +341,7 @@ export const AuditStatistics: React.FC = () => {
                       <Cell key={entry.status} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                     ))}
                   </Pie>
+                  <Tooltip />
                   <Legend content={renderPieLegend} />
                 </PieChart>
               </ResponsiveContainer>
@@ -335,6 +353,10 @@ export const AuditStatistics: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" allowDecimals={false} />
                   <YAxis type="category" dataKey="shortName" width={240} tick={{ fontSize: 12 }} />
+                  <Tooltip
+                    formatter={(value: any) => [value, t('auditStats.permits')]}
+                    labelFormatter={(_: any, payload: any) => payload?.[0]?.payload?.name || ''}
+                  />
                   <Bar dataKey="count" fill="#2563eb" radius={[0, 6, 6, 0]}>
                     <LabelList dataKey="count" position="right" fill="#334155" fontSize={13} fontWeight={600} />
                   </Bar>
@@ -348,6 +370,10 @@ export const AuditStatistics: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" allowDecimals={false} />
                   <YAxis type="category" dataKey="shortName" width={240} tick={{ fontSize: 12 }} />
+                  <Tooltip
+                    formatter={(value: any) => [value, t('auditStats.permits')]}
+                    labelFormatter={(_: any, payload: any) => payload?.[0]?.payload?.name || ''}
+                  />
                   <Bar dataKey="count" fill="#16a34a" radius={[0, 6, 6, 0]}>
                     <LabelList dataKey="count" position="right" fill="#334155" fontSize={13} fontWeight={600} />
                   </Bar>
@@ -362,6 +388,7 @@ export const AuditStatistics: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="label" interval={0} height={72} tick={<TwoLineTick />} />
                 <YAxis allowDecimals={false} />
+                <Tooltip formatter={(value: any) => [value, t('auditStats.permits')]} />
                 <Bar dataKey="count">
                   {statusBarData.map((entry) => (
                     <Cell key={entry.status} fill={STATUS_COLORS[entry.status] || '#2563eb'} />
@@ -388,8 +415,11 @@ const KpiCard: React.FC<{ icon: React.ReactNode; title: string; value: string | 
   </div>
 );
 
-const ChartCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div className="bg-white border border-gray-200 rounded-xl p-4 md:p-5 shadow-sm">
+// keepTooltip: у Динамики всплывающее окно остаётся (значения по точкам
+// иначе не увидеть). В остальных карточках Tooltip нужен recharts для
+// интерактивности/рендера, но окно скрыто CSS (.chart-card:not(.with-tooltip)).
+const ChartCard: React.FC<{ title: string; keepTooltip?: boolean; children: React.ReactNode }> = ({ title, keepTooltip, children }) => (
+  <div className={`chart-card bg-white border border-gray-200 rounded-xl p-4 md:p-5 shadow-sm ${keepTooltip ? 'with-tooltip' : ''}`}>
     <h3 className="text-base font-semibold text-slate-900 mb-3">{title}</h3>
     {children}
   </div>
