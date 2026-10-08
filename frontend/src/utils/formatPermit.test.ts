@@ -22,7 +22,7 @@ describe('formatPermit', () => {
 
   it('подставляет заглушки для пустых полей', () => {
     const permit = formatPermit({ id: 1 });
-    expect(permit.permitId).toBe('Черновик');
+    expect(permit.permitId).toBe('Проект');
     expect(permit.initiator.name).toBe('—');
     expect(permit.location.name).toBe('Место не указано');
     expect(permit.templateType).toBe('Наряд повышенной опасности');

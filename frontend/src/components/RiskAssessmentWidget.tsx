@@ -81,7 +81,7 @@ export const RiskAssessmentWidget: React.FC<RiskAssessmentWidgetProps> = ({
                         )}
                         <div className="flex flex-col">
                             <span className="text-gray-500 font-semibold text-sm uppercase">№ Наряда-допуска</span>
-                            <span className="text-gray-400 italic">Черновик (б/н)</span>
+                            <span className="text-gray-400 italic">Проект (б/н)</span>
                         </div>
                         <div className="flex flex-col">
                             <span className="text-gray-500 font-semibold text-sm uppercase">Дата</span>

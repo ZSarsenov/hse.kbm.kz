@@ -300,7 +300,7 @@ class WorkPermit(models.Model):
         ordering = ('-created_at',)
 
     def __str__(self):
-        return f'{self.permit_id or "Черновик"} ({self.status})'
+        return f'{self.permit_id or "Проект"} ({self.status})'
 
 
 class ApprovalStep(models.Model):

@@ -615,7 +615,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
         }
 
         if (result?.id) setDraftPermitId(Number(result.id));
-        alert(isEditing ? '✅ Наряд успешно обновлен!' : '✅ Черновик наряда сохранён. Номер будет присвоен при отправке на согласование.');
+        alert(isEditing ? '✅ Наряд успешно обновлен!' : '✅ Проект наряда сохранён. Номер будет присвоен при отправке на согласование.');
         onSubmit();
       } else {
         // Пробуем прочитать JSON-ошибку, если не получится — читаем текст
