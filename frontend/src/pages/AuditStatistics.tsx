@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  LineChart, Line, PieChart, Pie, Cell, Legend
+  LineChart, Line, PieChart, Pie, Cell, Legend, LabelList
 } from 'recharts';
 import { Calendar, BarChart3, TrendingUp, MapPin, Building2, ClipboardList, Lock } from 'lucide-react';
 
@@ -330,7 +330,7 @@ export const AuditStatistics: React.FC = () => {
 
             <ChartCard title={t('auditStats.topWorkTypesTitle')}>
               <ResponsiveContainer width="100%" height={380}>
-                <BarChart data={topWorkTypesData} layout="vertical" margin={{ top: 8, right: 12, left: 20, bottom: 8 }}>
+                <BarChart data={topWorkTypesData} layout="vertical" margin={{ top: 8, right: 34, left: 20, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" allowDecimals={false} />
                   <YAxis type="category" dataKey="shortName" width={240} tick={{ fontSize: 12 }} />
@@ -338,14 +338,16 @@ export const AuditStatistics: React.FC = () => {
                     formatter={(value: any) => [value, t('auditStats.permits')]}
                     labelFormatter={(_: any, payload: any) => payload?.[0]?.payload?.name || ''}
                   />
-                  <Bar dataKey="count" fill="#2563eb" radius={[0, 6, 6, 0]} />
+                  <Bar dataKey="count" fill="#2563eb" radius={[0, 6, 6, 0]}>
+                    <LabelList dataKey="count" position="right" fill="#334155" fontSize={13} fontWeight={600} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
 
             <ChartCard title={t('auditStats.topLocationsTitle')}>
               <ResponsiveContainer width="100%" height={380}>
-                <BarChart data={topLocationsData} layout="vertical" margin={{ top: 8, right: 12, left: 20, bottom: 8 }}>
+                <BarChart data={topLocationsData} layout="vertical" margin={{ top: 8, right: 34, left: 20, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" allowDecimals={false} />
                   <YAxis type="category" dataKey="shortName" width={240} tick={{ fontSize: 12 }} />
@@ -353,7 +355,9 @@ export const AuditStatistics: React.FC = () => {
                     formatter={(value: any) => [value, t('auditStats.permits')]}
                     labelFormatter={(_: any, payload: any) => payload?.[0]?.payload?.name || ''}
                   />
-                  <Bar dataKey="count" fill="#16a34a" radius={[0, 6, 6, 0]} />
+                  <Bar dataKey="count" fill="#16a34a" radius={[0, 6, 6, 0]}>
+                    <LabelList dataKey="count" position="right" fill="#334155" fontSize={13} fontWeight={600} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
@@ -361,7 +365,7 @@ export const AuditStatistics: React.FC = () => {
 
           <ChartCard title={t('auditStats.statusBarTitle')}>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={statusBarData}>
+              <BarChart data={statusBarData} margin={{ top: 20, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="label" interval={0} height={56} tick={<TwoLineTick />} />
                 <YAxis allowDecimals={false} />
@@ -370,6 +374,8 @@ export const AuditStatistics: React.FC = () => {
                   {statusBarData.map((entry) => (
                     <Cell key={entry.status} fill={STATUS_COLORS[entry.status] || '#2563eb'} />
                   ))}
+                  {/* Число нарядов над столбцом — видно всегда, без наведения */}
+                  <LabelList dataKey="count" position="top" fill="#334155" fontSize={13} fontWeight={600} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
