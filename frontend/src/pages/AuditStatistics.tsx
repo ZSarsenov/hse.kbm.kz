@@ -35,11 +35,53 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const PIE_COLORS = ['#2563eb', '#16a34a', '#f59e0b', '#ef4444', '#94a3b8'];
-const MAX_AXIS_LABEL_LEN = 42;
+// При fontSize 12 кириллица ~6.7px/символ: 32 симв. ≈ 215px — влезает
+// в ширину оси 240px с запасом (при 42 символах текст вылезал на бары).
+const MAX_AXIS_LABEL_LEN = 32;
 
 const truncateLabel = (value: string, max = MAX_AXIS_LABEL_LEN) => {
   if (!value) return '';
   return value.length > max ? `${value.slice(0, max - 1)}...` : value;
+};
+
+// Компактные метки периода для X-оси динамики: "2026-09-28" -> "28.09",
+// "2026-09" -> "09.26". Полное значение остаётся в Tooltip.
+const formatPeriodTick = (period: string, groupBy: 'day' | 'week' | 'month') => {
+  if (!period) return '';
+  if (groupBy === 'month') {
+    const [y, m] = period.split('-');
+    return m && y ? `${m}.${y.slice(2)}` : period;
+  }
+  const m = period.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}.${m[2]}` : period;
+};
+
+// Подписи долей пирога: только проценты и только у долей >= 4% —
+// у мелких соседних долей полные подписи накладывались друг на друга.
+const renderPieLabel = ({ percent, x, y }: any) => {
+  if (!percent || percent < 0.04) return null;
+  return (
+    <text x={x} y={y} textAnchor="middle" dominantBaseline="middle" fill="#475569" fontSize={12}>
+      {`${Math.round(percent * 100)}%`}
+    </text>
+  );
+};
+
+// Многострочная метка X-оси: длинные названия статусов ("На согласовании")
+// переносятся на вторую строку вместо наложения друг на друга.
+const TwoLineTick = ({ x, y, payload }: any) => {
+  const text = String(payload?.value ?? '');
+  const words = text.split(' ');
+  const lines = words.length > 1 ? [words[0], words.slice(1).join(' ')] : [text];
+  return (
+    <text x={x} y={y} textAnchor="middle" fill="#64748b" fontSize={12}>
+      {lines.map((line, i) => (
+        <tspan key={i} x={x} dy={i === 0 ? 0 : 14}>
+          {line}
+        </tspan>
+      ))}
+    </text>
+  );
 };
 
 const formatDurationHours = (hours: number, t: (key: string) => string) => {
@@ -219,7 +261,12 @@ export const AuditStatistics: React.FC = () => {
               <ResponsiveContainer width="100%" height={320}>
                 <LineChart data={stats?.permits_trend || []} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="period" tick={{ fontSize: 12 }} />
+                  <XAxis
+                    dataKey="period"
+                    tick={{ fontSize: 11 }}
+                    interval="preserveStartEnd"
+                    tickFormatter={(v: string) => formatPeriodTick(v, groupBy)}
+                  />
                   <YAxis allowDecimals={false} />
                   <Tooltip />
                   <Line type="monotone" dataKey="count" stroke="#2563eb" strokeWidth={3} dot={{ r: 3 }} />
@@ -230,7 +277,16 @@ export const AuditStatistics: React.FC = () => {
             <ChartCard title={t('auditStats.statusTitle')}>
               <ResponsiveContainer width="100%" height={320}>
                 <PieChart>
-                  <Pie data={statusData} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={100} label>
+                  <Pie
+                    data={statusData}
+                    dataKey="count"
+                    nameKey="label"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    label={renderPieLabel}
+                    labelLine={false}
+                  >
                     {statusData.map((entry, index) => (
                       <Cell key={entry.status} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                     ))}
@@ -276,7 +332,13 @@ export const AuditStatistics: React.FC = () => {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={stats?.status_distribution || []}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="status" tickFormatter={(v) => t(`status.${v}` as any)} />
+                <XAxis
+                  dataKey="status"
+                  interval={0}
+                  height={56}
+                  tick={<TwoLineTick />}
+                  tickFormatter={(v) => t(`status.${v}` as any)}
+                />
                 <YAxis allowDecimals={false} />
                 <Tooltip formatter={(value: any) => [value, t('auditStats.permits')]} labelFormatter={(v) => t(`status.${v}` as any)} />
                 <Bar dataKey="count">
