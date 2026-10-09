@@ -327,7 +327,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                     <th className="px-4 py-3 w-12">{t('dashboard.colNo')}</th>
                     <th className="px-4 py-3 w-[150px]">{t('dashboard.colPrimary')}</th>
                     <th className="px-4 py-3 w-[150px]">{t('dashboard.colSecondary')}</th>
-                    <th className="px-4 py-3 w-36">{t('dashboard.colPermitNo')}</th>
+                    <th className="px-4 py-3 w-44">{t('dashboard.colPermitNo')}</th>
                     <th className="px-4 py-3 w-[320px]">{t('dashboard.colWorkshop')}</th>
                     <th className="px-4 py-3 w-[240px]">{t('dashboard.colIssuer')}</th>
                     <th className="px-4 py-3 w-[420px]">{t('dashboard.colWorkNature')}</th>
@@ -336,7 +336,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                   </>
                 ) : (
                   <>
-                    <th className="px-6 py-3 w-36">{t('dashboard.colNumber')}</th>
+                    <th className="px-6 py-3 w-44">{t('dashboard.colNumber')}</th>
                     <th className="px-6 py-3">{t('dashboard.colWorkType')}</th>
                     <th className="px-6 py-3">{t('dashboard.colLocation')}</th>
                     <th className="px-6 py-3">{t('dashboard.colResponsible')}</th>
@@ -379,7 +379,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                         <div className="text-xs text-gray-400 leading-tight mt-1.5">{t('dashboard.endLabel')}</div>
                         <div className="text-sm text-gray-400 whitespace-nowrap leading-tight">—</div>
                       </td>
-                      <td className="px-4 py-3 font-mono font-medium text-blue-600 group-hover:text-blue-800">{permit.permitId}</td>
+                      <td className="px-4 py-3 font-mono font-medium text-blue-600 group-hover:text-blue-800 whitespace-nowrap">{permit.permitId}</td>
                       <td
                         className="px-4 py-3 text-gray-700 truncate max-w-[320px]"
                         title={permit.data?.department || ''}
@@ -408,12 +408,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                     onClick={() => onSelectPermit(permit.id)}
                     className="group cursor-pointer transition-colors even:bg-slate-50/50 hover:bg-blue-50/60"
                   >
-                    <td className="px-6 py-3 font-mono font-medium text-blue-600 group-hover:text-blue-800">{permit.permitId}</td>
-                    <td className="px-6 py-3 font-semibold text-gray-800 truncate max-w-[220px]" title={permit.data?.workName || ''}>{permit.data?.workName || permit.templateType || '—'}</td>
+                    <td className="px-6 py-3 font-mono font-medium text-blue-600 group-hover:text-blue-800 whitespace-nowrap">{permit.permitId}</td>
+                    <td className="px-6 py-3 font-semibold text-gray-800 truncate max-w-[200px]" title={permit.data?.workName || ''}>{permit.data?.workName || permit.templateType || '—'}</td>
                     <td className="px-6 py-3 text-gray-600">
                       <div className="flex items-center gap-2">
                         <MapPin size={16} className="text-gray-400 shrink-0" />
-                        <span className="truncate max-w-[200px]">{permit.location?.name || t('dashboard.notSpecified')}</span>
+                        <span className="truncate max-w-[170px]">{permit.location?.name || t('dashboard.notSpecified')}</span>
                       </div>
                     </td>
                     <td className="px-6 py-3 text-gray-700">
