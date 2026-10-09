@@ -3736,15 +3736,14 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 # ============================================================
-# ИНТЕГРАЦИЯ КМГ: выгрузка нарядов для дашборда «Электронный наряд-допуск»
-# (REST API, только чтение, структура полей — по Excel-структуре КМГ)
+# Внешняя интеграция: выгрузка данных (только чтение)
 # ============================================================
 from rest_framework.authentication import TokenAuthentication
 
 
 class TokenAuthSupportQuery(TokenAuthentication):
     """TokenAuthentication + поддержка токена в query-параметре (?token=...):
-    позволяет смотреть выгрузку просто в браузере (для КМГ-интеграции)."""
+    позволяет смотреть выгрузку просто в браузере."""
 
     def authenticate(self, request):
         auth = request.headers.get('Authorization') or ''
@@ -3756,12 +3755,7 @@ class TokenAuthSupportQuery(TokenAuthentication):
 
 
 class KmgPermitsExportView(APIView):
-    """GET /api/v1/integration/kmg/permits/?token=<токен>
-
-    Выгружает наряды (кроме черновиков) в структуре полей КМГ:
-    id, date, organization, author, author_email, status, work_category,
-    work_types, created_at, updated_at, planned_start, planned_end,
-    actual_start, actual_end. Формат — JSON; даты в ISO 8601."""
+    """Выгрузка данных для внешней интеграции (только чтение)."""
 
     authentication_classes = [TokenAuthSupportQuery]
     permission_classes = [IsAuthenticated]
