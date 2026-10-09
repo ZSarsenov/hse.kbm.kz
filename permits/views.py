@@ -20,7 +20,8 @@ from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import Q, Count
+from django.db.models.functions import TruncDate, TruncWeek, TruncMonth
 from rest_framework.exceptions import PermissionDenied
 
 from .models import WorkPermit, WorkPermitTemplate, Department, DangerousWorkType, ElectricalWorkType, ApprovalStep, Notification
@@ -304,83 +305,78 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        qs = WorkPermit.objects.select_related('location', 'initiator', 'initiator__department').all()
+        qs = WorkPermit.objects.all()
         if date_from:
             qs = qs.filter(created_at__date__gte=date_from)
         if date_to:
             qs = qs.filter(created_at__date__lte=date_to)
 
-        period_qs = list(
-            qs.values(
-                'id', 'status', 'created_at', 'location__name', 'data',
-                'initiator__department__name'
-            )
-        )
-        total_qs = WorkPermit.objects.all()
-
+        # Оптимизация: раньше здесь вытягивались ВСЕ наряды целиком вместе с
+        # JSON-полем data (~30 КБ на наряд): на проде это ~46 МБ и секунды
+        # ожидания. Теперь счётчики и группировки считает БД, а из data
+        # извлекаются только 5 коротких ключей.
         status_order = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'CLOSED']
-        status_counts = Counter(item['status'] for item in period_qs)
+        status_map = dict(qs.values_list('status').annotate(cnt=Count('id')))
         status_distribution = [
-            {'status': code, 'count': status_counts.get(code, 0)}
+            {'status': code, 'count': status_map.get(code, 0)}
             for code in status_order
         ]
 
+        trunc_cls = {'month': TruncMonth, 'week': TruncWeek}.get(group_by, TruncDate)
+        trend_rows = qs.annotate(bucket=trunc_cls('created_at', tzinfo=timezone.get_current_timezone())) \
+            .values('bucket').annotate(cnt=Count('id'))
         trend_counter = defaultdict(int)
-        for item in period_qs:
-            dt = timezone.localtime(item['created_at'])
+        for row in trend_rows:
+            d = row['bucket']  # TruncDate -> date, TruncWeek/Month -> datetime (уже в локальной зоне)
             if group_by == 'month':
-                key = dt.strftime('%Y-%m')
+                key = d.strftime('%Y-%m')
             elif group_by == 'week':
-                iso_year, iso_week, _ = dt.isocalendar()
+                iso_year, iso_week, _ = d.isocalendar()
                 key = f'{iso_year}-W{iso_week:02d}'
             else:
-                key = dt.strftime('%Y-%m-%d')
-            trend_counter[key] += 1
+                key = d.strftime('%Y-%m-%d')
+            trend_counter[key] += row['cnt']
         permits_trend = [{'period': key, 'count': trend_counter[key]} for key in sorted(trend_counter.keys())]
 
+        # "Топ локаций" показывает Участок/Цех (поле department формы) — оно заполняется всегда.
+        # Старые поля location__name и workPlace оставлены как fallback для исторических нарядов.
+        tops_rows = list(qs.values_list(
+            'data__workName', 'data__content',
+            'data__department', 'data__workPlace',
+            'initiator__department__name', 'location__name',
+        ))
         work_type_counter = Counter()
         location_counter = Counter()
         department_counter = Counter()
-        for item in period_qs:
-            payload = item.get('data') or {}
-            work_type = (payload.get('workName') or payload.get('content') or 'Не указано').strip()
-            # "Топ локаций" показывает Участок/Цех (поле department формы) — оно заполняется всегда.
-            # Старые поля location__name и workPlace оставлены как fallback для исторических нарядов.
-            location_name = (
-                payload.get('department')
-                or item.get('initiator__department__name')
-                or item.get('location__name')
-                or payload.get('workPlace')
-                or 'Не указано'
-            ).strip()
-            department_name = (
-                item.get('initiator__department__name') or payload.get('department') or 'Не указано'
-            ).strip()
+        for work_name, content, department, work_place, initiator_department, location_name in tops_rows:
+            work_type = (work_name or content or 'Не указано').strip() or 'Не указано'
+            loc_name = (department or initiator_department or location_name or work_place or 'Не указано').strip() or 'Не указано'
+            dept_name = (initiator_department or department or 'Не указано').strip() or 'Не указано'
             work_type_counter[work_type] += 1
-            location_counter[location_name] += 1
-            department_counter[department_name] += 1
+            location_counter[loc_name] += 1
+            department_counter[dept_name] += 1
 
         top_work_types = [{'name': name, 'count': count} for name, count in work_type_counter.most_common(7)]
         top_locations = [{'name': name, 'count': count} for name, count in location_counter.most_common(7)]
         top_departments = [{'name': name, 'count': count} for name, count in department_counter.most_common(7)]
 
-        total_count = total_qs.count()
-        created_in_period = len(period_qs)
-        closed_in_period = status_counts.get('CLOSED', 0)
-        rejected_in_period = status_counts.get('REJECTED', 0)
+        total_count = WorkPermit.objects.count()
+        created_in_period = sum(status_map.values())
+        closed_in_period = status_map.get('CLOSED', 0)
+        rejected_in_period = status_map.get('REJECTED', 0)
         close_rate = round((closed_in_period / created_in_period) * 100, 1) if created_in_period else 0
         reject_rate = round((rejected_in_period / created_in_period) * 100, 1) if created_in_period else 0
 
-        closed_permits = WorkPermit.objects.filter(
-            id__in=[item['id'] for item in period_qs],
-            status='CLOSED',
-            valid_to__isnull=False
-        ).only('created_at', 'valid_to')
-        close_durations_hours = []
-        for permit in closed_permits:
-            duration_hours = (permit.valid_to - permit.created_at).total_seconds() / 3600
-            if duration_hours >= 0:
-                close_durations_hours.append(duration_hours)
+        # Среднее время закрытия: только две лёгкие колонки дат, без data
+        # и без повторного запроса с IN(сотни id).
+        closed_rows = qs.filter(
+            status='CLOSED', valid_to__isnull=False
+        ).values_list('created_at', 'valid_to')
+        close_durations_hours = [
+            (valid_to - created_at).total_seconds() / 3600
+            for created_at, valid_to in closed_rows
+            if valid_to >= created_at
+        ]
         avg_close_time_hours = (
             round(sum(close_durations_hours) / len(close_durations_hours), 1)
             if close_durations_hours else 0
