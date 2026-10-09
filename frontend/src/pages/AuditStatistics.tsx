@@ -197,12 +197,15 @@ export const AuditStatistics: React.FC = () => {
       {/* Локальные стили страницы: глобальный index.css в этот бандл
           не попадает (стили идут через tailwind CDN в index.html). */}
       <style>{`
-        /* Нажатие/наведение на элемент диаграммы — подсветка обводкой
-           вместо всплывающего окна (числа и так видны постоянно). */
+        /* Нажатие/наведение на элемент диаграммы — мягкая подсветка
+           вместо всплывающего окна (числа и так видны постоянно):
+           элемент чуть светлеет + тонкая серо-голубая обводка.
+           Тёмный #1e293b смотрелся чёрным контуром и был слишком резким. */
         .recharts-wrapper .recharts-bar-rectangle:hover rect,
         .recharts-wrapper .recharts-pie-sector:hover path {
-          stroke: #1e293b;
-          stroke-width: 2;
+          filter: brightness(1.08);
+          stroke: #94a3b8;
+          stroke-width: 1.5;
           cursor: pointer;
         }
         /* Tooltip нужен recharts для интерактивности, но всплывающее окно
