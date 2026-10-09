@@ -3735,6 +3735,103 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
         return Response({'status': 'ok'})
 
 
+# ============================================================
+# ИНТЕГРАЦИЯ КМГ: выгрузка нарядов для дашборда «Электронный наряд-допуск»
+# (REST API, только чтение, структура полей — по Excel-структуре КМГ)
+# ============================================================
+from rest_framework.authentication import TokenAuthentication
+
+
+class TokenAuthSupportQuery(TokenAuthentication):
+    """TokenAuthentication + поддержка токена в query-параметре (?token=...):
+    позволяет смотреть выгрузку просто в браузере (для КМГ-интеграции)."""
+
+    def authenticate(self, request):
+        auth = request.headers.get('Authorization') or ''
+        if 'token' not in auth.lower():
+            qs_token = request.query_params.get('token')
+            if qs_token:
+                return self.authenticate_credentials(qs_token)
+        return super().authenticate(request)
+
+
+class KmgPermitsExportView(APIView):
+    """GET /api/v1/integration/kmg/permits/?token=<токен>
+
+    Выгружает наряды (кроме черновиков) в структуре полей КМГ:
+    id, date, organization, author, author_email, status, work_category,
+    work_types, created_at, updated_at, planned_start, planned_end,
+    actual_start, actual_end. Формат — JSON; даты в ISO 8601."""
+
+    authentication_classes = [TokenAuthSupportQuery]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from datetime import datetime as _dt
+
+        qs = (WorkPermit.objects
+              .exclude(status='DRAFT')
+              .select_related('initiator', 'initiator__department')
+              .prefetch_related('dangerous_works', 'approval_steps')
+              .order_by('created_at'))
+
+        date_from = request.query_params.get('date_from')
+        date_to = request.query_params.get('date_to')
+        if date_from:
+            qs = qs.filter(created_at__date__gte=date_from)
+        if date_to:
+            qs = qs.filter(created_at__date__lte=date_to)
+
+        def iso(dt):
+            return dt.isoformat() if dt else None
+
+        items = []
+        for p in qs:
+            data = p.data or {}
+            initiator = p.initiator
+            wc = data.get('workCompletion') or {}
+
+            # Фактический старт: первая подпись ежедневного допуска / разрешение на допуск
+            daily_rows = data.get('dailyAdmissions') or []
+            actual_starts = [r.get('admissionDateTime') for r in daily_rows
+                             if isinstance(r, dict) and r.get('admissionDateTime')]
+            if not actual_starts and data.get('admissionDateTime'):
+                actual_starts = [data['admissionDateTime']]
+            actual_start = min(actual_starts) if actual_starts else None
+
+            # Фактическое окончание: подписи окончания работ (Допускающий закрывает последним)
+            actual_end = wc.get('admittingSignedAt') or wc.get('producerSignedAt') or None
+
+            work_types = [w.name for w in p.dangerous_works.all()]
+            if not work_types and data.get('workName'):
+                work_types = [str(data['workName']).strip()]
+
+            # Дата, на которую падает ЭНД: планируемое начало, иначе дата создания
+            effective_date = (p.valid_from or p.created_at)
+            effective = effective_date.astimezone().date().isoformat() if effective_date else None
+
+            items.append({
+                'id': p.id,
+                'date': effective,
+                'organization': (initiator.company_name if initiator and initiator.company_name else 'АО «Каражанбасмунай»'),
+                'author': initiator.get_full_name() if initiator else '',
+                'author_email': (initiator.email or '') if initiator else '',
+                'status': {
+                    'code': p.status,
+                    'label': p.get_status_display(),
+                },
+                'work_category': data.get('workCategory') or data.get('category') or '',
+                'work_types': '; '.join(work_types),
+                'created_at': iso(p.created_at),
+                'updated_at': iso(p.updated_at),
+                'planned_start': iso(p.valid_from),
+                'planned_end': iso(p.valid_to),
+                'actual_start': actual_start,
+                'actual_end': actual_end,
+            })
+        return Response({'count': len(items), 'results': items})
+
+
 def verify_permit_public(request, token):
     """Публичная верификация наряда по QR-токену. Без авторизации, только чтение."""
     from django.http import HttpResponse
