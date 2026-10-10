@@ -263,11 +263,11 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             return base_qs
         q = Q(initiator=user) | Q(approval_steps__approver=user)
         # Члены бригады (электро-наряды): userId в data.teamMembers — им наряд тоже виден,
-        # иначе по уведомлению/«Моим задачам» они получают 404
-        brigade_q = Q()
-        for i in range(10):
-            brigade_q |= Q(**{f'data__teamMembers__{i}__userId': user.id})
-        q = q | brigade_q
+        # иначе по уведомлению/«Моим задачам» они получают 404.
+        # Whole-column JSONB containment (data @> {...}) — обслуживается GIN-индексом
+        # (workpermit_data_gin). Позиционные lookups (data -> teamMembers -> 0 -> ...)
+        # индексом не обслуживаются и замедляли каждый запрос с ~35 мс до ~4.5 с.
+        q = q | Q(data__contains={'teamMembers': [{'userId': user.id}]})
         if user.username == 'dispatcher_semser':
             q = q | Q(data__notifyFireService=True)
         return base_qs.filter(q).distinct()
