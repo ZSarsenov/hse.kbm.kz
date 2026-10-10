@@ -3088,20 +3088,23 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                        )}
                      </div>
                    </div>
-                   {showAddMember && permit.status === 'APPROVED' && (
+                   {showAddMember && (permit.status === 'APPROVED' || permit.status === 'RENEWED') && (
                      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                         <UserSearchInput
-                           value={newMember.name ? { userId: newMember.userId, name: newMember.name, position: newMember.role } : null}
-                           onChange={(sel) => setNewMember(sel ? { ...newMember, name: sel.name, role: sel.position, userId: sel.userId } : { ...newMember, name: '', role: '', userId: null })}
+                         {/* Опасные работы: бригада заполняется вручную (поиск из БД — только в электро-нарядах) */}
+                         <input
+                           type="text"
+                           placeholder="ФИО"
+                           value={newMember.name}
+                           onChange={e => setNewMember({...newMember, name: e.target.value, userId: null})}
+                           className="px-3 py-2 border border-gray-300 rounded-md text-sm"
                          />
                          <input
                            type="text"
+                           placeholder="Должность"
                            value={newMember.role}
-                           readOnly
-                           className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-100 text-gray-600"
-                           placeholder="Подставится из БД"
-                           title="Должность подставляется автоматически при выборе сотрудника из БД"
+                           onChange={e => setNewMember({...newMember, role: e.target.value})}
+                           className="px-3 py-2 border border-gray-300 rounded-md text-sm"
                          />
                        </div>
                        <p className="text-xs text-gray-500 mb-3">Инструктаж провел: <span className="font-medium text-gray-700">{data.admitting?.name || 'Допускающий к работе'}</span> (заполняется автоматически)</p>
