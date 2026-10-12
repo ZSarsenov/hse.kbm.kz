@@ -2954,23 +2954,48 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         if image_file.size > 10 * 1024 * 1024:
             return Response({'error': 'Файл слишком большой. Максимум: 10 МБ.'}, status=400)
 
-        rel_dir = os.path.join('work_photos', str(permit.pk))
-        dest_dir = os.path.join(settings.MEDIA_ROOT, rel_dir)
-        os.makedirs(dest_dir, exist_ok=True)
-        fname = f'{kind}{file_ext}'
-        rel_path = os.path.join(rel_dir, fname).replace('\\', '/')
-        full_path = os.path.join(settings.MEDIA_ROOT, rel_dir, fname)
-        with open(full_path, 'wb') as f:
-            for chunk in image_file.chunks():
-                f.write(chunk)
+        from PIL import Image
+        from io import BytesIO
+        from django.core.files.base import ContentFile
 
-        if kind == 'before':
-            permit.work_photo_before = image_file
-        else:
-            permit.work_photo_after = image_file
+        raw = image_file.read()
+        final_bytes = raw
+        thumb_bytes = None
+        if file_ext != '.pdf':
+            # Телефонные снимки 3–8 МБ: сжимаем до 2400 px (q85) + миниатюра 600 px (q70)
+            try:
+                img = Image.open(BytesIO(raw))
+                if img.mode in ('RGBA', 'P', 'LA'):
+                    img = img.convert('RGB')
+                if max(img.size) > 2400:
+                    img.thumbnail((2400, 2400), Image.LANCZOS)
+                buf = BytesIO()
+                img.save(buf, 'JPEG', quality=85)
+                final_bytes = buf.getvalue()
+                th = img.copy()
+                th.thumbnail((600, 600), Image.LANCZOS)
+                tb = BytesIO()
+                th.convert('RGB').save(tb, 'JPEG', quality=70)
+                thumb_bytes = tb.getvalue()
+            except Exception:
+                thumb_bytes = None  # не удалось обработать — сохраняем оригинал
+
+        # Фиксированное имя (before.jpg / after.jpg): старое фото удаляем → перезапись
+        field = permit.work_photo_before if kind == 'before' else permit.work_photo_after
+        if field:
+            field.delete(save=False)
+        field.save(f'{kind}.jpg', ContentFile(final_bytes), save=False)
         permit.save(update_fields=['work_photo_before', 'work_photo_after'])
 
-        return Response({'ok': True, 'kind': kind, 'path': rel_path})
+        # Миниатюра рядом с полным файлом
+        thumb_rel = None
+        if thumb_bytes:
+            thumb_dir = os.path.dirname(field.path)
+            with open(os.path.join(thumb_dir, f'{kind}_thumb.jpg'), 'wb') as f:
+                f.write(thumb_bytes)
+            thumb_rel = (os.path.join(os.path.dirname(str(field)), f'{kind}_thumb.jpg')).replace('\\', '/')
+
+        return Response({'ok': True, 'kind': kind, 'path': field.url, 'thumb': thumb_rel})
 
     @action(detail=True, methods=['post'], url_path='work_photo_delete', permission_classes=[IsAuthenticated])
     def work_photo_delete(self, request, pk=None):

@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { WorkPermit, PermitCategory } from '../types';
 import { confirm as confirmDialog } from '../components/ConfirmDialog';
+import { toast } from '../components/Toasts';
 import { StatusBadge } from '../components/StatusBadge';
 import { useNCALayer } from '../hooks/useNCALayer';
 import { ApprovalTracker } from '../components/ApprovalTracker';
@@ -99,6 +100,7 @@ const WorkPhotoSection: React.FC<{ permit: any; canUpload: boolean; onRefresh?: 
         body: form,
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || `Ошибка ${res.status}`); }
+      toast({ message: k === 'before' ? '✅ Фото до начала работ отправлено' : '✅ Фото после окончания работ отправлено', type: 'success' });
       onRefresh?.();
     } catch (e: any) {
       alert(`Ошибка: ${e.message || 'Сеть'}`);
@@ -132,9 +134,21 @@ const WorkPhotoSection: React.FC<{ permit: any; canUpload: boolean; onRefresh?: 
       {url ? (
         <>
           {isImg(url) ? (
-            <a href={url} target="_blank" rel="noopener noreferrer">
-              <img src={url} alt={title} className="max-h-56 rounded border border-gray-200"/>
-            </a>
+            <>
+              {/* Миниатюра — быстрый показ; клик открывает полное фото */}
+              <img
+                src={(url as string).replace(/(\.\w+)$/, '_thumb.jpg')}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).src = url as string; }}
+                onClick={() => window.open(url as string, '_blank')}
+                alt={title}
+                className="max-h-48 rounded border border-gray-200 cursor-pointer hover:opacity-90"
+                title="Нажмите, чтобы открыть полное фото"
+              />
+              <button onClick={() => window.open(url as string, '_blank')}
+                className="block mt-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
+                Показать фото
+              </button>
+            </>
           ) : (
             <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium">
               <FileText size={16}/> Открыть документ (PDF)

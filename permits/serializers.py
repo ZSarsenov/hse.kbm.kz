@@ -157,6 +157,20 @@ class PermitSerializer(serializers.ModelSerializer):
     def get_work_photo_after(self, obj):
         return self._file_url(obj, 'work_photo_after')
 
+    def _thumb_url(self, obj, field_name):
+        """Миниатюра: рядом с полным файлом лежит <имено>_thumb.jpg (создаётся при загрузке)."""
+        import re
+        url = self._file_url(obj, field_name)
+        if not url or url.endswith('.pdf'):
+            return None
+        return re.sub(r'(\.\w+)$', '_thumb.jpg', url)
+
+    def get_work_photo_before_thumb(self, obj):
+        return self._thumb_url(obj, 'work_photo_before')
+
+    def get_work_photo_after_thumb(self, obj):
+        return self._thumb_url(obj, 'work_photo_after')
+
 
     def create(self, validated_data):
         # 1. Достаем пользователя
@@ -236,6 +250,20 @@ class PermitListSerializer(serializers.ModelSerializer):
     def get_work_photo_after(self, obj):
         return self._file_url(obj, 'work_photo_after')
 
+    def _thumb_url(self, obj, field_name):
+        """Миниатюра: рядом с полным файлом лежит <имено>_thumb.jpg (создаётся при загрузке)."""
+        import re
+        url = self._file_url(obj, field_name)
+        if not url or url.endswith('.pdf'):
+            return None
+        return re.sub(r'(\.\w+)$', '_thumb.jpg', url)
+
+    def get_work_photo_before_thumb(self, obj):
+        return self._thumb_url(obj, 'work_photo_before')
+
+    def get_work_photo_after_thumb(self, obj):
+        return self._thumb_url(obj, 'work_photo_after')
+
     # Ключи, которые сохраняются в data при выдаче списка.
     LIST_DATA_KEYS = (
         'category',          # тип наряда: DANGEROUS / ELECTRICAL (для маршрутизации)
@@ -260,7 +288,7 @@ class PermitListSerializer(serializers.ModelSerializer):
             'created_at', 'valid_from', 'valid_to',
             'initiator', 'location', 'location_name',
             'approval_steps', 'data',
-            'scan_file', 'safety_document', 'loto_photo', 'work_photo_before', 'work_photo_after',
+            'scan_file', 'safety_document', 'loto_photo', 'work_photo_before', 'work_photo_before_thumb', 'work_photo_after', 'work_photo_after_thumb',
             'producer_closed',
         )
 
