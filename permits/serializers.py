@@ -106,6 +106,10 @@ class PermitSerializer(serializers.ModelSerializer):
     scan_file = serializers.SerializerMethodField()
     safety_document = serializers.SerializerMethodField()
     loto_photo = serializers.SerializerMethodField()
+    work_photo_before = serializers.SerializerMethodField()
+    work_photo_after = serializers.SerializerMethodField()
+    work_photo_before_thumb = serializers.SerializerMethodField()
+    work_photo_after_thumb = serializers.SerializerMethodField()
 
     class Meta:
         model = WorkPermit
@@ -127,7 +131,9 @@ class PermitSerializer(serializers.ModelSerializer):
             'safety_document',
             'loto_photo',
             'work_photo_before',
+            'work_photo_before_thumb',
             'work_photo_after',
+            'work_photo_after_thumb',
             'producer_closed',
         )
         read_only_fields = ('id', 'permit_id', 'created_at', 'initiator', 'status', 'approval_steps', 'template',
@@ -225,6 +231,10 @@ class PermitListSerializer(serializers.ModelSerializer):
     scan_file = serializers.SerializerMethodField()
     safety_document = serializers.SerializerMethodField()
     loto_photo = serializers.SerializerMethodField()
+    work_photo_before = serializers.SerializerMethodField()
+    work_photo_after = serializers.SerializerMethodField()
+    work_photo_before_thumb = serializers.SerializerMethodField()
+    work_photo_after_thumb = serializers.SerializerMethodField()
 
     def _file_url(self, obj, field_name):
         field = getattr(obj, field_name)
