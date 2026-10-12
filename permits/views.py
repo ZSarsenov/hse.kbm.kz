@@ -2902,6 +2902,92 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
         return Response({'status': 'Фото удалено.'})
 
+    # ============================================================
+    # ФОТОФИКСАЦИЯ РАБОТ: «Фото до» / «Фото после» (файл на диске, в БД — путь)
+    # - Исполнитель без ЭЦП (учётки нет): фото вносят Выдающий или Допускающий
+    #   со своих учётных записей (показывают наряд на телефоне — камера открывается
+    #   в мобильном браузере).
+    # - Производитель с учётной записью: загружает сам.
+    # «Фото после» обязательно для закрытия наряда.
+    # ============================================================
+    @action(detail=True, methods=['post'], url_path='work_photo', permission_classes=[IsAuthenticated])
+    def work_photo(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+        kind = request.data.get('kind', '')
+        if kind not in ('before', 'after'):
+            return Response({'error': 'Неверный тип фото (before/after).'}, status=400)
+
+        if permit.status not in ('PENDING_APPROVAL', 'APPROVED', 'RENEWED'):
+            return Response({'error': 'Фото доступны на этапе согласования и в работе.'}, status=400)
+
+        data = permit.data or {}
+        prod_raw = data.get('producer') or {}
+        is_external = isinstance(prod_raw, dict) and prod_raw.get('external')
+        if is_external:
+            ok = permit.approval_steps.filter(
+                role__in=('ISSUER', 'ADMITTING'), approver=user, status='APPROVED',
+            ).exists() or user.is_admin
+            if not ok:
+                return Response({'error': 'Фото исполнителя без ЭЦП вносят Выдающий наряд или Допускающий (после своих подписей).'}, status=403)
+        else:
+            ok = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).exists() or user.is_admin
+            if not ok:
+                return Response({'error': 'Фото загружает Производитель работ.'}, status=403)
+
+        image_file = request.FILES.get('photo')
+        if not image_file:
+            return Response({'error': 'Приложите файл фото.'}, status=400)
+        file_ext = os.path.splitext(image_file.name)[1].lower()
+        if file_ext not in ('.jpg', '.jpeg', '.png', '.pdf'):
+            return Response({'error': f'Недопустимый формат ({file_ext}). Разрешены: JPG, PNG, PDF.'}, status=400)
+        if image_file.size > 10 * 1024 * 1024:
+            return Response({'error': 'Файл слишком большой. Максимум: 10 МБ.'}, status=400)
+
+        rel_dir = os.path.join('work_photos', str(permit.pk))
+        dest_dir = os.path.join(settings.MEDIA_ROOT, rel_dir)
+        os.makedirs(dest_dir, exist_ok=True)
+        fname = f'{kind}{file_ext}'
+        rel_path = os.path.join(rel_dir, fname).replace('\\', '/')
+        full_path = os.path.join(settings.MEDIA_ROOT, rel_dir, fname)
+        with open(full_path, 'wb') as f:
+            for chunk in image_file.chunks():
+                f.write(chunk)
+
+        if kind == 'before':
+            permit.work_photo_before = image_file
+        else:
+            permit.work_photo_after = image_file
+        permit.save(update_fields=['work_photo_before', 'work_photo_after'])
+
+        return Response({'ok': True, 'kind': kind, 'path': rel_path})
+
+    @action(detail=True, methods=['post'], url_path='work_photo_delete', permission_classes=[IsAuthenticated])
+    def work_photo_delete(self, request, pk=None):
+        permit = self.get_object()
+        user = request.user
+        kind = request.data.get('kind', '')
+        if kind not in ('before', 'after'):
+            return Response({'error': 'Неверный тип фото (before/after).'}, status=400)
+
+        if not user.is_admin:
+            allowed = (
+                permit.approval_steps.filter(role__in=('ISSUER', 'ADMITTING', 'WORK_PRODUCER'), approver=user).exists()
+            )
+            if not allowed:
+                return Response({'error': 'Нет прав на удаление фото.'}, status=403)
+
+        if kind == 'before' and permit.work_photo_before:
+            permit.work_photo_before.delete(save=False)
+            permit.work_photo_before = None
+        elif kind == 'after' and permit.work_photo_after:
+            permit.work_photo_after.delete(save=False)
+            permit.work_photo_after = None
+        else:
+            return Response({'error': 'Фото не найдено.'}, status=404)
+        permit.save(update_fields=['work_photo_before', 'work_photo_after'])
+        return Response({'ok': True})
+
     @action(detail=True, methods=['post'], url_path='producer_close')
     def producer_close(self, request, pk=None):
         """
@@ -2915,6 +3001,10 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Закрыть можно только согласованный (или продлённый) наряд.'}, status=400)
         if permit.producer_closed:
             return Response({'error': 'Производитель работ уже подтвердил закрытие.'}, status=400)
+
+        # «Фото после» — обязательное условие подтверждения закрытия
+        if not permit.work_photo_after:
+            return Response({'error': 'Загрузите «Фото после окончания работ» — оно обязательно для закрытия наряда.'}, status=400)
 
         producer_step = permit.approval_steps.filter(role='WORK_PRODUCER').first()
 
@@ -3023,6 +3113,10 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 {'error': 'Сначала Производитель работ должен подтвердить завершение работ.'},
                 status=400
             )
+
+        # 2.1 «Фото после» — обязательное условие закрытия (двойная проверка)
+        if not permit.work_photo_after:
+            return Response({'error': 'Загрузите «Фото после окончания работ» — оно обязательно для закрытия наряда.'}, status=400)
 
         # 3. Проверка прав (только Допускающий)
         is_admitting = permit.approval_steps.filter(role='ADMITTING', approver=user).exists()

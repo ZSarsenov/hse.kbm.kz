@@ -95,6 +95,20 @@ class WorkPermit(models.Model):
         blank=True,
     )
 
+    # Фотофиксация работ: в БД — только путь к файлу, файлы на диске (media)
+    work_photo_before = models.FileField(
+        upload_to='work_photos/%Y/%m/',
+        verbose_name='Фото до начала работ',
+        null=True,
+        blank=True,
+    )
+    work_photo_after = models.FileField(
+        upload_to='work_photos/%Y/%m/',
+        verbose_name='Фото после окончания работ',
+        null=True,
+        blank=True,
+    )
+
     # ------------------ FSM LOGIC ------------------
     # 1. Отправка на согласование
     @transition(field=status, source=[STATUS_DRAFT, STATUS_REJECTED], target=STATUS_PENDING)

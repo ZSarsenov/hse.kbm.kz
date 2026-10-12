@@ -126,6 +126,8 @@ class PermitSerializer(serializers.ModelSerializer):
             'scan_file',
             'safety_document',
             'loto_photo',
+            'work_photo_before',
+            'work_photo_after',
             'producer_closed',
         )
         read_only_fields = ('id', 'permit_id', 'created_at', 'initiator', 'status', 'approval_steps', 'template',
@@ -148,6 +150,12 @@ class PermitSerializer(serializers.ModelSerializer):
 
     def get_loto_photo(self, obj):
         return self._file_url(obj, 'loto_photo')
+
+    def get_work_photo_before(self, obj):
+        return self._file_url(obj, 'work_photo_before')
+
+    def get_work_photo_after(self, obj):
+        return self._file_url(obj, 'work_photo_after')
 
 
     def create(self, validated_data):
@@ -222,6 +230,12 @@ class PermitListSerializer(serializers.ModelSerializer):
     def get_loto_photo(self, obj):
         return self._file_url(obj, 'loto_photo')
 
+    def get_work_photo_before(self, obj):
+        return self._file_url(obj, 'work_photo_before')
+
+    def get_work_photo_after(self, obj):
+        return self._file_url(obj, 'work_photo_after')
+
     # Ключи, которые сохраняются в data при выдаче списка.
     LIST_DATA_KEYS = (
         'category',          # тип наряда: DANGEROUS / ELECTRICAL (для маршрутизации)
@@ -246,7 +260,7 @@ class PermitListSerializer(serializers.ModelSerializer):
             'created_at', 'valid_from', 'valid_to',
             'initiator', 'location', 'location_name',
             'approval_steps', 'data',
-            'scan_file', 'safety_document', 'loto_photo',
+            'scan_file', 'safety_document', 'loto_photo', 'work_photo_before', 'work_photo_after',
             'producer_closed',
         )
 

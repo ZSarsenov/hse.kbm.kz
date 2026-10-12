@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  ArrowLeft, MapPin, User, Clock, FileText, CheckCircle2, AlertTriangle, FileSignature, XCircle, Download, Shield, Users, Edit3, Trash2, Copy, FlaskConical, Zap, Plus, Lock
+  ArrowLeft, MapPin, User, Clock, FileText, CheckCircle2, AlertTriangle, FileSignature, XCircle, Download, Shield, Users, Edit3, Trash2, Copy, FlaskConical, Zap, Plus, Lock, Camera
 } from 'lucide-react';
 import { WorkPermit, PermitCategory } from '../types';
 import { confirm as confirmDialog } from '../components/ConfirmDialog';
@@ -74,6 +74,103 @@ const UserSearchInput: React.FC<{ value: UserSearchSelection | null; onChange: (
           )}
         </>
       )}
+    </div>
+  );
+};
+
+// Фотофиксация работ: файлы хранятся на диске, в БД — только путь.
+// Кнопка с capture="environment" открывает камеру телефона прямо в мобильном браузере.
+const WorkPhotoSection: React.FC<{ permit: any; canUpload: boolean; onRefresh?: () => void }> = ({ permit, canUpload, onRefresh }) => {
+  const [busy, setBusy] = useState(false);
+  const before = permit.work_photo_before || null;
+  const after = permit.work_photo_after || null;
+  const isImg = (u: string) => /\.(jpg|jpeg|png)$/i.test(u || '');
+
+  const doUpload = async (k: string, file: File) => {
+    setBusy(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const form = new FormData();
+      form.append('photo', file, file.name);
+      form.append('kind', k);
+      const res = await fetch(`/api/v1/permits/${permit.id}/work_photo/`, {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Token ${token}` } : {},
+        body: form,
+      });
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || `Ошибка ${res.status}`); }
+      onRefresh?.();
+    } catch (e: any) {
+      alert(`Ошибка: ${e.message || 'Сеть'}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doDelete = async (k: string) => {
+    if (!window.confirm('Удалить фото?')) return;
+    setBusy(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const res = await fetch(`/api/v1/permits/${permit.id}/work_photo_delete/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Token ${token}` } : {}) },
+        body: JSON.stringify({ kind: k }),
+      });
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || `Ошибка ${res.status}`); }
+      onRefresh?.();
+    } catch (e: any) {
+      alert(`Ошибка: ${e.message || 'Сеть'}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const renderSlot = (k: 'before' | 'after', title: string, url: string | null) => (
+    <div className="p-4 border border-gray-200 rounded-lg bg-white">
+      <div className="text-xs font-bold text-gray-400 uppercase mb-1">{title}</div>
+      {url ? (
+        <>
+          {isImg(url) ? (
+            <a href={url} target="_blank" rel="noopener noreferrer">
+              <img src={url} alt={title} className="max-h-56 rounded border border-gray-200"/>
+            </a>
+          ) : (
+            <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium">
+              <FileText size={16}/> Открыть документ (PDF)
+            </a>
+          )}
+          {canUpload && (
+            <button disabled={busy} onClick={() => doDelete(k)}
+              className="block mt-1 text-xs text-red-500 hover:text-red-700">
+              Удалить
+            </button>
+          )}
+        </>
+      ) : (
+        <div className="text-gray-400 italic text-sm py-2">Не загружено</div>
+      )}
+      {canUpload && (
+        <label className={`mt-2 inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 cursor-pointer ${busy ? 'opacity-50 pointer-events-none' : ''}`}>
+          <input type="file" accept="image/*" capture="environment" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) doUpload(k, f); e.target.value = ''; }} />
+          <Plus size={12} className="shrink-0"/>
+          {url ? 'Заменить фото' : 'Сделать фото'} (камера/файл)
+        </label>
+      )}
+    </div>
+  );
+
+  return (
+    <div>
+      <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+        <Camera size={20} className="text-slate-400"/> Фотофиксация работ
+        <span className="text-xs font-normal text-gray-400">«Фото после» обязательно для закрытия наряда</span>
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {renderSlot('before', 'Фото до начала работ', before)}
+        {renderSlot('after', 'Фото после окончания работ', after)}
+      </div>
     </div>
   );
 };
@@ -227,6 +324,19 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // Кнопка "Закрыть наряд" — Допускающий (шаг 2, только после производителя)
   const showAdmittingClose = !isAuditor && (permit.status === 'APPROVED' || permit.status === 'RENEWED') && !!permit.producer_closed && !!isAdmittingUser;
 
+  // Фотофиксация: кто может загружать
+  // - исполнитель без ЭЦП (учётки нет): Выдающий или Допускающий после своих подписей
+  // - производитель с учёткой: сам производитель
+  const canUploadWorkPhotos = !isAuditor && isWorkActive && (
+    (externalProducer && (
+      (issuerApprovedStep && String(issuerApprovedStep.approver_id) === currentUserId) ||
+      (admitApprovedStep && String(admitApprovedStep.approver_id) === currentUserId)
+    )) ||
+    (!externalProducer && isProducerUser) ||
+    isAdmin
+  );
+  const workPhotoAfterUrl = (permit as any).work_photo_after || null;
+
   // 3. ЛОГИКА ВИДИМОСТИ КНОПОК (аудитор — только просмотр и скачивание)
   const hasRequiredFields = !!(
     data.workName &&
@@ -377,6 +487,9 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
                 {/* Ход согласования */}
                 <ApprovalTracker steps={(permit as any).approvalSteps} />
+
+                {/* Фотофиксация работ */}
+                <WorkPhotoSection permit={permit} canUpload={canUploadWorkPhotos} onRefresh={onRefresh} />
 
                 {/* Ответственные лица */}
                 <div>
@@ -2035,7 +2148,12 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 Продлить на 1 день
               </button>
             )}
-            {showProducerClose && (
+            {showProducerClose && !workPhotoAfterUrl && (
+              <div className="flex items-center text-sm text-amber-700 italic px-4 bg-amber-50 rounded-lg border border-amber-200 py-2.5 gap-2">
+                <Camera size={16}/> Загрузите «Фото после окончания работ» на вкладке «Основное» — оно обязательно для закрытия
+              </div>
+            )}
+            {showProducerClose && workPhotoAfterUrl && (
               <button
                 onClick={handleProducerCloseElec}
                 className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center gap-2 shadow-sm"
@@ -3586,7 +3704,12 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
             )}
 
             {/* Шаг 1: Закрыть наряд как Производитель работ */}
-            {showProducerClose && (
+            {showProducerClose && !workPhotoAfterUrl && (
+                <div className="flex items-center text-sm text-amber-700 italic px-4 bg-amber-50 rounded-lg border border-amber-200 py-2.5 gap-2">
+                  <Camera size={16}/> Загрузите «Фото после окончания работ» на вкладке «Основное» — оно обязательно для закрытия
+                </div>
+            )}
+            {showProducerClose && workPhotoAfterUrl && (
                 <button
                     onClick={canActForExternalProducer
                         ? () => { if (ensureBrigadeSigned()) setProducerClosePadOpen(true); }
