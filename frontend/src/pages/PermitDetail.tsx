@@ -179,7 +179,7 @@ const WorkPhotoSection: React.FC<{ permit: any; canUpload: boolean; onRefresh?: 
     <div>
       <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
         <Camera size={20} className="text-slate-400"/> Фотофиксация работ
-        <span className="text-xs font-normal text-gray-400">«Фото после» обязательно для закрытия наряда</span>
+        <span className="text-xs font-normal text-gray-400">Рекомендуемая фотофиксация (необязательно)</span>
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {renderSlot('before', 'Фото до начала работ', before)}
@@ -2162,12 +2162,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 Продлить на 1 день
               </button>
             )}
-            {showProducerClose && !workPhotoAfterUrl && (
-              <div className="flex items-center text-sm text-amber-700 italic px-4 bg-amber-50 rounded-lg border border-amber-200 py-2.5 gap-2">
-                <Camera size={16}/> Загрузите «Фото после окончания работ» на вкладке «Основное» — оно обязательно для закрытия
-              </div>
-            )}
-            {showProducerClose && workPhotoAfterUrl && (
+            {showProducerClose && (
               <button
                 onClick={handleProducerCloseElec}
                 className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center gap-2 shadow-sm"
@@ -3721,12 +3716,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
             )}
 
             {/* Шаг 1: Закрыть наряд как Производитель работ */}
-            {showProducerClose && !workPhotoAfterUrl && (
-                <div className="flex items-center text-sm text-amber-700 italic px-4 bg-amber-50 rounded-lg border border-amber-200 py-2.5 gap-2">
-                  <Camera size={16}/> Загрузите «Фото после окончания работ» на вкладке «Основное» — оно обязательно для закрытия
-                </div>
-            )}
-            {showProducerClose && workPhotoAfterUrl && (
+            {showProducerClose && (
                 <button
                     onClick={canActForExternalProducer
                         ? () => { if (ensureBrigadeSigned()) setProducerClosePadOpen(true); }

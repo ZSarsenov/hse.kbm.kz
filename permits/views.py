@@ -3037,10 +3037,6 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         if permit.producer_closed:
             return Response({'error': 'Производитель работ уже подтвердил закрытие.'}, status=400)
 
-        # «Фото после» — обязательное условие подтверждения закрытия
-        if not permit.work_photo_after:
-            return Response({'error': 'Загрузите «Фото после окончания работ» — оно обязательно для закрытия наряда.'}, status=400)
-
         producer_step = permit.approval_steps.filter(role='WORK_PRODUCER').first()
 
         # Обычный производитель — есть учётная запись
@@ -3149,9 +3145,6 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 status=400
             )
 
-        # 2.1 «Фото после» — обязательное условие закрытия (двойная проверка)
-        if not permit.work_photo_after:
-            return Response({'error': 'Загрузите «Фото после окончания работ» — оно обязательно для закрытия наряда.'}, status=400)
 
         # 3. Проверка прав (только Допускающий)
         is_admitting = permit.approval_steps.filter(role='ADMITTING', approver=user).exists()
