@@ -2924,16 +2924,26 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         data = permit.data or {}
         prod_raw = data.get('producer') or {}
         is_external = isinstance(prod_raw, dict) and prod_raw.get('external')
-        if is_external:
+        is_electrical = data.get('category') in ('ELECTRICAL_NEW', 'ELECTRICAL')
+        if is_electrical:
+            # У производителя учётная запись есть — фото загружает он сам
+            ok = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).exists() or user.is_admin
+            if not ok:
+                return Response({'error': 'Фото загружает Производитель работ.'}, status=403)
+        elif is_external:
             ok = permit.approval_steps.filter(
                 role__in=('ISSUER', 'ADMITTING'), approver=user, status='APPROVED',
             ).exists() or user.is_admin
             if not ok:
                 return Response({'error': 'Фото исполнителя без ЭЦП вносят Выдающий наряд или Допускающий (после своих подписей).'}, status=403)
         else:
-            ok = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).exists() or user.is_admin
+            # Опасные работы с производителем из БД: он сам либо Выдающий/Допускающий
+            ok = (
+                permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).exists() or
+                permit.approval_steps.filter(role__in=('ISSUER', 'ADMITTING'), approver=user, status='APPROVED').exists()
+            ) or user.is_admin
             if not ok:
-                return Response({'error': 'Фото загружает Производитель работ.'}, status=403)
+                return Response({'error': 'Фото загружает Производитель работ, Выдающий наряд или Допускающий.'}, status=403)
 
         image_file = request.FILES.get('photo')
         if not image_file:

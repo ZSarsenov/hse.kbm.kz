@@ -327,12 +327,12 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // Фотофиксация: кто может загружать
   // - исполнитель без ЭЦП (учётки нет): Выдающий или Допускающий после своих подписей
   // - производитель с учёткой: сам производитель
+  const isElectricalPermit = permit.category === PermitCategory.ELECTRICAL_NEW || permit.category === PermitCategory.ELECTRICAL;
+  const issuerOrAdmittingApproved = (issuerApprovedStep && String(issuerApprovedStep.approver_id) === currentUserId) ||
+    (admitApprovedStep && String(admitApprovedStep.approver_id) === currentUserId);
   const canUploadWorkPhotos = !isAuditor && isWorkActive && (
-    (externalProducer && (
-      (issuerApprovedStep && String(issuerApprovedStep.approver_id) === currentUserId) ||
-      (admitApprovedStep && String(admitApprovedStep.approver_id) === currentUserId)
-    )) ||
-    (!externalProducer && isProducerUser) ||
+    (isElectricalPermit && isProducerUser) ||
+    (!isElectricalPermit && (issuerOrAdmittingApproved || isProducerUser)) ||
     isAdmin
   );
   const workPhotoAfterUrl = (permit as any).work_photo_after || null;
@@ -3040,6 +3040,9 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
                 {/* ТРЕКЕР СОГЛАСОВАНИЯ */}
                 <ApprovalTracker steps={(permit as any).approvalSteps} />
+
+                {/* Фотофиксация работ */}
+                <WorkPhotoSection permit={permit} canUpload={canUploadWorkPhotos} onRefresh={onRefresh} />
 
                 {pendingExternalProducerSig && (
                   <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
