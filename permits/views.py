@@ -3932,6 +3932,7 @@ class KmgPermitsExportView(APIView):
                 'organization': (initiator.company_name if initiator and initiator.company_name else 'АО «Каражанбасмунай»'),
                 'author': initiator.get_full_name() if initiator else '',
                 'author_email': (initiator.email or '') if initiator else '',
+                'author_department': (initiator.department.name if initiator and initiator.department else ''),
                 'status': {
                     'code': p.status,
                     'label': p.get_status_display(),
