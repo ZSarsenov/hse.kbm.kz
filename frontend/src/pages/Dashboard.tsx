@@ -179,6 +179,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
               </button>
           )}
         </div>
+
+        {/* SKAI — ИИ ассистент Самрук-Казына: QR со ссылкой (справа, кнопку «Создать наряд» не перекрывает) */}
+        {!isArchiveView && (
+          <a
+            href="https://ai.sk-ai.kz/statistic/tb-expert"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm hover:shadow-md hover:border-blue-300 transition-all"
+            title="Открыть SKAI — ИИ ассистент"
+          >
+            <img src="/skai_qr.png" alt="QR: SKAI ИИ ассистент" className="h-16 w-16 rounded-md shrink-0"/>
+            <div className="flex flex-col items-start leading-tight">
+              {/* Знак Самрук + Samruk Kazyna */}
+              <div className="flex items-center gap-1.5">
+                <svg width="26" height="18" viewBox="0 0 60 40" aria-hidden="true">
+                  <circle cx="30" cy="14" r="7" fill="#D4A017"/>
+                  <path d="M30 22 C18 22 8 30 4 38 C14 33 22 32 30 32 C38 32 46 33 56 38 C52 30 42 22 30 22 Z" fill="#0A3D62"/>
+                  <path d="M30 24 C24 27 20 31 18 35 C24 32 27 31 30 31 C33 31 36 32 42 35 C40 31 36 27 30 24 Z" fill="#D4A017"/>
+                </svg>
+                <span className="text-[11px] font-bold tracking-wide" style={{color: '#0A3D62'}}>Samruk Kazyna</span>
+              </div>
+              <span className="text-sm font-bold text-blue-700 mt-0.5">SKAI ИИ ассистент</span>
+              <span className="text-[10px] text-gray-500">Наведите камеру на QR</span>
+            </div>
+          </a>
+        )}
       </div>
 
       {/* Вкладки по типу наряда: Все / Повышенной опасности / Электроустановки */}
