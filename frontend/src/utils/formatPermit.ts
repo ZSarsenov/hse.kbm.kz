@@ -26,6 +26,9 @@ export interface RawPermit {
   data?: Record<string, any>;
   approval_steps?: any[];
   producer_closed?: boolean;
+  work_photo_before?: string | null;
+  work_photo_during?: string | null;
+  work_photo_after?: string | null;
 }
 
 /**
@@ -60,4 +63,7 @@ export const formatPermit = (p: RawPermit): WorkPermit => ({
       : PermitCategory.DANGEROUS,
   approvalSteps: p.approval_steps,
   producer_closed: p.producer_closed,
+  work_photo_before: p.work_photo_before || null,
+  work_photo_during: p.work_photo_during || null,
+  work_photo_after: p.work_photo_after || null,
 });
