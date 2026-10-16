@@ -2903,12 +2903,9 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         return Response({'status': 'Фото удалено.'})
 
     # ============================================================
-    # ФОТОФИКСАЦИЯ РАБОТ: «Фото до» / «Фото после» (файл на диске, в БД — путь)
-    # - Исполнитель без ЭЦП (учётки нет): фото вносят Выдающий или Допускающий
-    #   со своих учётных записей (показывают наряд на телефоне — камера открывается
-    #   в мобильном браузере).
-    # - Производитель с учётной записью: загружает сам.
-    # «Фото после» обязательно для закрытия наряда.
+    # ФОТОФИКСАЦИЯ РАБОТ: «Фото до» / «В процессе» / «После» (файл на диске, в БД — путь)
+    # Загружает и удаляет только Допускающий к работе (просмотр — у всех).
+    # Фото необязательны: закрытие наряда не блокируется.
     # ============================================================
     @action(detail=True, methods=['post'], url_path='work_photo', permission_classes=[IsAuthenticated])
     def work_photo(self, request, pk=None):
@@ -2921,29 +2918,10 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         if permit.status not in ('PENDING_APPROVAL', 'APPROVED', 'RENEWED'):
             return Response({'error': 'Фото доступны на этапе согласования и в работе.'}, status=400)
 
-        data = permit.data or {}
-        prod_raw = data.get('producer') or {}
-        is_external = isinstance(prod_raw, dict) and prod_raw.get('external')
-        is_electrical = data.get('category') in ('ELECTRICAL_NEW', 'ELECTRICAL')
-        if is_electrical:
-            # У производителя учётная запись есть — фото загружает он сам
-            ok = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).exists() or user.is_admin
-            if not ok:
-                return Response({'error': 'Фото загружает Производитель работ.'}, status=403)
-        elif is_external:
-            ok = permit.approval_steps.filter(
-                role__in=('ISSUER', 'ADMITTING'), approver=user, status='APPROVED',
-            ).exists() or user.is_admin
-            if not ok:
-                return Response({'error': 'Фото исполнителя без ЭЦП вносят Выдающий наряд или Допускающий (после своих подписей).'}, status=403)
-        else:
-            # Опасные работы с производителем из БД: он сам либо Выдающий/Допускающий
-            ok = (
-                permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).exists() or
-                permit.approval_steps.filter(role__in=('ISSUER', 'ADMITTING'), approver=user, status='APPROVED').exists()
-            ) or user.is_admin
-            if not ok:
-                return Response({'error': 'Фото загружает Производитель работ, Выдающий наряд или Допускающий.'}, status=403)
+        # Фото загружает только Допускающий к работе (просмотр — у всех)
+        ok = permit.approval_steps.filter(role='ADMITTING', approver=user).exists() or user.is_admin
+        if not ok:
+            return Response({'error': 'Фото загружает только Допускающий к работе.'}, status=403)
 
         image_file = request.FILES.get('photo')
         if not image_file:
@@ -3006,11 +2984,9 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Неверный тип фото (before/during/after).'}, status=400)
 
         if not user.is_admin:
-            allowed = (
-                permit.approval_steps.filter(role__in=('ISSUER', 'ADMITTING', 'WORK_PRODUCER'), approver=user).exists()
-            )
+            allowed = permit.approval_steps.filter(role='ADMITTING', approver=user).exists()
             if not allowed:
-                return Response({'error': 'Нет прав на удаление фото.'}, status=403)
+                return Response({'error': 'Удалить фото может только Допускающий к работе.'}, status=403)
 
         field = getattr(permit, f'work_photo_{kind}')
         if field:

@@ -188,7 +188,7 @@ const WorkPhotoSection: React.FC<{ permit: any; canUpload: boolean; onRefresh?: 
     <div>
       <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
         <Camera size={20} className="text-slate-400"/> Фотофиксация работ
-        <span className="text-xs font-normal text-gray-400">Необязательно · фото делается с телефона и сразу сохраняется в наряде</span>
+        <span className="text-xs font-normal text-gray-400">Необязательно · фото загружает Допускающий к работе, просмотр — для всех</span>
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {renderSlot('before', 'Фото до начала работ', before)}
@@ -381,13 +381,9 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // Фотофиксация: кто может загружать
   // - исполнитель без ЭЦП (учётки нет): Выдающий или Допускающий после своих подписей
   // - производитель с учёткой: сам производитель
-  const isElectricalPermit = permit.category === PermitCategory.ELECTRICAL_NEW || permit.category === PermitCategory.ELECTRICAL;
-  const issuerOrAdmittingApproved = (issuerApprovedStep && String(issuerApprovedStep.approver_id) === currentUserId) ||
-    (admitApprovedStep && String(admitApprovedStep.approver_id) === currentUserId);
+  // Фото загружает только Допускающий к работе; остальные — только просмотр
   const canUploadWorkPhotos = !isAuditor && isWorkActive && (
-    (isElectricalPermit && isProducerUser) ||
-    (!isElectricalPermit && (issuerOrAdmittingApproved || isProducerUser)) ||
-    isAdmin
+    (admittingStep && String(admittingStep.approver_id) === currentUserId) || isAdmin
   );
   const workPhotoAfterUrl = (permit as any).work_photo_after || null;
 
