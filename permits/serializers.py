@@ -107,6 +107,8 @@ class PermitSerializer(serializers.ModelSerializer):
     safety_document = serializers.SerializerMethodField()
     loto_photo = serializers.SerializerMethodField()
     work_photo_before = serializers.SerializerMethodField()
+    work_photo_during = serializers.SerializerMethodField()
+    work_photo_during_thumb = serializers.SerializerMethodField()
     work_photo_after = serializers.SerializerMethodField()
     work_photo_before_thumb = serializers.SerializerMethodField()
     work_photo_after_thumb = serializers.SerializerMethodField()
@@ -132,6 +134,8 @@ class PermitSerializer(serializers.ModelSerializer):
             'loto_photo',
             'work_photo_before',
             'work_photo_before_thumb',
+            'work_photo_during',
+            'work_photo_during_thumb',
             'work_photo_after',
             'work_photo_after_thumb',
             'producer_closed',
@@ -162,6 +166,12 @@ class PermitSerializer(serializers.ModelSerializer):
 
     def get_work_photo_after(self, obj):
         return self._file_url(obj, 'work_photo_after')
+
+    def get_work_photo_during(self, obj):
+        return self._file_url(obj, 'work_photo_during')
+
+    def get_work_photo_during_thumb(self, obj):
+        return self._thumb_url(obj, 'work_photo_during')
 
     def _thumb_url(self, obj, field_name):
         """Миниатюра: рядом с полным файлом лежит <имено>_thumb.jpg (создаётся при загрузке)."""
@@ -232,6 +242,8 @@ class PermitListSerializer(serializers.ModelSerializer):
     safety_document = serializers.SerializerMethodField()
     loto_photo = serializers.SerializerMethodField()
     work_photo_before = serializers.SerializerMethodField()
+    work_photo_during = serializers.SerializerMethodField()
+    work_photo_during_thumb = serializers.SerializerMethodField()
     work_photo_after = serializers.SerializerMethodField()
     work_photo_before_thumb = serializers.SerializerMethodField()
     work_photo_after_thumb = serializers.SerializerMethodField()
@@ -259,6 +271,12 @@ class PermitListSerializer(serializers.ModelSerializer):
 
     def get_work_photo_after(self, obj):
         return self._file_url(obj, 'work_photo_after')
+
+    def get_work_photo_during(self, obj):
+        return self._file_url(obj, 'work_photo_during')
+
+    def get_work_photo_during_thumb(self, obj):
+        return self._thumb_url(obj, 'work_photo_during')
 
     def _thumb_url(self, obj, field_name):
         """Миниатюра: рядом с полным файлом лежит <имено>_thumb.jpg (создаётся при загрузке)."""
@@ -298,7 +316,7 @@ class PermitListSerializer(serializers.ModelSerializer):
             'created_at', 'valid_from', 'valid_to',
             'initiator', 'location', 'location_name',
             'approval_steps', 'data',
-            'scan_file', 'safety_document', 'loto_photo', 'work_photo_before', 'work_photo_before_thumb', 'work_photo_after', 'work_photo_after_thumb',
+            'scan_file', 'safety_document', 'loto_photo', 'work_photo_before', 'work_photo_before_thumb', 'work_photo_during', 'work_photo_during_thumb', 'work_photo_after', 'work_photo_after_thumb',
             'producer_closed',
         )
 

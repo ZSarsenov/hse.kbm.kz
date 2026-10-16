@@ -108,6 +108,12 @@ class WorkPermit(models.Model):
         null=True,
         blank=True,
     )
+    work_photo_during = models.FileField(
+        upload_to='work_photos/%Y/%m/',
+        verbose_name='Фото в процессе работ',
+        null=True,
+        blank=True,
+    )
 
     # ------------------ FSM LOGIC ------------------
     # 1. Отправка на согласование

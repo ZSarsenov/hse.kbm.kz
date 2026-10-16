@@ -2915,8 +2915,8 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         permit = self.get_object()
         user = request.user
         kind = request.data.get('kind', '')
-        if kind not in ('before', 'after'):
-            return Response({'error': 'Неверный тип фото (before/after).'}, status=400)
+        if kind not in ('before', 'during', 'after'):
+            return Response({'error': 'Неверный тип фото (before/during/after).'}, status=400)
 
         if permit.status not in ('PENDING_APPROVAL', 'APPROVED', 'RENEWED'):
             return Response({'error': 'Фото доступны на этапе согласования и в работе.'}, status=400)
@@ -2980,12 +2980,12 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             except Exception:
                 thumb_bytes = None  # не удалось обработать — сохраняем оригинал
 
-        # Фиксированное имя (before.jpg / after.jpg): старое фото удаляем → перезапись
-        field = permit.work_photo_before if kind == 'before' else permit.work_photo_after
+        # Фиксированное имя (before/during/after.jpg): старое фото удаляем → перезапись
+        field = getattr(permit, f'work_photo_{kind}')
         if field:
             field.delete(save=False)
         field.save(f'{kind}.jpg', ContentFile(final_bytes), save=False)
-        permit.save(update_fields=['work_photo_before', 'work_photo_after'])
+        permit.save(update_fields=['work_photo_before', 'work_photo_during', 'work_photo_after'])
 
         # Миниатюра рядом с полным файлом
         thumb_rel = None
@@ -3002,8 +3002,8 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         permit = self.get_object()
         user = request.user
         kind = request.data.get('kind', '')
-        if kind not in ('before', 'after'):
-            return Response({'error': 'Неверный тип фото (before/after).'}, status=400)
+        if kind not in ('before', 'during', 'after'):
+            return Response({'error': 'Неверный тип фото (before/during/after).'}, status=400)
 
         if not user.is_admin:
             allowed = (
@@ -3012,15 +3012,20 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             if not allowed:
                 return Response({'error': 'Нет прав на удаление фото.'}, status=403)
 
-        if kind == 'before' and permit.work_photo_before:
-            permit.work_photo_before.delete(save=False)
-            permit.work_photo_before = None
-        elif kind == 'after' and permit.work_photo_after:
-            permit.work_photo_after.delete(save=False)
-            permit.work_photo_after = None
+        field = getattr(permit, f'work_photo_{kind}')
+        if field:
+            field.delete(save=False)
+            setattr(permit, f'work_photo_{kind}', None)
+            # удалить миниатюру, если осталась
+            try:
+                thumb_path = os.path.join(os.path.dirname(field.path), f'{kind}_thumb.jpg')
+                if os.path.isfile(thumb_path):
+                    os.remove(thumb_path)
+            except Exception:
+                pass
         else:
             return Response({'error': 'Фото не найдено.'}, status=404)
-        permit.save(update_fields=['work_photo_before', 'work_photo_after'])
+        permit.save(update_fields=['work_photo_before', 'work_photo_during', 'work_photo_after'])
         return Response({'ok': True})
 
     @action(detail=True, methods=['post'], url_path='producer_close')

@@ -84,6 +84,7 @@ const UserSearchInput: React.FC<{ value: UserSearchSelection | null; onChange: (
 const WorkPhotoSection: React.FC<{ permit: any; canUpload: boolean; onRefresh?: () => void }> = ({ permit, canUpload, onRefresh }) => {
   const [busy, setBusy] = useState(false);
   const before = permit.work_photo_before || null;
+  const during = permit.work_photo_during || null;
   const after = permit.work_photo_after || null;
   const isImg = (u: string) => /\.(jpg|jpeg|png)$/i.test(u || '');
 
@@ -162,7 +163,13 @@ const WorkPhotoSection: React.FC<{ permit: any; canUpload: boolean; onRefresh?: 
           )}
         </>
       ) : (
-        <div className="text-gray-400 italic text-sm py-2">Не загружено</div>
+        busy ? (
+          <div className="text-emerald-600 font-medium text-sm py-2 flex items-center gap-1">
+            <Clock size={14}/> Отправляем фото...
+          </div>
+        ) : (
+          <div className="text-gray-400 italic text-sm py-2">Не загружено</div>
+        )
       )}
       {canUpload && (
         <label className={`mt-2 inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 cursor-pointer ${busy ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -179,10 +186,11 @@ const WorkPhotoSection: React.FC<{ permit: any; canUpload: boolean; onRefresh?: 
     <div>
       <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
         <Camera size={20} className="text-slate-400"/> Фотофиксация работ
-        <span className="text-xs font-normal text-gray-400">Рекомендуемая фотофиксация (необязательно)</span>
+        <span className="text-xs font-normal text-gray-400">Необязательно · фото делается с телефона и сразу сохраняется в наряде</span>
       </h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {renderSlot('before', 'Фото до начала работ', before)}
+        {renderSlot('during', 'Фото в процессе работ', during)}
         {renderSlot('after', 'Фото после окончания работ', after)}
       </div>
     </div>
