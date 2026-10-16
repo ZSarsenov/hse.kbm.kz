@@ -83,6 +83,7 @@ const UserSearchInput: React.FC<{ value: UserSearchSelection | null; onChange: (
 // Кнопка с capture="environment" открывает камеру телефона прямо в мобильном браузере.
 const WorkPhotoSection: React.FC<{ permit: any; canUpload: boolean; onRefresh?: () => void }> = ({ permit, canUpload, onRefresh }) => {
   const [busy, setBusy] = useState(false);
+  const [viewer, setViewer] = useState<{ url: string; title: string } | null>(null);
   const before = permit.work_photo_before || null;
   const during = permit.work_photo_during || null;
   const after = permit.work_photo_after || null;
@@ -140,12 +141,12 @@ const WorkPhotoSection: React.FC<{ permit: any; canUpload: boolean; onRefresh?: 
               <img
                 src={(url as string).replace(/(\.\w+)$/, '_thumb.jpg')}
                 onError={(e) => { (e.currentTarget as HTMLImageElement).src = url as string; }}
-                onClick={() => window.open(url as string, '_blank')}
+                onClick={() => setViewer({ url: url as string, title })}
                 alt={title}
                 className="max-h-48 rounded border border-gray-200 cursor-pointer hover:opacity-90"
-                title="Нажмите, чтобы открыть полное фото"
+                title="Нажмите, чтобы посмотреть полное фото"
               />
-              <button onClick={() => window.open(url as string, '_blank')}
+              <button onClick={() => setViewer({ url: url as string, title })}
                 className="block mt-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
                 Показать фото
               </button>
@@ -193,6 +194,36 @@ const WorkPhotoSection: React.FC<{ permit: any; canUpload: boolean; onRefresh?: 
         {renderSlot('during', 'Фото в процессе работ', during)}
         {renderSlot('after', 'Фото после окончания работ', after)}
       </div>
+
+      {/* Просмотр полного фото на той же странице */}
+      {viewer && (
+        <div
+          className="fixed inset-0 z-[130] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setViewer(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[92vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+              <span className="font-bold text-slate-800 text-sm">{viewer.title}</span>
+              <button onClick={() => setViewer(null)}
+                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                <X size={22}/>
+              </button>
+            </div>
+            <div className="p-4 overflow-auto flex justify-center bg-slate-50">
+              <img src={viewer.url} alt={viewer.title} className="max-w-full max-h-[70vh] object-contain rounded"/>
+            </div>
+            <div className="px-5 py-3 border-t border-gray-100 flex justify-end">
+              <button onClick={() => setViewer(null)}
+                className="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300">
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
