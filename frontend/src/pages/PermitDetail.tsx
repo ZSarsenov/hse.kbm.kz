@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  ArrowLeft, MapPin, User, Clock, FileText, CheckCircle2, AlertTriangle, FileSignature, XCircle, Download, Shield, Users, Edit3, Trash2, Copy, FlaskConical, Zap, Plus, Lock, Camera
+  ArrowLeft, MapPin, User, Clock, FileText, CheckCircle2, AlertTriangle, FileSignature, XCircle, Download, Shield, Users, Edit3, Trash2, Copy, FlaskConical, Zap, Plus, Lock, Camera, X
 } from 'lucide-react';
 import { WorkPermit, PermitCategory } from '../types';
 import { confirm as confirmDialog } from '../components/ConfirmDialog';
@@ -89,7 +89,7 @@ const WorkPhotoSection: React.FC<{ permit: any; canUpload: boolean; onRefresh?: 
   const after = permit.work_photo_after || null;
   const isImg = (u: string) => /\.(jpg|jpeg|png)$/i.test(u || '');
 
-  const doUpload = async (k: string, file: File) => {
+  const doUpload = async (k: PhotoKind, file: File) => {
     setBusy(true);
     try {
       const token = localStorage.getItem('auth_token');
@@ -111,7 +111,7 @@ const WorkPhotoSection: React.FC<{ permit: any; canUpload: boolean; onRefresh?: 
     }
   };
 
-  const doDelete = async (k: string) => {
+  const doDelete = async (k: PhotoKind) => {
     if (!window.confirm('Удалить фото?')) return;
     setBusy(true);
     try {
@@ -130,7 +130,8 @@ const WorkPhotoSection: React.FC<{ permit: any; canUpload: boolean; onRefresh?: 
     }
   };
 
-  const renderSlot = (k: 'before' | 'after', title: string, url: string | null) => (
+  type PhotoKind = 'before' | 'during' | 'after';
+  const renderSlot = (k: PhotoKind, title: string, url: string | null) => (
     <div className="p-4 border border-gray-200 rounded-lg bg-white">
       <div className="text-xs font-bold text-gray-400 uppercase mb-1">{title}</div>
       {url ? (
