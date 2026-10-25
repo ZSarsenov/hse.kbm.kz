@@ -24,6 +24,7 @@ from django.db.models import Q
 from rest_framework.exceptions import PermissionDenied
 
 from .models import WorkPermit, WorkPermitTemplate, Department, DangerousWorkType, ElectricalWorkType, ApprovalStep, Notification
+import json as _json
 from core.signature import parse_xml_signature_info
 from .serializers import (PermitSerializer, PermitListSerializer,
                           WorkPermitTemplateSerializer, DepartamentSerializer,
@@ -268,6 +269,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         # (workpermit_data_gin). Позиционные lookups (data -> teamMembers -> 0 -> ...)
         # индексом не обслуживаются и замедляли каждый запрос с ~35 мс до ~4.5 с.
         q = q | Q(data__contains={'teamMembers': [{'userId': user.id}]})
+        q = q | Q(data__contains={'admissionRows': [{'agreementUser': {'id': user.id}}]})
         if user.username == 'dispatcher_semser':
             q = q | Q(data__notifyFireService=True)
         return base_qs.filter(q).distinct()
@@ -438,6 +440,12 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             team = (p.data or {}).get('teamMembers') or []
             if any(m.get('userId') == user.id and not m.get('instructedAt') for m in team):
                 permit_ids.append(p.id)
+                continue
+            for row in (p.data or {}).get('admissionRows') or []:
+                au = row.get('agreementUser') or {}
+                if au.get('id') == user.id and not row.get('agreementSignature'):
+                    permit_ids.append(p.id)
+                    break
 
         permits = WorkPermit.objects.filter(id__in=permit_ids)
         serializer = self.get_serializer(permits, many=True)
@@ -807,6 +815,12 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             team = (p.data or {}).get('teamMembers') or []
             if any(m.get('userId') == user.id and not m.get('instructedAt') for m in team):
                 permit_ids.append(p.id)
+                continue
+            for row in (p.data or {}).get('admissionRows') or []:
+                au = row.get('agreementUser') or {}
+                if au.get('id') == user.id and not row.get('agreementSignature'):
+                    permit_ids.append(p.id)
+                    break
 
         permits = WorkPermit.objects.filter(id__in=permit_ids)
         serializer = self.get_serializer(permits, many=True)
@@ -3205,8 +3219,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             data['admissionVoltageNote'] = request.data.get('admissionVoltageNote', '')
 
         if 'fromWhom' in request.data or 'agreementUser' in request.data or 'index' in request.data:
-            index = request.data.get('index', 0)
-            fromWhom = request.data.get('fromWhom', '')
+            index = int(request.data.get('index', 0))
             agreement_user = request.data.get('agreementUser')
             rows = data.get('admissionRows') or [{}]
             if not isinstance(rows, list):
@@ -3215,9 +3228,22 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 rows.append({})
             row_update = {**rows[index]}
             if 'fromWhom' in request.data:
-                row_update['fromWhom'] = fromWhom
+                row_update['fromWhom'] = request.data.get('fromWhom', '')
             if agreement_user is not None:
                 row_update['agreementUser'] = agreement_user
+                au_name = (agreement_user.get('name') or '').strip()
+                au_pos = (agreement_user.get('position') or '').strip()
+                row_update['fromWhom'] = ', '.join(x for x in (au_pos, au_name) if x)
+                if agreement_user.get('id'):
+                    try:
+                        Notification.objects.create(
+                            user=User.objects.get(pk=agreement_user['id']),
+                            permit_id=permit.id,
+                            title="Требуется согласование",
+                            message=f"Наряд №{permit.permit_id}: согласуйте работы в зоне действия другого наряда.",
+                        )
+                    except Exception:
+                        pass
             rows[index] = row_update
             data['admissionRows'] = rows
 
@@ -3225,6 +3251,97 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         permit.save(update_fields=['data'])
 
         return Response({'ok': True})
+
+    @action(detail=True, methods=['post'], url_path='admission_row_add')
+    def admission_row_add(self, request, pk=None):
+        """Добавление строки согласования (зона другого наряда). Только Допускающий."""
+        permit = self.get_object()
+        user = request.user
+        if not (permit.approval_steps.filter(role='ADMITTING', approver=user).exists() or user.is_admin):
+            return Response({'error': 'Добавить согласование может только Допускающий.'}, status=403)
+        data = dict(permit.data) if permit.data else {}
+        rows = data.get('admissionRows') or [{}]
+        if len(rows) >= 10:
+            return Response({'error': 'Максимум 10 строк.'}, status=400)
+        rows.append({})
+        data['admissionRows'] = rows
+        permit.data = data
+        permit.save(update_fields=['data'])
+        return Response({'ok': True, 'total': len(rows)})
+
+    @action(detail=True, methods=['post'], url_path='admission_row_delete')
+    def admission_row_delete(self, request, pk=None):
+        """Полное удаление строки согласования (ФИО, дата, подпись). Только Допускающий."""
+        permit = self.get_object()
+        user = request.user
+        if not (permit.approval_steps.filter(role='ADMITTING', approver=user).exists() or user.is_admin):
+            return Response({'error': 'Удалить строку может только Допускающий.'}, status=403)
+        try:
+            index = int(request.data.get('index', 0))
+        except (TypeError, ValueError):
+            return Response({'error': 'Неверный индекс строки.'}, status=400)
+        data = dict(permit.data) if permit.data else {}
+        rows = data.get('admissionRows') or []
+        if index < 0 or index >= len(rows):
+            return Response({'error': 'Строка не найдена.'}, status=404)
+        rows.pop(index)
+        data['admissionRows'] = rows
+        permit.data = data
+        permit.save(update_fields=['data'])
+        return Response({'ok': True})
+
+    @action(detail=True, methods=['post'], url_path='admission_agreement_signature')
+    def admission_agreement_signature(self, request, pk=None):
+        """Графическая подпись строки согласования ВЫБРАННЫМ согласующим (PNG/JPG)."""
+        permit = self.get_object()
+        user = request.user
+        if permit.status not in ('PENDING_APPROVAL', 'APPROVED', 'RENEWED'):
+            return Response({'error': 'Подпись доступна на этапе согласования и в работе.'}, status=400)
+        try:
+            index = int(request.data.get('index', 0))
+        except (TypeError, ValueError):
+            return Response({'error': 'Неверный индекс строки.'}, status=400)
+        data = dict(permit.data) if permit.data else {}
+        rows = data.get('admissionRows') or []
+        if index < 0 or index >= len(rows):
+            return Response({'error': 'Строка не найдена.'}, status=404)
+        row = rows[index]
+        au = row.get('agreementUser') or {}
+        if not au.get('id'):
+            return Response({'error': 'Сначала выберите согласующего из списка.'}, status=400)
+        if not (str(au.get('id')) == str(user.id) or user.is_admin):
+            return Response({'error': 'Подписать строку может только выбранный согласующий.'}, status=403)
+        if row.get('agreementSignature'):
+            return Response({'error': 'Строка уже подписана.'}, status=400)
+
+        image_file = request.FILES.get('signature')
+        if not image_file:
+            return Response({'error': 'Приложите подпись.'}, status=400)
+        ct = (image_file.content_type or '').lower()
+        if ct and not ct.startswith('image/'):
+            return Response({'error': f'Разрешены только изображения (получен {image_file.content_type}).'}, status=400)
+        if image_file.size > 2 * 1024 * 1024:
+            return Response({'error': 'Размер файла не более 2 МБ.'}, status=400)
+
+        try:
+            rel_dir = os.path.join('admission_signatures', str(permit.pk))
+            dest_dir = os.path.join(settings.MEDIA_ROOT, rel_dir)
+            os.makedirs(dest_dir, exist_ok=True)
+            fname = f'agreement_{index}.png'
+            rel_path = os.path.join(rel_dir, fname).replace('\\', '/')
+            with open(os.path.join(settings.MEDIA_ROOT, rel_dir, fname), 'wb') as f:
+                for chunk in image_file.chunks():
+                    f.write(chunk)
+
+            row['agreementSignature'] = rel_path
+            row['agreementDateTime'] = timezone.now().isoformat()
+            rows[index] = row
+            data['admissionRows'] = rows
+            permit.data = data
+            permit.save(update_fields=['data'])
+            return Response({'ok': True, 'signature_path': rel_path})
+        except Exception as e:
+            return Response({'error': f'Ошибка сохранения подписи: {str(e)}'}, status=500)
 
     @action(detail=True, methods=['post'], url_path='responsible_admission_signature')
     def responsible_admission_signature(self, request, pk=None):
