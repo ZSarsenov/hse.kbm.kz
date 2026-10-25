@@ -3229,7 +3229,10 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             row_update = {**rows[index]}
             if 'fromWhom' in request.data:
                 row_update['fromWhom'] = request.data.get('fromWhom', '')
-            if agreement_user is not None:
+            if 'agreementUser' in request.data and agreement_user is None:
+                row_update.pop('agreementUser', None)
+                row_update.pop('fromWhom', None)
+            elif agreement_user is not None:
                 row_update['agreementUser'] = agreement_user
                 au_name = (agreement_user.get('name') or '').strip()
                 au_pos = (agreement_user.get('position') or '').strip()

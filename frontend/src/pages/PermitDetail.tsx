@@ -38,7 +38,7 @@ const UserSearchInput: React.FC<{ value: UserSearchSelection | null; onChange: (
     }
   };
 
-  const displayValue = value ? `${value.name}${value.position ? ', ' + value.position : ''}` : '';
+  const displayValue = value ? `${value.position ? value.position + ', ' : ''}${value.name}` : '';
 
   return (
     <div className="relative">
@@ -1345,23 +1345,42 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                           </td>
                           <td className="px-2 py-2 border border-gray-300">
                             {row.agreementUser ? (
-                              <span className="text-gray-600 text-xs">
-                                {row.agreementUser.position ? row.agreementUser.position + ', ' : ''}{row.agreementUser.name || ''}
-                              </span>
-                            ) : isAdmittingUser && (isWorkActive) ? (
-                              <input type="text" placeholder="Должность, ФИО"
-                                defaultValue={row.fromWhom || ''}
-                                onBlur={async (e) => {
-                                  const val = e.target.value;
+                              <UserSearchInput
+                                value={{
+                                  userId: row.agreementUser.id,
+                                  name: row.agreementUser.name || row.agreementUser.username || '',
+                                  position: row.agreementUser.position || '',
+                                }}
+                                disabled={!isAdmittingUser || !isWorkActive || !!row.agreementSignature}
+                                onChange={async (selected) => {
                                   const token = localStorage.getItem('auth_token');
                                   await fetch(`/api/v1/permits/${permit.id}/admission_row_update/`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
-                                    body: JSON.stringify({ index: idx, fromWhom: val }),
+                                    body: JSON.stringify({
+                                      index: idx,
+                                      agreementUser: selected ? { id: selected.userId, name: selected.name, position: selected.position } : null,
+                                    }),
                                   });
                                   onRefresh?.();
                                 }}
-                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs text-gray-900 focus:ring-1 focus:ring-violet-500"
+                              />
+                            ) : isAdmittingUser && (isWorkActive) ? (
+                              <UserSearchInput
+                                value={null}
+                                onChange={async (selected) => {
+                                  if (!selected) return;
+                                  const token = localStorage.getItem('auth_token');
+                                  await fetch(`/api/v1/permits/${permit.id}/admission_row_update/`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
+                                    body: JSON.stringify({
+                                      index: idx,
+                                      agreementUser: { id: selected.userId, name: selected.name, position: selected.position },
+                                    }),
+                                  });
+                                  onRefresh?.();
+                                }}
                               />
                             ) : (
                               <span className="text-gray-600 text-xs">{row.fromWhom || '—'}</span>
@@ -1432,21 +1451,6 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                   <span className="text-xs text-amber-600 italic">Ожидает подписи</span>
                                 )}
                               </div>
-                            ) : isAdmittingUser && (isWorkActive) ? (
-                              <input type="text" placeholder="Поиск..."
-                                onChange={async (e) => {
-                                  const q = e.target.value;
-                                  if (q.length < 2) return;
-                                  const token = localStorage.getItem('auth_token');
-                                  const res = await fetch(`/api/v1/users/?search=${encodeURIComponent(q)}`, { headers: { 'Authorization': `Token ${token}` } });
-                                  if (res.ok) {
-                                    const users = await res.json();
-                                    setAgreementSearchResults(Array.isArray(users) ? users : (users.results || []));
-                                    setAgreementSearchRow(idx);
-                                  }
-                                }}
-                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs text-gray-900 focus:ring-1 focus:ring-violet-500"
-                              />
                             ) : (
                               <span className="text-gray-400 italic text-xs">—</span>
                             )}
