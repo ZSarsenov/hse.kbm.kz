@@ -1677,6 +1677,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                   <Users size={20} className="text-blue-600"/>
                   <h3 className="text-lg font-bold text-slate-800">Изменения в составе бригады</h3>
                   <span className="text-sm text-gray-400 ml-auto">Таблица 4</span>
+                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded border border-amber-200 font-medium">Заполняет: Выдающий наряд</span>
                   {isIssuerUser && (data.brigadeChanges || []).length < 10 && (isWorkActive) && (
                     <button onClick={async () => {
                       const token = localStorage.getItem('auth_token');
