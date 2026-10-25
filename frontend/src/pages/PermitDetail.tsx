@@ -285,6 +285,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const currentUsername = String(currentUser.username || '').trim().toLowerCase();
   const isAdmin = currentUser.is_admin || currentUser.role === 'ADMIN';
   const isAuditor = currentUser.is_auditor === true || currentUser.role === 'AUDITOR';
+  const canCreatePermit = isAdmin || currentUser.role === 'ISSUER' || currentUser.role === 'ADMITTING';
   // RENEWED — полноценный рабочий статус: все разделы и подписи карточки доступны
   const isWorkActive = permit.status === 'PENDING_APPROVAL' || permit.status === 'APPROVED' || permit.status === 'RENEWED';
 
@@ -420,7 +421,36 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const showReject = !isAuditor && permit.status === 'PENDING_APPROVAL' && myPendingSteps.length > 0;
 
   const isApprover = steps.some((s: any) => String(s.approver_id) === currentUserId);
-  const showDuplicate = !isAuditor && (isInitiator || isApprover) && (permit.status === 'REJECTED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED');
+  const showDuplicate = canCreatePermit && !isAuditor && (isInitiator || isApprover) && (permit.status === 'REJECTED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED');
+
+  const handleDuplicate = async () => {
+    const ok = await confirmDialog({
+      title: 'Новый проект',
+      message: 'Создать новый проект на основе этого наряда?',
+      confirmText: 'Создать проект',
+    });
+    if (!ok) return;
+
+    try {
+      const response = await fetch(`/api/v1/permits/${permit.id}/duplicate/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      const resData = await response.json();
+      if (response.ok && resData.ok) {
+        alert('✅ Копия создана! Новый проект доступен в меню "Главное".');
+        onBack();
+      } else {
+        alert(`Ошибка: ${resData.error || 'Не удалось скопировать'}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка сети');
+    }
+  };
 
   // Показывать кнопку скачивания: согласован/закрыт, или администратор видит всё
   const showDownload = permit.status === 'APPROVED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED';
@@ -647,6 +677,11 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
         {/* FOOTER: КНОПКИ ДЕЙСТВИЙ */}
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-lg md:relative md:bg-transparent md:border-0 md:shadow-none md:p-0 z-20">
           <div className="max-w-5xl mx-auto flex flex-col sm:flex-row gap-3 justify-end">
+            {showDuplicate && (
+              <button onClick={handleDuplicate} className="flex-1 sm:flex-none px-6 py-2.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium flex items-center justify-center gap-2 transition-colors">
+                <Copy size={18} /> Создать копию
+              </button>
+            )}
             {!isAuditor && (((permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator) || canEditAsManager) && (
               <>
                 {permit.status === 'DRAFT' && isInitiator && (
@@ -2216,6 +2251,11 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
         {/* FOOTER */}
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-lg md:relative md:bg-transparent md:border-0 md:shadow-none md:p-0 z-20">
           <div className="max-w-5xl mx-auto flex flex-col sm:flex-row gap-3 justify-end">
+            {showDuplicate && (
+              <button onClick={handleDuplicate} className="flex-1 sm:flex-none px-6 py-2.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium flex items-center justify-center gap-2 transition-colors">
+                <Copy size={18} /> Создать копию
+              </button>
+            )}
             {!isAuditor && (((permit.status === 'DRAFT' || permit.status === 'REJECTED') && isInitiator) || canEditAsManager) && (
               <>
                 {permit.status === 'DRAFT' && isInitiator && (
@@ -2599,38 +2639,6 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const [producerClosePadOpen, setProducerClosePadOpen] = useState(false);
 
   // --- HANDLERS ---
-
-  // 👇 ФУНКЦИЯ КОПИРОВАНИЯ
-  const handleDuplicate = async () => {
-      const ok = await confirmDialog({
-        title: 'Новый проект',
-        message: 'Создать новый проект на основе этого наряда?',
-        confirmText: 'Создать проект',
-      });
-      if (!ok) return;
-
-      try {
-          const response = await fetch(`/api/v1/permits/${permit.id}/duplicate/`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Token ${localStorage.getItem('auth_token')}`
-            }
-          });
-
-          const resData = await response.json();
-          if (response.ok && resData.ok) {
-             alert(`✅ Копия создана! Новый проект доступен в меню "Главное".`);
-             onBack(); // Возвращаемся в список, там уже будет новый наряд сверху
-          } else {
-             alert(`Ошибка: ${resData.error || 'Не удалось скопировать'}`);
-          }
-      } catch (e) {
-          console.error(e);
-          alert("Ошибка сети");
-      }
-  };
-
 
 // Скачивание наряда (сервер отдаёт PDF, при недоступности LibreOffice — DOCX)
   const handleDownloadPdf = async () => {

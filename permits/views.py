@@ -6,6 +6,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import os
+import copy
 from collections import Counter, defaultdict
 from datetime import datetime, time
 from openai import OpenAI
@@ -880,39 +881,62 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         """
         Создание копии наряда (черновика) на основе существующего.
         """
+        if request.user.role not in ('ISSUER', 'ADMITTING') and not request.user.is_admin:
+            return Response(
+                {'ok': False, 'error': 'Создавать копии нарядов могут только Выдающий наряд, Допускающий или Администратор.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         try:
             original = self.get_object()
 
-            # 1. Копируем JSON данные
-            # Если data нет, используем пустой dict, чтобы не упало
-            new_data = (original.data or {}).copy()
+            # 1. Копируем JSON данные без ссылок на вложенные структуры.
+            # Описание, чек-листы, LOTO и остальные рабочие данные сохраняются.
+            new_data = copy.deepcopy(original.data or {})
+
+            # Удаляем графические/ЭЦП-подписи и служебные данные подписания,
+            # в том числе вложенные поля в таблицах.
+            def strip_signature_fields(value):
+                if isinstance(value, dict):
+                    return {
+                        key: strip_signature_fields(item)
+                        for key, item in value.items()
+                        if not any(token in key.lower() for token in ('signature', 'signedat', 'signed_at', 'signer'))
+                    }
+                if isinstance(value, list):
+                    return [strip_signature_fields(item) for item in value]
+                return value
+
+            new_data = strip_signature_fields(new_data)
 
             # 2. Очищаем данные (подписи бригады не копируем — новый наряд подписывают заново)
             new_data['dateStart'] = ""
             new_data['dateEnd'] = ""
             new_data['riskApprovedBy'] = ""
             new_data['extensions'] = []
-            new_data['brigade_signatures'] = []
-            new_data.pop('producer_signature', None)
-            new_data.pop('supervisor_signature', None)
+            for role_key in ('issuer', 'responsible', 'admitting', 'producer', 'supervisor'):
+                if role_key in new_data:
+                    new_data[role_key] = {'id': None, 'name': ''}
+            for signer_key in (
+                'riskApprovedBy', 'riskIdentifiedBy', 'completionHandOverName',
+                'completionTakeOverName', 'admittingName',
+            ):
+                new_data.pop(signer_key, None)
+            new_data['additionalCoordinators'] = []
+            new_data['brigadeChanges'] = []
+            new_data['admissionRows'] = []
+            new_data['dailyAdmissions'] = []
+            new_data['workCompletion'] = {}
+            new_data.pop('admissionDispatcher', None)
+            new_data.pop('shiftChangers', None)
+            for member in new_data.get('teamMembers') or []:
+                if isinstance(member, dict):
+                    member['instructedAt'] = ''
+                    member['instructedBy'] = ''
 
-            # 3. Генерируем номер по стандарту: OR-2026-00001
-            current_year = time.strftime('%Y')
-            prefix = f"OR-{current_year}-"
-            last_permit = WorkPermit.objects.filter(
-                permit_id__startswith=prefix
-            ).order_by('-permit_id').first()
-            if last_permit:
-                last_number = int(last_permit.permit_id.split('-')[-1])
-                next_number = last_number + 1
-            else:
-                next_number = 1
-            new_permit_id = f"{prefix}{next_number:05d}"
-
-            # 4. Создаем новый объект
+            # 3. Создаем без номера: номер появится при отправке черновика
+            # на согласование, с префиксом соответствующего типа наряда.
             new_permit = WorkPermit.objects.create(
                 initiator=request.user,
-                permit_id=new_permit_id,  # 👈 ОБЯЗАТЕЛЬНОЕ ПОЛЕ
                 status='DRAFT',
                 template=original.template,  # Не забываем сам шаблон (объект)
 
