@@ -297,6 +297,17 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // keeps the signing controls working while navigating between cached list
   // data and the full detail response.
   const steps = (permit as any).approvalSteps || (permit as any).approval_steps || [];
+  const approvedAtIso = ['APPROVED', 'RENEWED', 'CLOSED'].includes(permit.status)
+    ? steps
+        .filter((step: any) => step.status === 'APPROVED' && step.signed_at)
+        .map((step: any) => step.signed_at)
+        .sort((a: string, b: string) => new Date(b).getTime() - new Date(a).getTime())[0]
+      || permit.validFrom
+      || permit.createdAt
+      || null
+    : permit.validFrom || permit.createdAt || null;
+  const workPeriodStartFmt = formatPermitDateTime(approvedAtIso);
+  const workPeriodEndFmt = formatPermitDateTime(permit.validTo || approvedAtIso);
   const mySteps = steps.filter((s: any) =>
     String(s.approver_id) === currentUserId ||
     (currentUsername && String(s.approver_username || '').trim().toLowerCase() === currentUsername)
@@ -962,11 +973,11 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 <div className="p-2 bg-white rounded-lg shadow-sm text-amber-500 shrink-0"><Clock size={20} /></div>
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Период работ</p>
-                  <div className="font-semibold text-slate-700 leading-snug space-y-0.5">
-                    <p className="break-words">{permit.createdAt ? new Date(permit.createdAt).toLocaleDateString('ru-RU') : '—'}</p>
-                    {permit.validTo ? (
-                      <p className="break-words">{new Date(permit.validTo).toLocaleDateString('ru-RU')}</p>
-                    ) : null}
+                    <div className="font-semibold text-slate-700 leading-snug space-y-0.5">
+                      <p className="break-words">{workPeriodStartFmt ? `${workPeriodStartFmt.date} ${workPeriodStartFmt.time}` : '—'}</p>
+                      {workPeriodEndFmt ? (
+                        <p className="break-words">{workPeriodEndFmt.date} 23:59</p>
+                      ) : null}
                   </div>
                 </div>
               </div>

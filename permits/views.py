@@ -7,7 +7,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import os
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, time
 from openai import OpenAI
 import logging
 import time
@@ -199,13 +199,12 @@ def _advance_after_approval_step(permit, completed_step, acting_user):
             print(f"🔔 Уведомление отправлено пользователю {next_step.approver.get_full_name()}")
     else:
         permit.approve_final()
-        # ELECTRICAL_NEW: период работ — один календарный день от даты утверждения (продление — отдельная операция)
+        # ELECTRICAL_NEW: период работ — с момента согласования до 23:59 того же дня
         if (permit.data or {}).get('category') == 'ELECTRICAL_NEW':
-            from datetime import timedelta
-            today = timezone.now().date()
-            permit.valid_from = datetime.combine(today, datetime.min.time(), tzinfo=timezone.get_current_timezone())
-            to_date = today
-            permit.valid_to = datetime.combine(to_date, datetime.max.time(), tzinfo=timezone.get_current_timezone())
+            approved_at = timezone.localtime(timezone.now())
+            tz = timezone.get_current_timezone()
+            permit.valid_from = approved_at
+            permit.valid_to = datetime.combine(approved_at.date(), time(23, 59), tzinfo=tz)
             permit.save(update_fields=['valid_from', 'valid_to'])
         Notification.objects.create(
             user=permit.initiator,
