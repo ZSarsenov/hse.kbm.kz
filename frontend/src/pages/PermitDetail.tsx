@@ -25,6 +25,13 @@ const UserSearchInput: React.FC<{ value: UserSearchSelection | null; onChange: (
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 300 });
+
+  const updateDropdownPosition = () => {
+    const rect = inputRef.current?.getBoundingClientRect();
+    if (rect) setDropdownPosition({ top: rect.bottom + 4, left: rect.left, width: Math.max(rect.width, 280) });
+  };
 
   const handleSearch = async (q: string) => {
     setSearch(q);
@@ -34,6 +41,7 @@ const UserSearchInput: React.FC<{ value: UserSearchSelection | null; onChange: (
     if (res.ok) {
       const data = await res.json();
       setResults(Array.isArray(data) ? data : (data.results || []));
+      updateDropdownPosition();
       setShowDropdown(true);
     }
   };
@@ -52,13 +60,13 @@ const UserSearchInput: React.FC<{ value: UserSearchSelection | null; onChange: (
         </div>
       ) : (
         <>
-          <input type="text" placeholder="Поиск..."
-            value={search} onChange={e => handleSearch(e.target.value)}
-            onFocus={() => { if (results.length > 0) setShowDropdown(true); }}
+           <input ref={inputRef} type="text" placeholder="Поиск..."
+             value={search} onChange={e => handleSearch(e.target.value)}
+             onFocus={() => { updateDropdownPosition(); if (results.length > 0) setShowDropdown(true); }}
             disabled={disabled}
             className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-500" />
           {showDropdown && results.length > 0 && (
-            <div className="absolute z-50 top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-xl max-h-64 overflow-y-auto mt-1 min-w-[280px]">
+             <div className="fixed z-[10000] bg-white border border-gray-200 rounded-lg shadow-xl max-h-64 overflow-y-auto" style={{ top: dropdownPosition.top, left: dropdownPosition.left, width: dropdownPosition.width }}>
               {results.map((u: any) => (
                 <button key={u.id} type="button"
                   onClick={() => {
@@ -429,8 +437,6 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const [responsiblePadOpen, setResponsiblePadOpen] = useState(false);
   const [agreementPadOpen, setAgreementPadOpen] = useState(false);
   const [agreementPadIndex, setAgreementPadIndex] = useState<number>(0);
-  const [agreementSearchResults, setAgreementSearchResults] = useState<any[]>([]);
-  const [agreementSearchRow, setAgreementSearchRow] = useState<number>(-1);
   const [dailyAdmitPadOpen, setDailyAdmitPadOpen] = useState(false);
   const [dailyAdmitPadIndex, setDailyAdmitPadIndex] = useState<number>(0);
   const [dailyProdAdmitPadOpen, setDailyProdAdmitPadOpen] = useState(false);
@@ -442,6 +448,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const [targetBriefingPadOpen, setTargetBriefingPadOpen] = useState(false);
   const pendingTBRowRef = useRef<string>('');
   const pendingTBSideRef = useRef<string>('');
+  const admissionRows = data.admissionRows || [{}];
 
   if (permit.category === PermitCategory.ELECTRICAL) {
     const brigadeMembers = Array.isArray(data.brigadeMembers) ? data.brigadeMembers : [];
@@ -1318,7 +1325,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                         <th rowSpan={2} className="px-2 py-2 text-left font-medium text-gray-700 border border-gray-300 bg-gray-50 w-1/6 text-xs">
                           От кого (должность, фамилия)
                         </th>
-                        <th rowSpan={2} className="px-2 py-2 text-left font-medium text-gray-700 border border-gray-300 bg-violet-50 w-24 text-xs">
+                        <th rowSpan={2} className="px-2 py-2 text-left font-medium text-gray-700 border border-gray-300 bg-violet-50 w-40 min-w-[160px] text-xs">
                           Допускающий (подпись)
                         </th>
                         <th colSpan={2} className="px-2 py-2 text-center font-medium text-gray-700 border border-gray-300 bg-blue-50 text-xs">
@@ -1335,7 +1342,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                       </tr>
                     </thead>
                     <tbody>
-                      {(data.admissionRows || [{}]).map((row: any, idx: number) => (
+                      {admissionRows.map((row: any, idx: number) => (
                         <tr key={idx}>
                           <td className="px-2 py-2 border border-gray-300 text-gray-900 text-xs">{data.admitting?.name || '—'}</td>
                           <td className="px-2 py-2 border border-gray-300 text-gray-600 text-xs">
@@ -1343,52 +1350,30 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                               ? new Date(row.admissionDateTime || data.admissionDateTime).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
                               : '—'}
                           </td>
-                          <td className="px-2 py-2 border border-gray-300">
-                            {row.agreementUser ? (
+                          {idx === 0 && (
+                            <td rowSpan={admissionRows.length} className="px-2 py-2 border border-gray-300 align-top">
                               <UserSearchInput
-                                value={{
-                                  userId: row.agreementUser.id,
-                                  name: row.agreementUser.name || row.agreementUser.username || '',
-                                  position: row.agreementUser.position || '',
-                                }}
-                                disabled={!isAdmittingUser || !isWorkActive || !!row.agreementSignature}
+                                value={data.admissionDispatcher ? {
+                                  userId: data.admissionDispatcher.id,
+                                  name: data.admissionDispatcher.name || data.admissionDispatcher.username || '',
+                                  position: data.admissionDispatcher.position || '',
+                                } : null}
+                                disabled={!isAdmittingUser || !isWorkActive}
                                 onChange={async (selected) => {
                                   const token = localStorage.getItem('auth_token');
-                                  await fetch(`/api/v1/permits/${permit.id}/admission_row_update/`, {
+                                  await fetch(`/api/v1/permits/${permit.id}/admission_dispatcher_update/`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
-                                    body: JSON.stringify({
-                                      index: idx,
-                                      agreementUser: selected ? { id: selected.userId, name: selected.name, position: selected.position } : null,
-                                    }),
+                                    body: JSON.stringify({ dispatcherUser: selected ? { id: selected.userId } : null }),
                                   });
                                   onRefresh?.();
                                 }}
                               />
-                            ) : isAdmittingUser && (isWorkActive) ? (
-                              <UserSearchInput
-                                value={null}
-                                onChange={async (selected) => {
-                                  if (!selected) return;
-                                  const token = localStorage.getItem('auth_token');
-                                  await fetch(`/api/v1/permits/${permit.id}/admission_row_update/`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
-                                    body: JSON.stringify({
-                                      index: idx,
-                                      agreementUser: { id: selected.userId, name: selected.name, position: selected.position },
-                                    }),
-                                  });
-                                  onRefresh?.();
-                                }}
-                              />
-                            ) : (
-                              <span className="text-gray-600 text-xs">{row.fromWhom || '—'}</span>
-                            )}
-                          </td>
-                          <td className="px-2 py-2 border border-gray-300">
+                            </td>
+                          )}
+                          <td className="px-2 py-2 border border-gray-300 min-w-[160px]">
                             {(row.admittingSignature || data.admissionSignature) ? (
-                              <img src={getSignatureUrl(row.admittingSignature || data.admissionSignature)} alt="Подпись допускающего" className="h-8 object-contain"/>
+                              <img src={getSignatureUrl(row.admittingSignature || data.admissionSignature)} alt="Подпись допускающего" className="w-36 h-24 object-contain"/>
                             ) : (
                               <span className="text-gray-400 italic text-xs">—</span>
                             )}
@@ -1415,7 +1400,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                 className="text-gray-400 hover:text-red-500 text-lg font-bold leading-none">×</button>
                             </td>
                           )}
-                          <td className="px-2 py-2 border border-gray-300">
+                          <td className="px-2 py-2 border border-gray-300 min-w-[160px]">
                             {row.agreementUser ? (
                               <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-1">
@@ -1438,7 +1423,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                   )}
                                 </div>
                                 {row.agreementSignature ? (
-                                  <img src={getSignatureUrl(row.agreementSignature)} alt="Подпись" className="h-8 object-contain"/>
+                                  <img src={getSignatureUrl(row.agreementSignature)} alt="Подпись" className="w-36 h-24 object-contain"/>
                                 ) : (isAdmittingUser || (row.agreementUser?.id && String(row.agreementUser.id) === currentUserId)) && (isWorkActive) ? (
                                   <button onClick={() => {
                                     setAgreementPadIndex(idx);
@@ -1451,6 +1436,23 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                   <span className="text-xs text-amber-600 italic">Ожидает подписи</span>
                                 )}
                               </div>
+                            ) : isAdmittingUser && isWorkActive ? (
+                              <UserSearchInput
+                                value={null}
+                                onChange={async (selected) => {
+                                  if (!selected) return;
+                                  const token = localStorage.getItem('auth_token');
+                                  await fetch(`/api/v1/permits/${permit.id}/admission_row_update/`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
+                                    body: JSON.stringify({
+                                      index: idx,
+                                      agreementUser: { id: selected.userId, name: selected.name, position: selected.position },
+                                    }),
+                                  });
+                                  onRefresh?.();
+                                }}
+                              />
                             ) : (
                               <span className="text-gray-400 italic text-xs">—</span>
                             )}
@@ -2969,7 +2971,6 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
       { key: 'm5_9_routes', label: '5.9 Маршруты к месту работы' },
       { key: 'm5_10_additional', label: '5.10 Дополнительные мероприятия' },
   ];
-
   return (
     <>
     <div className="max-w-5xl mx-auto space-y-6  pb-24">
@@ -4042,28 +4043,6 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
       />
     )}
 
-    {/* ELECTRICAL_NEW: Выпадающий список результатов поиска согласований */}
-    {agreementSearchResults.length > 0 && agreementSearchRow >= 0 && (
-      <div className="fixed z-[130] bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '300px' }}>
-        {agreementSearchResults.map((u: any) => (
-          <button key={u.id} onClick={async () => {
-            const token = localStorage.getItem('auth_token');
-            await fetch(`/api/v1/permits/${permit.id}/admission_row_update/`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
-              body: JSON.stringify({ index: agreementSearchRow, agreementUser: { id: u.id, name: u.name || u.username, position: u.position || '' } }),
-            });
-            setAgreementSearchResults([]);
-            setAgreementSearchRow(-1);
-            onRefresh?.();
-          }}
-            className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b last:border-0 text-sm">
-            <span className="font-medium">{u.name || u.username}</span>
-            <span className="text-gray-400 ml-2 text-xs">{u.position}</span>
-          </button>
-        ))}
-      </div>
-    )}
     </>
   );
 };

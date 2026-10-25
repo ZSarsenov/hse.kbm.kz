@@ -18,6 +18,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.db import IntegrityError, transaction
 from django.db.models import Q
@@ -33,6 +34,7 @@ from .serializers import (PermitSerializer, PermitListSerializer,
 from .kalkan import Kalkan # временно не используем способ подписания через Kalkan
 
 logger = logging.getLogger(__name__)
+User = get_user_model()
 
 
 class DynamicPageSizePagination(PageNumberPagination):
@@ -270,6 +272,8 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         # индексом не обслуживаются и замедляли каждый запрос с ~35 мс до ~4.5 с.
         q = q | Q(data__contains={'teamMembers': [{'userId': user.id}]})
         q = q | Q(data__contains={'admissionRows': [{'agreementUser': {'id': user.id}}]})
+        # Диспетчер видит наряд в общем списке и журнале, включая закрытые наряды.
+        q = q | Q(data__contains={'admissionDispatcher': {'id': user.id}})
         if user.username == 'dispatcher_semser':
             q = q | Q(data__notifyFireService=True)
         return base_qs.filter(q).distinct()
@@ -3231,28 +3235,53 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 row_update['fromWhom'] = request.data.get('fromWhom', '')
             if 'agreementUser' in request.data and agreement_user is None:
                 row_update.pop('agreementUser', None)
-                row_update.pop('fromWhom', None)
             elif agreement_user is not None:
                 row_update['agreementUser'] = agreement_user
-                au_name = (agreement_user.get('name') or '').strip()
-                au_pos = (agreement_user.get('position') or '').strip()
-                row_update['fromWhom'] = ', '.join(x for x in (au_pos, au_name) if x)
-                if agreement_user.get('id'):
-                    try:
-                        Notification.objects.create(
-                            user=User.objects.get(pk=agreement_user['id']),
-                            permit_id=permit.id,
-                            title="Требуется согласование",
-                            message=f"Наряд №{permit.permit_id}: согласуйте работы в зоне действия другого наряда.",
-                        )
-                    except Exception:
-                        pass
             rows[index] = row_update
             data['admissionRows'] = rows
 
         permit.data = data
         permit.save(update_fields=['data'])
 
+        return Response({'ok': True})
+
+    @action(detail=True, methods=['post'], url_path='admission_dispatcher_update')
+    def admission_dispatcher_update(self, request, pk=None):
+        """Назначить диспетчера для просмотра наряда, без права подписи."""
+        permit = self.get_object()
+        user = request.user
+        if not (permit.approval_steps.filter(role='ADMITTING', approver=user).exists() or user.is_admin):
+            return Response({'error': 'Только Допускающий может назначить диспетчера.'}, status=403)
+
+        dispatcher = request.data.get('dispatcherUser')
+        data = dict(permit.data) if permit.data else {}
+        previous = data.get('admissionDispatcher') or {}
+        if dispatcher is None:
+            data.pop('admissionDispatcher', None)
+        else:
+            dispatcher_id = dispatcher.get('id') if isinstance(dispatcher, dict) else None
+            if not dispatcher_id:
+                return Response({'error': 'Выберите диспетчера из списка.'}, status=400)
+            try:
+                dispatcher_obj = User.objects.get(pk=dispatcher_id, is_active=True)
+            except User.DoesNotExist:
+                return Response({'error': 'Пользователь не найден.'}, status=400)
+            normalized = {
+                'id': dispatcher_obj.id,
+                'name': dispatcher_obj.get_full_name() or dispatcher_obj.username,
+                'position': dispatcher_obj.position or '',
+            }
+            data['admissionDispatcher'] = normalized
+            if str(previous.get('id')) != str(dispatcher_obj.id):
+                Notification.objects.create(
+                    user=dispatcher_obj,
+                    permit_id=permit.id,
+                    title='Вы назначены диспетчером',
+                    message=f'Вы добавлены диспетчером в наряд №{permit.permit_id}.',
+                )
+
+        permit.data = data
+        permit.save(update_fields=['data'])
         return Response({'ok': True})
 
     @action(detail=True, methods=['post'], url_path='admission_row_add')
@@ -3312,8 +3341,11 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         au = row.get('agreementUser') or {}
         if not au.get('id'):
             return Response({'error': 'Сначала выберите согласующего из списка.'}, status=400)
-        if not (str(au.get('id')) == str(user.id) or user.is_admin):
-            return Response({'error': 'Подписать строку может только выбранный согласующий.'}, status=403)
+        admitting_can_sign = permit.approval_steps.filter(
+            role='ADMITTING', approver=user, status='APPROVED',
+        ).exists()
+        if not (str(au.get('id')) == str(user.id) or admitting_can_sign or user.is_admin):
+            return Response({'error': 'Подписать строку может только выбранный согласующий или Допускающий.'}, status=403)
         if row.get('agreementSignature'):
             return Response({'error': 'Строка уже подписана.'}, status=400)
 
