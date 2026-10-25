@@ -1291,6 +1291,19 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                   <h3 className="text-lg font-bold text-slate-800">Разрешение на допуск</h3>
                   <span className="text-sm text-gray-400 ml-auto">Таблица 2</span>
                   <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded border border-violet-200 font-medium">Заполняет: Допускающий</span>
+                  {isAdmittingUser && (isWorkActive) && (data.admissionRows || [{}]).length < 10 && (
+                    <button onClick={async () => {
+                      const token = localStorage.getItem('auth_token');
+                      await fetch(`/api/v1/permits/${permit.id}/admission_row_add/`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
+                        body: JSON.stringify({}),
+                      });
+                      onRefresh?.();
+                    }} className="px-3 py-1.5 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 flex items-center gap-1">
+                      <Plus size={14}/> Добавить согласование
+                    </button>
+                  )}
                 </div>
                 <div className="overflow-x-auto border border-gray-200 rounded-lg">
                   <table className="w-full text-sm border-collapse">
@@ -1331,7 +1344,11 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                               : '—'}
                           </td>
                           <td className="px-2 py-2 border border-gray-300">
-                            {isAdmittingUser && (isWorkActive) ? (
+                            {row.agreementUser ? (
+                              <span className="text-gray-600 text-xs">
+                                {row.agreementUser.position ? row.agreementUser.position + ', ' : ''}{row.agreementUser.name || ''}
+                              </span>
+                            ) : isAdmittingUser && (isWorkActive) ? (
                               <input type="text" placeholder="Должность, ФИО"
                                 defaultValue={row.fromWhom || ''}
                                 onBlur={async (e) => {
@@ -1362,13 +1379,34 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                               ? new Date(row.agreementDateTime).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
                               : '—'}
                           </td>
+                          {isAdmittingUser && (isWorkActive) && (
+                            <td className="px-2 py-2 border border-gray-300 text-center w-8">
+                              <button
+                                title="Удалить строку согласования полностью (ФИО, дата, подпись)"
+                                onClick={async () => {
+                                  if (!confirm('Удалить строку согласования вместе с ФИО, датой и подписью?')) return;
+                                  const token = localStorage.getItem('auth_token');
+                                  await fetch(`/api/v1/permits/${permit.id}/admission_row_delete/`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
+                                    body: JSON.stringify({ index: idx }),
+                                  });
+                                  onRefresh?.();
+                                }}
+                                className="text-gray-400 hover:text-red-500 text-lg font-bold leading-none">×</button>
+                            </td>
+                          )}
                           <td className="px-2 py-2 border border-gray-300">
                             {row.agreementUser ? (
                               <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-1">
-                                  <span className="text-xs font-medium text-gray-900">{row.agreementUser.name || row.agreementUser.username}</span>
+                                  <div className="flex flex-col leading-tight">
+                                    <span className="text-xs font-medium text-gray-900">{row.agreementUser.name || row.agreementUser.username}</span>
+                                    {row.agreementUser.position && <span className="text-[10px] text-gray-500">{row.agreementUser.position}</span>}
+                                  </div>
                                   {isAdmittingUser && !row.agreementSignature && (
                                     <div
+                                      title="Убрать согласующего"
                                       onClick={() => {
                                         const token = localStorage.getItem('auth_token');
                                         fetch(`/api/v1/permits/${permit.id}/admission_row_update/`, {
