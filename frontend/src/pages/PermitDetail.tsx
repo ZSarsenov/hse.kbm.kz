@@ -449,6 +449,18 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const pendingTBRowRef = useRef<string>('');
   const pendingTBSideRef = useRef<string>('');
   const admissionRows = data.admissionRows || [{}];
+  const shiftChangers = Array.isArray(data.shiftChangers) ? data.shiftChangers : [];
+  const canEditShiftChangers = isIssuerUser || isProducerUser || isAdmittingUser;
+
+  const saveShiftChangers = async (next: any[]) => {
+    const token = localStorage.getItem('auth_token');
+    await fetch(`/api/v1/permits/${permit.id}/shift_changers_update/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
+      body: JSON.stringify({ shiftChangers: next.map((item) => ({ id: item.id || item.userId })) }),
+    });
+    onRefresh?.();
+  };
 
   if (permit.category === PermitCategory.ELECTRICAL) {
     const brigadeMembers = Array.isArray(data.brigadeMembers) ? data.brigadeMembers : [];
@@ -2148,6 +2160,41 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                       </tr>
                     </tbody>
                   </table>
+                </div>
+                <div className="mt-5 p-4 border border-blue-200 rounded-lg bg-blue-50/40">
+                  <label className="font-medium text-sm text-gray-800 block mb-1">Сменщик</label>
+                  <p className="text-xs text-gray-500 mb-3">
+                    До 4 сотрудников. Сменщики могут просматривать этот наряд и записи в журнале, но ничего не подписывают.
+                  </p>
+                  {shiftChangers.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {shiftChangers.map((changer: any) => (
+                        <div key={changer.id} className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-blue-200 rounded-lg text-xs text-gray-800">
+                          <span>{changer.position ? `${changer.position}, ` : ''}{changer.name || changer.username}</span>
+                          {canEditShiftChangers && (
+                            <button type="button" onClick={() => saveShiftChangers(shiftChangers.filter((item: any) => String(item.id) !== String(changer.id)))}
+                              className="text-gray-400 hover:text-red-500 font-bold" title="Удалить сменщика">&times;</button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {canEditShiftChangers && shiftChangers.length < 4 && (
+                    <UserSearchInput
+                      value={null}
+                      onChange={(selected) => {
+                        if (!selected || shiftChangers.some((item: any) => String(item.id) === String(selected.userId))) return;
+                        void saveShiftChangers([...shiftChangers, {
+                          id: selected.userId,
+                          name: selected.name,
+                          position: selected.position,
+                        }]);
+                      }}
+                    />
+                  )}
+                  {!canEditShiftChangers && shiftChangers.length === 0 && (
+                    <span className="text-gray-400 italic text-xs">—</span>
+                  )}
                 </div>
               </div>
             )}

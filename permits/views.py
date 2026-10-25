@@ -274,6 +274,8 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         q = q | Q(data__contains={'admissionRows': [{'agreementUser': {'id': user.id}}]})
         # Диспетчер видит наряд в общем списке и журнале, включая закрытые наряды.
         q = q | Q(data__contains={'admissionDispatcher': {'id': user.id}})
+        # Сменщики видят наряд в общем списке и журнале, включая закрытые наряды.
+        q = q | Q(data__contains={'shiftChangers': [{'id': user.id}]})
         if user.username == 'dispatcher_semser':
             q = q | Q(data__notifyFireService=True)
         return base_qs.filter(q).distinct()
@@ -3569,8 +3571,9 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         user = request.user
 
         prod_step = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).first()
-        if not prod_step and not user.is_admin:
-            return Response({'error': 'Только Производитель работ может редактировать.'}, status=403)
+        admitting_step = permit.approval_steps.filter(role='ADMITTING', approver=user).first()
+        if not prod_step and not admitting_step and not user.is_admin:
+            return Response({'error': 'Только Производитель работ или Допускающий может редактировать.'}, status=403)
 
         data = dict(permit.data) if permit.data else {}
         wc = data.get('workCompletion') or {}
@@ -3583,6 +3586,50 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         permit.data = data
         permit.save(update_fields=['data'])
         return Response({'ok': True})
+
+    @action(detail=True, methods=['post'], url_path='shift_changers_update')
+    def shift_changers_update(self, request, pk=None):
+        """Сохранить до четырёх сменщиков-наблюдателей без уведомлений и подписей."""
+        permit = self.get_object()
+        user = request.user
+        can_edit = permit.approval_steps.filter(
+            role__in=['ISSUER', 'WORK_PRODUCER', 'ADMITTING'], approver=user,
+        ).exists()
+        if not can_edit and not user.is_admin:
+            return Response({'error': 'Только Выдающий, Производитель работ или Допускающий может назначить сменщиков.'}, status=403)
+
+        requested = request.data.get('shiftChangers')
+        if not isinstance(requested, list):
+            return Response({'error': 'Список сменщиков должен быть массивом.'}, status=400)
+        if len(requested) > 4:
+            return Response({'error': 'Можно добавить не более четырёх сменщиков.'}, status=400)
+
+        normalized = []
+        seen = set()
+        for item in requested:
+            user_id = item.get('id') if isinstance(item, dict) else item
+            try:
+                user_id = int(user_id)
+            except (TypeError, ValueError):
+                return Response({'error': 'Некорректный пользователь в списке сменщиков.'}, status=400)
+            if user_id in seen:
+                continue
+            try:
+                changer = User.objects.get(pk=user_id, is_active=True)
+            except User.DoesNotExist:
+                return Response({'error': 'Один из выбранных пользователей не найден.'}, status=400)
+            seen.add(user_id)
+            normalized.append({
+                'id': changer.id,
+                'name': changer.get_full_name() or changer.username,
+                'position': changer.position or '',
+            })
+
+        data = dict(permit.data) if permit.data else {}
+        data['shiftChangers'] = normalized
+        permit.data = data
+        permit.save(update_fields=['data'])
+        return Response({'ok': True, 'shiftChangers': normalized})
 
     @action(detail=True, methods=['post'], url_path='work_completion_signature')
     def work_completion_signature(self, request, pk=None):
