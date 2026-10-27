@@ -1062,7 +1062,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                   <div className="bg-slate-50 p-5 rounded-xl border border-slate-100 space-y-4">
                     <div><span className="text-xs font-bold text-gray-400 uppercase">Категория работ</span><p className="text-gray-900 font-medium text-lg">{data.workCategory || '—'}</p></div>
                     <div><span className="text-xs font-bold text-gray-400 uppercase">Поручается</span><p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{data.content || data.assignment || 'Описание отсутствует'}</p></div>
-                    <div><span className="text-xs font-bold text-gray-400 uppercase">Место проведения</span><p className="text-gray-800">{data.workPlace || '—'}{data.department ? ` / ${data.department}` : ''}</p></div>
+                    <div><span className="text-xs font-bold text-gray-400 uppercase">Место проведения</span><p className="text-gray-800">{data.department || '—'}</p></div>
                   </div>
                 </div>
 

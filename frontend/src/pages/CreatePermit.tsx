@@ -663,12 +663,21 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                 <h1 className="text-3xl font-bold text-slate-900 leading-tight">
                     {isEditing ? t('create.editTitle', { id: initialData?.permitId }) : t('create.title')}
                 </h1>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-orange-100 text-orange-700 border-orange-200">
-                  <AlertTriangle size={12}/>
-                  {t('create.dangerBadge')}
-                </span>
-             </div>
-             <p className="text-base text-slate-500 font-mono mt-0.5">{t('create.formRef')}</p>
+                 {isElectricalNew ? (
+                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-blue-100 text-blue-700 border-blue-200">
+                     <Zap size={12}/>
+                     {t('electrical.header.badge')}
+                   </span>
+                 ) : (
+                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-orange-100 text-orange-700 border-orange-200">
+                     <AlertTriangle size={12}/>
+                     {t('create.dangerBadge')}
+                   </span>
+                 )}
+              </div>
+              {!isElectricalNew && (
+                <p className="text-base text-slate-500 font-mono mt-0.5">{t('create.formRef')}</p>
+              )}
          </div>
       </div>
 
@@ -728,38 +737,90 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                          autoFocus
                        />
                      </div>
-                   )}
-                 </div>
+                    )}
+                  </div>
 
-                 <div className="md:col-span-2">
-                     <SearchableSelect
-                         label={t('create.general.workName')}
-                         value={formData.workName}
-                         apiEndpoint={isElectricalNew ? "/api/v1/electrical-work-types/" : "/api/v1/work-types/"}
-                         placeholder={t('create.general.workNamePlaceholder')}
-                         onChange={(val) => updateForm('workName', val)}
-                     />
-                 </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('create.general.workPlace')}</label>
-                    <input
-                      type="text"
-                      value={formData.workPlace}
-                      onChange={(e) => updateForm('workPlace', e.target.value)}
-                      placeholder={t('create.general.workPlacePlaceholder')}
-                      className={commonInputClasses}
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <React.Suspense fallback={<div className="h-[400px] rounded-xl border border-slate-200 bg-slate-100 animate-pulse" />}>
-                      <WellMap
-                        onSelectWell={handleSelectWell}
-                        selectedWell={formData.workPlace || undefined}
-                      />
-                    </React.Suspense>
-                  </div>
+                  {isElectricalNew && (
+                    <div className="md:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                      <h3 className="font-bold text-gray-900 mb-4 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
+                        <Users size={20} className="text-blue-600" />
+                        {t('create.roles.sectionTitle')}
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <UserSearchSelect
+                          label={t('create.roles.issuer')}
+                          value={roles.issuer.name}
+                          requiredRole="ISSUER"
+                          onChange={(user) => setRoles(prev => ({ ...prev, issuer: user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' } }))}
+                          placeholder={t('create.roles.searchPlaceholder')}
+                        />
+                        <UserSearchSelect
+                          label={t('create.roles.responsible')}
+                          value={roles.responsible.name}
+                          required={false}
+                          requiredRole="RESPONSIBLE"
+                          onChange={(user) => setRoles(prev => ({ ...prev, responsible: user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' } }))}
+                          placeholder={t('create.roles.searchPlaceholder')}
+                        />
+                        <UserSearchSelect
+                          label={t('create.roles.admitting')}
+                          value={roles.admitting.name}
+                          requiredRole="ADMITTING"
+                          onChange={(user) => {
+                            const value = user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' };
+                            setRoles(prev => ({ ...prev, admitting: value }));
+                            if (user) updateForm('completionTakeOverName', value.name);
+                          }}
+                          placeholder={t('create.roles.searchPlaceholder')}
+                        />
+                        <UserSearchSelect
+                          label={t('create.roles.producer')}
+                          value={roles.producer.name}
+                          requiredRole="WORK_PRODUCER"
+                          onChange={(user) => {
+                            const value = user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' };
+                            setRoles(prev => ({ ...prev, producer: value }));
+                            if (user) updateForm('completionHandOverName', value.name);
+                          }}
+                          placeholder={t('create.roles.searchPlaceholder')}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                   {!isElectricalNew && (
+                    <>
+                      <div className="md:col-span-2">
+                        <SearchableSelect
+                          label={t('create.general.workName')}
+                          value={formData.workName}
+                          apiEndpoint="/api/v1/work-types/"
+                          placeholder={t('create.general.workNamePlaceholder')}
+                          onChange={(val) => updateForm('workName', val)}
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">{t('create.general.workPlace')}</label>
+                        <input
+                          type="text"
+                          value={formData.workPlace}
+                          onChange={(e) => updateForm('workPlace', e.target.value)}
+                          placeholder={t('create.general.workPlacePlaceholder')}
+                          className={commonInputClasses}
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <React.Suspense fallback={<div className="h-[400px] rounded-xl border border-slate-200 bg-slate-100 animate-pulse" />}>
+                          <WellMap
+                            onSelectWell={handleSelectWell}
+                            selectedWell={formData.workPlace || undefined}
+                          />
+                        </React.Suspense>
+                      </div>
+                    </>
+                  )}
                    <div className="md:col-span-2">
-                     <label className="block text-sm font-semibold text-gray-700 mb-2">{t('create.general.workContent')}</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">{isElectricalNew ? 'Поручается' : t('create.general.workContent')}</label>
                     <textarea
                       rows={3}
                       value={formData.content}
@@ -827,8 +888,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
               </div>
            </div>
 
-           {/* Section 2: Responsible Persons */}
-           <div className={`bg-white p-6 rounded-xl border shadow-sm ${isApprovalEdit ? 'border-orange-200 bg-orange-50/30' : 'border-gray-200'}`}>
+            {/* Section 2: Responsible Persons */}
+            {!isElectricalNew && (
+            <div className={`bg-white p-6 rounded-xl border shadow-sm ${isApprovalEdit ? 'border-orange-200 bg-orange-50/30' : 'border-gray-200'}`}>
               <h3 className="font-bold text-gray-900 mb-4 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                 {t('create.roles.sectionTitle')}
                 {isApprovalEdit && <span className="text-sm normal-case text-orange-600 font-medium ml-2">🔒 {t('create.roles.readOnlyHint')}</span>}
@@ -1122,9 +1184,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
                </div>
                )}
-            </div>
+             </div>
+             )}
 
-            {/* Section 3: Safety Measures */}
+             {/* Section 3: Safety Measures */}
            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
              <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                <ShieldAlert size={24} className="text-blue-600"/>
