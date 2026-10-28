@@ -1562,10 +1562,12 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                       <p className="font-medium">Ответственный руководитель работ</p>
                       {data.responsibleSignature ? (
                         <img src={getSignatureUrl(data.responsibleSignature)} alt="Подпись ответственного руководителя" className="h-12 mt-2 object-contain"/>
-                      ) : (isResponsibleUser && (isWorkActive)) ? (
+                      ) : (isResponsibleUser && responsibleStep?.status === 'PENDING' && (isWorkActive)) ? (
                         <button onClick={() => handleSignElecNew('RESPONSIBLE')} className="mt-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors">
                           Подписать ЭЦП
                         </button>
+                      ) : responsibleStep?.status === 'APPROVED' ? (
+                        <span className="text-xs text-emerald-600 font-medium mt-2 inline-block">✓ Подписано ЭЦП</span>
                       ) : data.responsible ? (
                         <div className="w-48 border-b border-gray-400 mt-6"></div>
                       ) : (
