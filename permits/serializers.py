@@ -237,17 +237,6 @@ class PermitListSerializer(serializers.ModelSerializer):
     location_name = serializers.CharField(source='location.name', read_only=True)
     data = serializers.SerializerMethodField()
 
-    # Корневые URL файлов (см. комментарий в PermitSerializer)
-    scan_file = serializers.SerializerMethodField()
-    safety_document = serializers.SerializerMethodField()
-    loto_photo = serializers.SerializerMethodField()
-    work_photo_before = serializers.SerializerMethodField()
-    work_photo_during = serializers.SerializerMethodField()
-    work_photo_during_thumb = serializers.SerializerMethodField()
-    work_photo_after = serializers.SerializerMethodField()
-    work_photo_before_thumb = serializers.SerializerMethodField()
-    work_photo_after_thumb = serializers.SerializerMethodField()
-
     def _file_url(self, obj, field_name):
         field = getattr(obj, field_name)
         if not field:
@@ -293,20 +282,12 @@ class PermitListSerializer(serializers.ModelSerializer):
         return self._thumb_url(obj, 'work_photo_after')
 
     # Ключи, которые сохраняются в data при выдаче списка.
+    # Список используется для дашборда и журнала. Полная data загружается
+    # отдельным detail-запросом при открытии карточки.
     LIST_DATA_KEYS = (
-        'category',          # тип наряда: DANGEROUS / ELECTRICAL (для маршрутизации)
-        'workName',          # колонка "Характер выполняемых работ"
-        'department',        # колонка "Цех"
-        'workPlace',         # поиск по месту работ
-        'lotoEnabled',       # фильтр в LotoReports
-        'isolationMatrix',   # вывод LOTO-отчёта в LotoReports
-        'admitting',         # ФИО допускающего (LotoReports)
-        'producer',          # ApprovalStep.approver_name для внешнего производителя
-        'supervisor',        # ApprovalStep.approver_name для внешнего согласующего
-        'notifyFireService', # фильтр для dispatcher_semser
-        'callFirePost',      # баннер для dispatcher_semser
-        'issuer',            # проверка hasRequiredFields в PermitDetail
-        'teamMembers',       # проверка hasRequiredFields в PermitDetail
+        'category',
+        'workName',
+        'department',
     )
 
     class Meta:
@@ -316,7 +297,6 @@ class PermitListSerializer(serializers.ModelSerializer):
             'created_at', 'valid_from', 'valid_to',
             'initiator', 'location', 'location_name',
             'approval_steps', 'data',
-            'scan_file', 'safety_document', 'loto_photo', 'work_photo_before', 'work_photo_before_thumb', 'work_photo_during', 'work_photo_during_thumb', 'work_photo_after', 'work_photo_after_thumb',
             'producer_closed',
         )
 

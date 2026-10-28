@@ -995,7 +995,10 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         for col, h in enumerate(headers, 1):
             ws.cell(row=1, column=col, value=h)
         for idx, permit in enumerate(qs, 1):
-            issuer_step = permit.approval_steps.filter(role='ISSUER').first()
+            issuer_step = next(
+                (step for step in permit.approval_steps.all() if step.role == 'ISSUER'),
+                None,
+            )
             issuer_name = issuer_step.approver.get_full_name() if issuer_step and issuer_step.approver else (permit.initiator.get_full_name() if permit.initiator else '—')
             valid_from_str = permit.valid_from.strftime('%d.%m.%Y %H:%M') if permit.valid_from else '—'
             valid_to_str = permit.valid_to.strftime('%d.%m.%Y %H:%M') if permit.valid_to else '—'
