@@ -466,6 +466,13 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 {'ok': False, 'error': 'Отправить на согласование можно только черновик или отклонённый наряд.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        if (permit.data or {}).get('category') == 'ELECTRICAL_NEW':
+            responsible = (permit.data or {}).get('responsible') or {}
+            if not isinstance(responsible, dict) or not responsible.get('id'):
+                return Response(
+                    {'ok': False, 'error': 'Не назначен Ответственный руководитель работ.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         was_rejected = permit.status == 'REJECTED'
         try:
             # Одна транзакция: при ошибке на любом шаге не остаётся «обрезанной» цепочки (2 из 5 шагов).

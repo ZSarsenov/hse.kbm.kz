@@ -529,6 +529,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
        if (!roles.admitting.id && !roles.admitting.name) {
            alert("Не заполнен Допускающий к работе!"); setIsSubmitting(false); return;
        }
+       if (isElectricalNew && !roles.responsible.id) {
+           alert("Не заполнен Ответственный руководитель работ!"); setIsSubmitting(false); return;
+       }
        if (isElectricalNew && !formData.workCategory) {
            alert("Укажите категорию работ."); setIsSubmitting(false); return;
        }
@@ -757,7 +760,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                         <UserSearchSelect
                           label={t('create.roles.responsible')}
                           value={roles.responsible.name}
-                          required={false}
+                          required={isElectricalNew}
                           requiredRole="RESPONSIBLE"
                           onChange={(user) => setRoles(prev => ({ ...prev, responsible: user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' } }))}
                           placeholder={t('create.roles.searchPlaceholder')}
