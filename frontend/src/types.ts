@@ -180,6 +180,7 @@ export interface TeamMember {
   id: string;
   name: string;
   role: string;
+  userId?: number | null;
   instructedAt: string;
   instructedBy: string;
 }

@@ -51,8 +51,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                         <Zap size={12}/> {t('electrical.header.badge')}
                      </span>
                      <span className="text-slate-400 text-sm font-mono">{t('electrical.header.ref')}</span>
-                   </div>
-               </div>
+                       </div>
+                     </div>
             </div>
           }
         />
@@ -751,14 +751,14 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <UserSearchSelect
-                          label={t('create.roles.issuer')}
+                          label={t('electrical.roles.issuer')}
                           value={roles.issuer.name}
                           requiredRole="ISSUER"
                           onChange={(user) => setRoles(prev => ({ ...prev, issuer: user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' } }))}
                           placeholder={t('create.roles.searchPlaceholder')}
                         />
                         <UserSearchSelect
-                          label={t('create.roles.responsible')}
+                          label={t('electrical.roles.responsible')}
                           value={roles.responsible.name}
                           required={isElectricalNew}
                           requiredRole="RESPONSIBLE"
@@ -766,18 +766,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                           placeholder={t('create.roles.searchPlaceholder')}
                         />
                         <UserSearchSelect
-                          label={t('create.roles.admitting')}
-                          value={roles.admitting.name}
-                          requiredRole="ADMITTING"
-                          onChange={(user) => {
-                            const value = user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' };
-                            setRoles(prev => ({ ...prev, admitting: value }));
-                            if (user) updateForm('completionTakeOverName', value.name);
-                          }}
-                          placeholder={t('create.roles.searchPlaceholder')}
-                        />
-                        <UserSearchSelect
-                          label={t('create.roles.producer')}
+                          label={t('electrical.roles.producer')}
                           value={roles.producer.name}
                           requiredRole="WORK_PRODUCER"
                           onChange={(user) => {
@@ -787,7 +776,49 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                           }}
                           placeholder={t('create.roles.searchPlaceholder')}
                         />
+                        <UserSearchSelect
+                          label={t('electrical.roles.admitting')}
+                          value={roles.admitting.name}
+                          requiredRole="ADMITTING"
+                          onChange={(user) => {
+                            const value = user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' };
+                            setRoles(prev => ({ ...prev, admitting: value }));
+                            if (user) updateForm('completionTakeOverName', value.name);
+                          }}
+                          placeholder={t('create.roles.searchPlaceholder')}
+                        />
                       </div>
+                      <div className="mt-5 pt-5 border-t border-gray-100">
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="block text-sm font-semibold text-gray-700">{t('electrical.roles.brigadeMembers')}</label>
+                          <button type="button" onClick={addTeamMember} disabled={teamMembers.length >= 10}
+                            className={`flex items-center gap-1 px-3 py-1 rounded font-semibold ${teamMembers.length >= 10 ? 'text-gray-300 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50'}`}>
+                            <Plus size={16} /> {t('electrical.roles.addBrigadeMember')}
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {teamMembers.map((member) => (
+                            <div key={member.id} className="flex gap-2 items-start">
+                              <div className="flex-1">
+                                <UserSearchSelect label="" hideLabel value={member.role ? `${member.name} (${member.role})` : (member.name || '')} required={false}
+                                  onChange={(user) => setTeamMembers(prev => prev.map(item => item.id === member.id
+                                    ? { ...item, name: user?.name || '', role: user?.position || '', userId: user?.id || null }
+                                    : item
+                                  ))}
+                                  placeholder={t('create.roles.searchPlaceholder')} />
+                              </div>
+                              <input value={member.role || ''} readOnly
+                                className="w-48 bg-gray-100 border border-gray-200 rounded px-3 py-2 text-sm text-gray-600"
+                                placeholder={t('create.brigade.positionPlaceholder')} />
+                              <button type="button" onClick={() => removeTeamMember(member.id)}
+                                className="text-gray-400 hover:text-red-500 transition-colors p-1" title="Удалить члена бригады">
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
+                          ))}
+                          {teamMembers.length === 0 && <p className="text-gray-400 text-sm italic">{t('electrical.misc.brigadeHint')}</p>}
+                   </div>
+               </div>
                     </div>
                   )}
 
