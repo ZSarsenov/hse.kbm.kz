@@ -1139,7 +1139,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
             {electricalNewTab === 'measures' && (
               <div>
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Shield size={20} className="text-red-500"/> Меры по подготовке рабочих мест</h3>
+                   <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Shield size={20} className="text-red-500"/> {t('electrical.sec.safety')}</h3>
                   <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">Всего: {disconnects.length} п.</span>
                 </div>
                 {disconnects.length > 0 ? (
@@ -1186,6 +1186,24 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                     </a>
                   </div>
                 )}
+                <div className="mt-5 space-y-4">
+                  <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <h4 className="font-bold text-gray-700 text-sm mb-1">{t('electrical.sec.instructions')}</h4>
+                    <p className="text-gray-900 whitespace-pre-wrap">{data.separateInstructions || '—'}</p>
+                  </div>
+                  <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <h4 className="font-bold text-gray-700 text-sm mb-2">{t('electrical.sec.issuer')}</h4>
+                    <p className="text-sm text-gray-800">{t('electrical.labels.startDate')}: {data.issuerDate || '—'} {data.issuerTime || ''}</p>
+                    <p className="text-sm text-gray-800">{t('electrical.labels.signature')}: {data.issuerSignature || '—'}</p>
+                    <p className="text-sm text-gray-800">{t('electrical.labels.lastName')}: {data.issuerLastName || '—'}</p>
+                  </div>
+                  <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <h4 className="font-bold text-gray-700 text-sm mb-2">{t('electrical.sec.extensions')}</h4>
+                    <p className="text-sm text-gray-800">{t('electrical.labels.endDate')}: {data.extensionDate || '—'} {data.extensionTime || ''}</p>
+                    <p className="text-sm text-gray-800">{t('electrical.labels.signature')}: {data.extensionSignature || '—'}</p>
+                    <p className="text-sm text-gray-800">{t('electrical.labels.lastName')}: {data.extensionLastName || '—'}</p>
+                  </div>
+                </div>
               </div>
             )}
 

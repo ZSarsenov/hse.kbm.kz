@@ -263,6 +263,15 @@ export interface RegulationFormData {
   dateStart: string;
   dateEnd: string;
   emergencyReadinessTime?: string;
+  separateInstructions?: string;
+  issuerDate?: string;
+  issuerTime?: string;
+  issuerSignature?: string;
+  issuerLastName?: string;
+  extensionDate?: string;
+  extensionTime?: string;
+  extensionSignature?: string;
+  extensionLastName?: string;
   extensions: PermitExtension[];
   completionDateTime: string;
   completionHandOverName: string;

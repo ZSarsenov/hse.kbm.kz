@@ -99,6 +99,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
     },
     // Dates
     dateStart: '', dateEnd: '', emergencyReadinessTime: '',
+    separateInstructions: '', issuerDate: '', issuerTime: '', issuerSignature: '', issuerLastName: '',
+    extensionDate: '', extensionTime: '', extensionSignature: '', extensionLastName: '',
     // Item 12: Extensions
     extensions: [],
     // Item 13: Completion
@@ -1256,7 +1258,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
              <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                <ShieldAlert size={24} className="text-blue-600"/>
-               {isElectricalNew ? 'Меры по подготовке рабочих мест' : t('create.safety.sectionTitle')}
+                {isElectricalNew ? t('electrical.sec.safety') : t('create.safety.sectionTitle')}
              </h3>
              <div className="space-y-5">
                {isElectricalNew ? (
@@ -1326,10 +1328,40 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                          ))}
                        </tbody>
                      </table>
-                   </div>
-                   <p className="text-xs text-gray-400 mt-2">Максимум 10 строк. {(formData.electricalDisconnects || []).length}/10</p>
-                 </div>
-                 </>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">Максимум 10 строк. {(formData.electricalDisconnects || []).length}/10</p>
+                  </div>
+                  <div className="space-y-5 border-t border-gray-100 pt-5">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.sec.instructions')}</label>
+                      <textarea
+                        rows={3}
+                        value={formData.separateInstructions || ''}
+                        onChange={e => updateForm('separateInstructions', e.target.value)}
+                        placeholder={t('electrical.ph.instructions')}
+                        className={`${commonInputClasses} resize-none`}
+                      />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-700 mb-3">{t('electrical.sec.issuer')}</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <input type="date" value={formData.issuerDate || ''} onChange={e => updateForm('issuerDate', e.target.value)} className={commonInputClasses} />
+                        <input type="time" value={formData.issuerTime || ''} onChange={e => updateForm('issuerTime', e.target.value)} className={commonInputClasses} />
+                        <input type="text" value={formData.issuerSignature || ''} onChange={e => updateForm('issuerSignature', e.target.value)} placeholder={t('electrical.labels.signature')} className={commonInputClasses} />
+                        <input type="text" value={formData.issuerLastName || ''} onChange={e => updateForm('issuerLastName', e.target.value)} placeholder={t('electrical.labels.lastName')} className={commonInputClasses} />
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-700 mb-3">{t('electrical.sec.extensions')}</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <input type="date" value={formData.extensionDate || ''} onChange={e => updateForm('extensionDate', e.target.value)} className={commonInputClasses} />
+                        <input type="time" value={formData.extensionTime || ''} onChange={e => updateForm('extensionTime', e.target.value)} className={commonInputClasses} />
+                        <input type="text" value={formData.extensionSignature || ''} onChange={e => updateForm('extensionSignature', e.target.value)} placeholder={t('electrical.labels.signature')} className={commonInputClasses} />
+                        <input type="text" value={formData.extensionLastName || ''} onChange={e => updateForm('extensionLastName', e.target.value)} placeholder={t('electrical.labels.lastName')} className={commonInputClasses} />
+                      </div>
+                    </div>
+                  </div>
+                  </>
                 ) : (
                 [
                   { key: 'm5_1_stop', label: t('create.safety.m5_1'), placeholder: t('create.safety.m5_1_ph') },
