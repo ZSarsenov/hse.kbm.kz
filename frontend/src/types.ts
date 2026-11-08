@@ -262,6 +262,7 @@ export interface RegulationFormData {
   isolationMatrix: IsolationMatrix;
   dateStart: string;
   dateEnd: string;
+  emergencyReadinessTime?: string;
   extensions: PermitExtension[];
   completionDateTime: string;
   completionHandOverName: string;

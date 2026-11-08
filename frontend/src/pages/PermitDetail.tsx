@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, MapPin, User, Clock, FileText, CheckCircle2, AlertTriangle, FileSignature, XCircle, Download, Shield, Users, Edit3, Trash2, Copy, FlaskConical, Zap, Plus, Lock, Camera, X
 } from 'lucide-react';
@@ -255,6 +256,15 @@ const formatPermitDateTime = (iso?: string | null) => {
   };
 };
 
+const formatLocalFormDateTime = (value?: string | null) => {
+  if (!value) return null;
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (match) {
+    return { date: `${match[3]}.${match[2]}.${match[1]}`, time: `${match[4]}:${match[5]}` };
+  }
+  return formatPermitDateTime(value);
+};
+
 const formatPermitCompact = (iso?: string | null) => {
   const fmt = formatPermitDateTime(iso);
   if (!fmt) return null;
@@ -268,6 +278,7 @@ const groupLabel = (g?: string | null) => {
 };
 
 export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEdit, onDelete, onRefresh }) => {
+  const { t } = useTranslation();
   // Распаковка данных (безопасный доступ)
   const data: any = permit.data || (permit as any).formData || {};
   const wellCoords = data?.wellCoords || null;
@@ -307,8 +318,13 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
       || permit.createdAt
       || null
     : permit.validFrom || permit.createdAt || null;
-  const workPeriodStartFmt = formatPermitDateTime(approvedAtIso);
-  const workPeriodEndFmt = formatPermitDateTime(permit.validTo || approvedAtIso);
+  const isElectricalNewPermit = data.category === PermitCategory.ELECTRICAL_NEW;
+  const workPeriodStartFmt = isElectricalNewPermit
+    ? formatLocalFormDateTime(data.dateStart || approvedAtIso)
+    : formatPermitDateTime(approvedAtIso);
+  const workPeriodEndFmt = isElectricalNewPermit
+    ? formatLocalFormDateTime(data.dateEnd || permit.validTo || approvedAtIso)
+    : formatPermitDateTime(permit.validTo || approvedAtIso);
   const mySteps = steps.filter((s: any) =>
     String(s.approver_id) === currentUserId ||
     (currentUsername && String(s.approver_username || '').trim().toLowerCase() === currentUsername)
@@ -1011,8 +1027,11 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                     <div className="font-semibold text-slate-700 leading-snug space-y-0.5">
                       <p className="break-words">{workPeriodStartFmt ? `${workPeriodStartFmt.date} ${workPeriodStartFmt.time}` : '—'}</p>
                       {workPeriodEndFmt ? (
-                        <p className="break-words">{workPeriodEndFmt.date} 23:59</p>
+                        <p className="break-words">{workPeriodEndFmt.date} {workPeriodEndFmt.time}</p>
                       ) : null}
+                      <p className="break-words text-sm font-medium text-slate-600">
+                        {t('electrical.labels.emergency')}: {data.emergencyReadinessTime || '—'}
+                      </p>
                   </div>
                 </div>
               </div>

@@ -98,7 +98,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
        checkResidualEnergy: false, checkLockDevice: false, checkPadlock: false, checkTag: false
     },
     // Dates
-    dateStart: '', dateEnd: '',
+    dateStart: '', dateEnd: '', emergencyReadinessTime: '',
     // Item 12: Extensions
     extensions: [],
     // Item 13: Completion
@@ -853,20 +853,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                       </div>
                     </>
                   )}
-                   <div className="md:col-span-2">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">{isElectricalNew ? 'Поручается' : t('create.general.workContent')}</label>
-                    <textarea
-                      rows={3}
-                      value={formData.content}
-                      onChange={(e) => updateForm('content', e.target.value)}
-                      placeholder={t('create.general.workContentPlaceholder')}
-                      className={commonInputClasses}
-                    />
-                  </div>
-                  {/* Категория работ — только для ELECTRICAL_NEW */}
-                  {isElectricalNew && (
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Категория работ<span className="text-red-500 ml-1">*</span></label>
+                   {isElectricalNew && (
+                     <div className="md:col-span-2">
+                       <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.category')}<span className="text-red-500 ml-1">*</span></label>
                       <select
                         value={formData.workCategory || ''}
                         onChange={e => updateForm('workCategory', e.target.value)}
@@ -876,9 +865,51 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                         <option value="Со снятием напряжения">Со снятием напряжения</option>
                         <option value="Без снятия напряжения с применением электрозащитных средств">Без снятия напряжения с применением электрозащитных средств</option>
                         <option value="Без снятия напряжения на потенциале токоведущей части">Без снятия напряжения на потенциале токоведущей части</option>
-                      </select>
-                    </div>
-                  )}
+                       </select>
+                     </div>
+                   )}
+                   <div className="md:col-span-2">
+                     <label className="block text-sm font-semibold text-gray-700 mb-2">{isElectricalNew ? t('electrical.labels.assignment') : t('create.general.workContent')}</label>
+                     <textarea
+                       rows={3}
+                       value={formData.content}
+                       onChange={(e) => updateForm('content', e.target.value)}
+                       placeholder={isElectricalNew ? t('electrical.ph.assignment') : t('create.general.workContentPlaceholder')}
+                       className={commonInputClasses}
+                     />
+                   </div>
+                   {isElectricalNew && (
+                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                       <div>
+                         <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.startDate')}</label>
+                         <input
+                           type="datetime-local"
+                           value={formData.dateStart || ''}
+                           onChange={e => updateForm('dateStart', e.target.value)}
+                           className={commonInputClasses}
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.endDate')}</label>
+                         <input
+                           type="datetime-local"
+                           value={formData.dateEnd || ''}
+                           onChange={e => updateForm('dateEnd', e.target.value)}
+                           className={commonInputClasses}
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.emergency')}</label>
+                         <input
+                           type="text"
+                           value={formData.emergencyReadinessTime || ''}
+                           onChange={e => updateForm('emergencyReadinessTime', e.target.value)}
+                           placeholder={t('electrical.labels.time')}
+                           className={commonInputClasses}
+                         />
+                       </div>
+                     </div>
+                   )}
                   {!isElectricalNew && (
                   <div className="md:col-span-2">
                     <label className="flex items-center gap-3 cursor-pointer select-none">
