@@ -109,17 +109,19 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
   // 👇 Стейт ролей теперь хранит объекты (для валидации и ID), а не просто строки
   const [roles, setRoles] = useState<{
-      producer: RoleUser;
-      admitting: RoleUser;
-      responsible: RoleUser;
-      issuer: RoleUser;
-      supervisor: RoleUser;
+       producer: RoleUser;
+       admitting: RoleUser;
+       responsible: RoleUser;
+       issuer: RoleUser;
+       supervisor: RoleUser;
+       observer: RoleUser;
   }>({
     producer: { id: null, name: '' },
     admitting: { id: null, name: '' },
     responsible: { id: null, name: '' },
     issuer: { id: null, name: '' },
-    supervisor: { id: null, name: '' }
+     supervisor: { id: null, name: '' },
+     observer: { id: null, name: '' }
   });
 
   const [additionalCoordinators, setAdditionalCoordinators] = useState<RoleUser[]>([]);
@@ -163,6 +165,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       !!(roles.producer.name && roles.producer.name.trim()) ||
       roles.admitting.id ||
       roles.responsible.id ||
+      roles.observer.id ||
       roles.supervisor.id ||
       !!(supervisorIsExternal && roles.supervisor.name?.trim()) ||
       additionalCoordinators.some(c => !!c.id) ||
@@ -199,6 +202,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
     const fullDataPayload = {
       ...formData,
       ...roles,
+      observer: { ...roles.observer },
       producer: producerPayload,
       ...(producerIsExternal && roles.producer.name.trim()
         ? { completionHandOverName: roles.producer.name.trim() }
@@ -378,10 +382,11 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
           const restoredRoles = {
               producer: restoreRole(savedData.producer),
               admitting: restoreRole(savedData.admitting),
-              responsible: restoreRole(savedData.responsible),
-              issuer: issuerRole,
-              supervisor: restoreRole(savedData.supervisor),
-          };
+               responsible: restoreRole(savedData.responsible),
+               issuer: issuerRole,
+               supervisor: restoreRole(savedData.supervisor),
+               observer: restoreRole(savedData.observer),
+           };
           setRoles(restoredRoles);
           setSupervisorIsExternal(
             !!(savedData.supervisor && typeof savedData.supervisor === 'object' && (savedData.supervisor as RoleUser).external)
@@ -753,42 +758,51 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <UserSearchSelect
-                          label={t('electrical.roles.issuer')}
+                           label={t('electrical.roles.issuer')}
                           value={roles.issuer.name}
                           requiredRole="ISSUER"
                           onChange={(user) => setRoles(prev => ({ ...prev, issuer: user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' } }))}
                           placeholder={t('create.roles.searchPlaceholder')}
                         />
                         <UserSearchSelect
-                          label={t('electrical.roles.responsible')}
+                           label={t('electrical.roles.responsible')}
                           value={roles.responsible.name}
                           required={isElectricalNew}
                           requiredRole="RESPONSIBLE"
                           onChange={(user) => setRoles(prev => ({ ...prev, responsible: user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' } }))}
                           placeholder={t('create.roles.searchPlaceholder')}
                         />
-                        <UserSearchSelect
-                          label={t('electrical.roles.producer')}
-                          value={roles.producer.name}
-                          requiredRole="WORK_PRODUCER"
-                          onChange={(user) => {
-                            const value = user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' };
-                            setRoles(prev => ({ ...prev, producer: value }));
-                            if (user) updateForm('completionHandOverName', value.name);
-                          }}
-                          placeholder={t('create.roles.searchPlaceholder')}
-                        />
-                        <UserSearchSelect
-                          label={t('electrical.roles.admitting')}
-                          value={roles.admitting.name}
+                         <UserSearchSelect
+                           label={t('electrical.roles.admitting')}
+                           value={roles.admitting.name}
                           requiredRole="ADMITTING"
                           onChange={(user) => {
                             const value = user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' };
                             setRoles(prev => ({ ...prev, admitting: value }));
                             if (user) updateForm('completionTakeOverName', value.name);
-                          }}
-                          placeholder={t('create.roles.searchPlaceholder')}
-                        />
+                           }}
+                           placeholder={t('create.roles.searchPlaceholder')}
+                         />
+                         <UserSearchSelect
+                           label={t('electrical.roles.producer')}
+                           value={roles.producer.name}
+                           requiredRole="WORK_PRODUCER"
+                           onChange={(user) => {
+                             const value = user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' };
+                             setRoles(prev => ({ ...prev, producer: value }));
+                             if (user) updateForm('completionHandOverName', value.name);
+                           }}
+                           placeholder={t('create.roles.searchPlaceholder')}
+                         />
+                         <div className="md:col-start-2">
+                           <UserSearchSelect
+                             label={t('electrical.roles.observer')}
+                             value={roles.observer.name}
+                             required={false}
+                             onChange={(user) => setRoles(prev => ({ ...prev, observer: user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' } }))}
+                             placeholder={t('create.roles.searchPlaceholder')}
+                           />
+                         </div>
                       </div>
                       <div className="mt-5 pt-5 border-t border-gray-100">
                         <div className="flex items-center justify-between mb-3">

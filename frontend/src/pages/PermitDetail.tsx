@@ -332,6 +332,16 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // Выдающий наряд для блока «Ответственные лица» — из Хода согласования (шаг 1 ISSUER), не инициатор
   const issuerStep = steps.find((s: any) => s.role === 'ISSUER');
   const myPendingSteps = mySteps.filter((s: any) => s.status === 'PENDING');
+  const electricalApprovalSteps = steps.map((step: any) => ({
+    ...step,
+    role_label: {
+      ISSUER: 'Выдающий наряд',
+      RESPONSIBLE: 'Руководитель работ',
+      ADMITTING: 'Допускающий',
+      WORK_PRODUCER: 'Производитель работ',
+      OBSERVER: 'Наблюдающий',
+    }[step.role] || step.role_label,
+  }));
   
   // Для обратной совместимости оставляем myStep (первый найденный)
   const myStep = mySteps[0];
@@ -348,6 +358,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // Проверяем роли для закрытия наряда
   const admittingStep = steps.find((s: any) => s.role === 'ADMITTING');
   const isAdmittingUser = admittingStep && String(admittingStep.approver_id) === currentUserId;
+  const observerStep = steps.find((s: any) => s.role === 'OBSERVER');
 
   const producerStep = steps.find((s: any) => s.role === 'WORK_PRODUCER');
   const isProducerUser = producerStep && producerStep.approver_id && String(producerStep.approver_id) === currentUserId;
@@ -612,7 +623,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                 </div>
 
                 {/* Ход согласования */}
-                <ApprovalTracker steps={(permit as any).approvalSteps} />
+                 <ApprovalTracker steps={(permit as any).approvalSteps} />
 
                 {/* Фотофиксация работ */}
                 <WorkPhotoSection permit={permit} canUpload={canUploadWorkPhotos} onRefresh={onRefresh} />
@@ -760,7 +771,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
     const [chainPadRole, setChainPadRole] = useState<string | null>(null);
     const [brigadeSignPadIdx, setBrigadeSignPadIdx] = useState<number | null>(null);
     // По правилам: Допускающий и Производитель работ подписывают цепочку графически
-    const isGraphicChainRole = (role: string) => role === 'ADMITTING' || role === 'WORK_PRODUCER';
+    const isGraphicChainRole = (role: string) => role === 'ADMITTING' || role === 'WORK_PRODUCER' || role === 'OBSERVER';
     // Закрытие наряда: Производитель подтверждает → Допускающий закрывает (RENEWED тоже закрывается)
     const handleProducerCloseElec = async () => {
       const ok = await confirmDialog({
@@ -1097,16 +1108,17 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                   </div>
                 )}
 
-                <ApprovalTracker steps={(permit as any).approvalSteps} />
+                 <ApprovalTracker steps={electricalApprovalSteps} />
 
                 <div>
                   <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><User size={20} className="text-slate-400"/> Ответственные лица</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {[
                       { label: 'Выдающий наряд', roleObj: data.issuer, step: issuerStep, ecpp: true },
-                      { label: 'Ответственный руководитель работ', roleObj: data.responsible, step: responsibleStep, ecpp: true },
-                      { label: 'Допускающий', roleObj: data.admitting, step: admittingStep, ecpp: false },
-                      { label: 'Производитель работ', roleObj: data.producer, step: producerStep, ecpp: false },
+                       { label: 'Руководитель работ', roleObj: data.responsible, step: responsibleStep, ecpp: true },
+                       { label: 'Допускающий', roleObj: data.admitting, step: admittingStep, ecpp: false },
+                       { label: 'Производитель работ', roleObj: data.producer, step: producerStep, ecpp: false },
+                       { label: 'Наблюдающий', roleObj: data.observer, step: observerStep, ecpp: false },
                     ].map((r, i) => {
                       const full = r.roleObj?.name || '';
                       const m = full.match(/^(.*?)\s*\((.+)\)\s*$/);
@@ -1115,7 +1127,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                       // Допускающий и Производитель подписывают графически — подпись хранится в signer_details шага
                       const graphic = !r.ecpp && r.step?.signer_details?.graphic_signature;
                       return (
-                        <div key={i} className="p-4 border border-gray-200 rounded-lg">
+                        <div key={i} className={`p-4 border border-gray-200 rounded-lg ${i === 4 ? 'md:col-start-2' : ''}`}>
                           <span className="text-xs text-gray-400 uppercase font-bold">{r.label}</span>
                           <p className="font-medium text-gray-900">{fio}</p>
                           {pos && <p className="text-sm text-gray-500">{pos}</p>}
@@ -1124,9 +1136,13 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                               <span className="text-xs text-blue-600 font-medium mt-1 inline-block">✓ Подписано (ЭЦП)</span>
                             )
                           ) : (
-                            graphic && (
+                            graphic ? (
                               <img src={getSignatureUrl(graphic)} alt="Графическая подпись" className="h-10 mt-1 object-contain"/>
-                            )
+                            ) : r.step?.status === 'PENDING' && r.step?.approver_id && String(r.step.approver_id) === currentUserId && isWorkActive ? (
+                              <button onClick={() => setChainPadRole(r.step.role)} className="mt-2 px-3 py-1 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700">
+                                Подписать графически
+                              </button>
+                            ) : null
                           )}
                         </div>
                       );

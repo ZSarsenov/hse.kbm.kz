@@ -694,7 +694,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         if (permit.data or {}).get('category') != 'ELECTRICAL_NEW':
             return Response({'ok': False, 'error': 'Графическое подписание шага доступно только в нарядах по электроустановкам.'},
                             status=status.HTTP_400_BAD_REQUEST)
-        if role not in ('ADMITTING', 'WORK_PRODUCER'):
+        if role not in ('ADMITTING', 'WORK_PRODUCER', 'OBSERVER'):
             return Response({'ok': False, 'error': 'Этот шаг подписывается через ЭЦП.'}, status=status.HTTP_400_BAD_REQUEST)
         if permit.status != 'PENDING_APPROVAL':
             return Response({'ok': False, 'error': 'Наряд не находится на согласовании.'}, status=status.HTTP_400_BAD_REQUEST)

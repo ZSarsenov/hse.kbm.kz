@@ -207,6 +207,13 @@ class WorkPermit(models.Model):
         elif is_electrical_new:
             raise ValidationError("Для электроустановок обязательно укажите «Производитель работ».")
 
+        # 5. Наблюдающий — необязательный участник электро-наряда,
+        # подписывает свой шаг графически после Производителя работ.
+        if is_electrical_new:
+            observer_id = get_user_id('observer')
+            if observer_id:
+                steps_config.append({'role': 'OBSERVER', 'user_id': observer_id})
+
         # 5-6. Дополнительные согласующие и основной согласующий — только для обычных нарядов
         if not is_electrical_new:
             # 5. Дополнительные согласующие (до 5, подписывают ДО основного)
@@ -366,6 +373,7 @@ class ApprovalStep(models.Model):
         ('RESPONSIBLE', 'Ответственный руководитель'),
         ('ADMITTING', 'Допускающий'),
         ('WORK_PRODUCER', 'Производитель работ'),
+        ('OBSERVER', 'Наблюдающий'),
         ('COORDINATOR', 'Согласующий'),
     )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='ISSUER', verbose_name='Роль согласующего')

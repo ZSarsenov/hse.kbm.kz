@@ -341,10 +341,11 @@
       "ref": "ҚР стандарты"
     },
     "roles": {
-      "issuer": "Жұмыс жетекшісі",
-      "responsible": "Рұқсат беруші",
-      "admitting": "Бақылаушы",
+      "issuer": "Наряд беруші",
+      "responsible": "Жұмыс жетекшісі",
+      "admitting": "Рұқсат беруші",
       "producer": "Жұмыс жүргізуші",
+      "observer": "Бақылаушы",
       "brigadeMembers": "Бригада мүшелері",
       "addBrigadeMember": "Бригада мүшесін қосу"
     },
