@@ -8,7 +8,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 import os
 import copy
 from collections import Counter, defaultdict
-from datetime import datetime, time
+from datetime import datetime, time as datetime_time
 from openai import OpenAI
 import logging
 import time
@@ -107,9 +107,11 @@ def _prior_approved_approvers(permit, before_step_order):
 
 def _advance_after_approval_step(permit, completed_step, acting_user):
     """Перевод следующего шага в PENDING или финализация наряда; уведомления."""
+    # Ищем только незавершённые шаги. Проверка по статусу важнее номера:
+    # если последний шаг уже подписан, наряд должен сразу перейти в APPROVED.
     next_step = ApprovalStep.objects.filter(
         permit=permit,
-        step_order__gt=completed_step.step_order,
+        status__in=('WAITING', 'PENDING'),
     ).order_by('step_order').first()
 
     if next_step:
@@ -205,7 +207,7 @@ def _advance_after_approval_step(permit, completed_step, acting_user):
             approved_at = timezone.localtime(timezone.now())
             tz = timezone.get_current_timezone()
             permit.valid_from = approved_at
-            permit.valid_to = datetime.combine(approved_at.date(), time(23, 59), tzinfo=tz)
+            permit.valid_to = datetime.combine(approved_at.date(), datetime_time(23, 59), tzinfo=tz)
             permit.save(update_fields=['valid_from', 'valid_to'])
         Notification.objects.create(
             user=permit.initiator,
