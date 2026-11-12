@@ -766,6 +766,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                              setRoles(prev => ({ ...prev, issuer: value }));
                              updateForm('issuerId', user ? value.name : '');
                              updateForm('issuerLastName', user ? value.name : '');
+                             updateForm('extensionLastName', user ? value.name : '');
                            }}
                           placeholder={t('create.roles.searchPlaceholder')}
                         />
