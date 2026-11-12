@@ -2208,33 +2208,6 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                             : '—'}
                         </td>
                       </tr>
-                      {/* Строка 2: Ответственный руководитель работ — только если назначен */}
-                      {data.responsible?.name && (
-                        <tr>
-                          <td className="px-3 py-3 border border-gray-300">
-                            <div className="text-xs font-medium text-gray-900 mb-1">Ответственный руководитель работ</div>
-                            <div className="text-[11px] text-gray-700">{data.responsible.name} {data.responsible.position || ''}</div>
-                          </td>
-                          <td className="px-3 py-3 border border-gray-300">
-                            {data.workCompletion?.responsibleSignature ? (
-                              <img src={getSignatureUrl(data.workCompletion.responsibleSignature)} alt="Подпись" className="h-8 object-contain"/>
-                            ) : (isWorkActive) && isResponsibleUser ? (
-                              <button onClick={() => {
-                                setWorkCompletionField('responsibleSignature');
-                                setWorkCompletionPadOpen(true);
-                              }}
-                                className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700">
-                                Подписать (ЭЦП)
-                              </button>
-                            ) : <span className="text-gray-400 italic text-xs">—</span>}
-                          </td>
-                          <td className="px-3 py-2 border border-gray-300 text-gray-600 text-xs">
-                            {data.workCompletion?.responsibleSignedAt
-                              ? new Date(data.workCompletion.responsibleSignedAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-                              : '—'}
-                          </td>
-                        </tr>
-                      )}
                       {/* Строка 3: Допускающий */}
                       <tr>
                         <td className="px-3 py-3 border border-gray-300">
@@ -2259,7 +2232,34 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                             ? new Date(data.workCompletion.admittingSignedAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                             : '—'}
                         </td>
-                      </tr>
+                       </tr>
+                       {/* Строка 3: Ответственный руководитель работ — только если назначен */}
+                       {data.responsible?.name && (
+                         <tr>
+                           <td className="px-3 py-3 border border-gray-300">
+                             <div className="text-xs font-medium text-gray-900 mb-1">Ответственный руководитель работ</div>
+                             <div className="text-[11px] text-gray-700">{data.responsible.name} {data.responsible.position || ''}</div>
+                           </td>
+                           <td className="px-3 py-3 border border-gray-300">
+                             {data.workCompletion?.responsibleSignature ? (
+                               <img src={getSignatureUrl(data.workCompletion.responsibleSignature)} alt="Подпись" className="h-8 object-contain"/>
+                             ) : (isWorkActive) && isResponsibleUser ? (
+                               <button onClick={() => {
+                                 setWorkCompletionField('responsibleSignature');
+                                 setWorkCompletionPadOpen(true);
+                               }}
+                                 className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700">
+                                 Подписать (ЭЦП)
+                               </button>
+                             ) : <span className="text-gray-400 italic text-xs">—</span>}
+                           </td>
+                           <td className="px-3 py-2 border border-gray-300 text-gray-600 text-xs">
+                             {data.workCompletion?.responsibleSignedAt
+                               ? new Date(data.workCompletion.responsibleSignedAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                               : '—'}
+                           </td>
+                         </tr>
+                       )}
                     </tbody>
                   </table>
                 </div>
