@@ -1256,7 +1256,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                             <td className="px-4 py-3">
                               {memberSig ? (
                                 <img src={getSignatureUrl(memberSig)} alt="Подпись" className="h-8 object-contain"/>
-                              ) : (member.userId && String(member.userId) === currentUserId && isWorkActive) ? (
+                              ) : (((member.userId && String(member.userId) === currentUserId) || isProducerUser) && isWorkActive) ? (
                                 <button
                                   onClick={() => setBrigadeSignPadIdx(idx)}
                                   className="px-2 py-1 bg-emerald-600 text-white text-[10px] font-medium rounded hover:bg-emerald-700"
@@ -2049,7 +2049,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                 </div>
                                 {data.targetBriefing?.[`received_${idx}`] ? (
                                   <img src={getSignatureUrl(data.targetBriefing[`received_${idx}`])} alt="Подпись" className="h-8 object-contain"/>
-                                ) : (member.userId && String(member.userId) === currentUserId) && (isWorkActive) ? (
+                                ) : (((member.userId && String(member.userId) === currentUserId) || isProducerUser) && (isWorkActive)) ? (
                                   <button onClick={() => {
                                     pendingTBRowRef.current = 'row2';
                                     pendingTBSideRef.current = `received_${idx}`;
@@ -2115,7 +2115,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                 </div>
                                 {data.targetBriefing?.[`received_${idx}`] ? (
                                   <img src={getSignatureUrl(data.targetBriefing[`received_${idx}`])} alt="Подпись" className="h-8 object-contain"/>
-                                ) : (member.userId && String(member.userId) === currentUserId) && (isWorkActive) ? (
+                                ) : (((member.userId && String(member.userId) === currentUserId) || isProducerUser) && (isWorkActive)) ? (
                                   <button onClick={() => {
                                     pendingTBRowRef.current = 'row3';
                                     pendingTBSideRef.current = `received_${idx}`;

@@ -821,17 +821,18 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                         <div className="space-y-2">
                           {teamMembers.map((member) => (
                             <div key={member.id} className="flex gap-2 items-start">
-                              <div className="flex-1">
-                                <UserSearchSelect label="" hideLabel value={member.role ? `${member.name} (${member.role})` : (member.name || '')} required={false}
-                                  onChange={(user) => setTeamMembers(prev => prev.map(item => item.id === member.id
-                                    ? { ...item, name: user?.name || '', role: user?.position || '', userId: user?.id || null }
-                                    : item
-                                  ))}
-                                  placeholder={t('create.roles.searchPlaceholder')} />
-                              </div>
-                              <input value={member.role || ''} readOnly
-                                className="w-48 bg-gray-100 border border-gray-200 rounded px-3 py-2 text-sm text-gray-600"
-                                placeholder={t('create.brigade.positionPlaceholder')} />
+                              <input
+                                value={member.name || ''}
+                                onChange={e => updateTeamMember(member.id, 'name', e.target.value)}
+                                className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded px-3 py-2 text-sm text-gray-900"
+                                placeholder={t('create.brigade.namePlaceholder')}
+                              />
+                              <input
+                                value={member.role || ''}
+                                onChange={e => updateTeamMember(member.id, 'role', e.target.value)}
+                                className="w-48 bg-[#f7f7f7] border border-gray-300 rounded px-3 py-2 text-sm text-gray-900"
+                                placeholder={t('create.brigade.positionPlaceholder')}
+                              />
                               <button type="button" onClick={() => removeTeamMember(member.id)}
                                 className="text-gray-400 hover:text-red-500 transition-colors p-1" title="Удалить члена бригады">
                                 <Trash2 size={18} />

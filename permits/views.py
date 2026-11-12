@@ -1048,10 +1048,14 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         if member_index < 0 or member_index >= len(team):
             return Response({'error': 'Недопустимый номер члена бригады.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Подписать может сам член бригады со своей учётной записи (или админ)
+        # Подписать может сам член бригады со своей учётной записи,
+        # Производитель работ (для ручного состава) или администратор.
         member_user_id = team[member_index].get('userId')
-        if member_user_id and member_user_id != request.user.id and not request.user.is_admin:
-            return Response({'error': 'Подписать может только сам член бригады.'}, status=status.HTTP_403_FORBIDDEN)
+        is_producer = permit.approval_steps.filter(
+            role='WORK_PRODUCER', approver=request.user,
+        ).exists()
+        if not (request.user.is_admin or is_producer or (member_user_id and member_user_id == request.user.id)):
+            return Response({'error': 'Подписать может член бригады или Производитель работ.'}, status=status.HTTP_403_FORBIDDEN)
 
         image_file = request.FILES.get('signature')
         if not image_file:
