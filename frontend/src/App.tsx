@@ -9,7 +9,6 @@ import { Toasts, toast } from './components/Toasts';
 import { CardErrorBoundary } from './components/ErrorBoundary';
 import { formatPermit } from './utils/formatPermit';
 import { scrollToAppTop } from './utils/scroll';
-import { ModuleSelector } from './components/ModuleSelector';
 import { ListSkeleton } from './components/Skeleton';
 import { WorkPermit, PageView, PermitCategory } from './types';
 
@@ -37,7 +36,7 @@ function App() {
   const isLoggedIn = !!token;
 
   // 2. Navigation State
-  const [currentView, setCurrentView] = useState<PageView>('MODULE_SELECT');
+  const [currentView, setCurrentView] = useState<PageView>('DASHBOARD');
   const [selectedPermitId, setSelectedPermitId] = useState<string | null>(null);
 
   // 3. Create/Edit State
@@ -188,13 +187,7 @@ function App() {
     setToken(newToken);
     localStorage.setItem('user_data', JSON.stringify(data));
     setUserData(data);
-    setCurrentView('MODULE_SELECT');
-  };
-
-  const handleSelectModule = (module: string) => {
-    if (module === 'permits') {
-      setCurrentView('DASHBOARD');
-    }
+    setCurrentView('DASHBOARD');
   };
 
   const handleLogout = () => {
@@ -362,19 +355,6 @@ function App() {
     return <Login onLogin={handleLogin} />;
   }
 
-  if (currentView === 'MODULE_SELECT') {
-    return (
-      <ModuleSelector
-        onSelectModule={handleSelectModule}
-        userName={
-          userData?.name ||
-          [userData?.last_name, userData?.first_name].filter(Boolean).join(' ') ||
-          'Пользователь'
-        }
-      />
-    );
-  }
-
   return (
     <>
       <Layout
@@ -383,7 +363,6 @@ function App() {
         onNavigateMyTasks={handleNavigateMyTasks}
         onNavigateArchive={handleNavigateArchive}
         onNavigateAuditStats={handleNavigateAuditStats}
-        onNavigateModules={() => setCurrentView('MODULE_SELECT')}
         onCreate={handleCreateNew}
         onLogout={handleLogout}
         onSelectPermit={handleSelectPermit}
