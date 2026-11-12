@@ -1256,7 +1256,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                             <td className="px-4 py-3">
                               {memberSig ? (
                                 <img src={getSignatureUrl(memberSig)} alt="Подпись" className="h-8 object-contain"/>
-                              ) : (((member.userId && String(member.userId) === currentUserId) || isProducerUser) && isWorkActive) ? (
+                              ) : (((member.userId && String(member.userId) === currentUserId) || isProducerUser || isIssuerUser || isAdmittingUser) && isWorkActive) ? (
                                 <button
                                   onClick={() => setBrigadeSignPadIdx(idx)}
                                   className="px-2 py-1 bg-emerald-600 text-white text-[10px] font-medium rounded hover:bg-emerald-700"
@@ -1956,10 +1956,14 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                             )
                           ) : (isWorkActive) ? (
                             data.responsible?.name ? (
-                              isResponsibleUser ? (
-                                <button onClick={() => handleTargetBriefingEcpp('row1', 'receivedBy')}
-                                  className="mt-1 px-3 py-1 bg-blue-600 text-white text-[10px] font-medium rounded hover:bg-blue-700">
-                                  Подписать (ЭЦП)
+                               (isResponsibleUser || isProducerUser) ? (
+                                 <button onClick={() => {
+                                   pendingTBRowRef.current = 'row1';
+                                   pendingTBSideRef.current = 'receivedBy';
+                                   setTargetBriefingPadOpen(true);
+                                 }}
+                                   className="mt-1 px-3 py-1 bg-emerald-600 text-white text-[10px] font-medium rounded hover:bg-emerald-700">
+                                   Подписать (графически)
                                 </button>
                               ) : <div className="w-32 border-b border-gray-400 mt-2"></div>
                             ) : (
@@ -1984,7 +1988,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                           <div className="text-[11px] text-gray-700">{data.admitting?.name || '—'} {data.admitting?.position || ''}</div>
                           {data.targetBriefing?.row2?.instructedBySignature ? (
                             <img src={getSignatureUrl(data.targetBriefing.row2.instructedBySignature)} alt="Подпись" className="h-12 object-contain mt-1"/>
-                          ) : isAdmittingUser && (isWorkActive) ? (
+                           ) : (isAdmittingUser || isProducerUser) && (isWorkActive) ? (
                             <button onClick={() => {
                               pendingTBRowRef.current = ('row2');
                               pendingTBSideRef.current = ('instructedBy');
@@ -2007,10 +2011,14 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                 ) : (
                                   <img src={getSignatureUrl(data.targetBriefing.row2.responsibleReceivedBySignature)} alt="Подпись" className="h-12 object-contain mt-1"/>
                                 )
-                              ) : (isWorkActive) && isResponsibleUser ? (
-                                <button onClick={() => handleTargetBriefingEcpp('row2', 'responsibleReceivedBy')}
-                                  className="mt-1 px-3 py-1 bg-blue-600 text-white text-[10px] font-medium rounded hover:bg-blue-700">
-                                  Подписать (ЭЦП)
+                              ) : (isWorkActive) && (isResponsibleUser || isProducerUser) ? (
+                                <button onClick={() => {
+                                  pendingTBRowRef.current = 'row2';
+                                  pendingTBSideRef.current = 'responsibleReceivedBy';
+                                  setTargetBriefingPadOpen(true);
+                                }}
+                                  className="mt-1 px-3 py-1 bg-emerald-600 text-white text-[10px] font-medium rounded hover:bg-emerald-700">
+                                  Подписать (графически)
                                 </button>
                               ) : <div className="w-32 border-b border-gray-400 mt-2"></div>}
                             </>
@@ -2049,7 +2057,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                 </div>
                                 {data.targetBriefing?.[`received_${idx}`] ? (
                                   <img src={getSignatureUrl(data.targetBriefing[`received_${idx}`])} alt="Подпись" className="h-8 object-contain"/>
-                                ) : (((member.userId && String(member.userId) === currentUserId) || isProducerUser) && (isWorkActive)) ? (
+                                ) : (((member.userId && String(member.userId) === currentUserId) || isProducerUser || isIssuerUser || isAdmittingUser) && (isWorkActive)) ? (
                                   <button onClick={() => {
                                     pendingTBRowRef.current = 'row2';
                                     pendingTBSideRef.current = `received_${idx}`;
@@ -2080,11 +2088,15 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                               <img src={getSignatureUrl(data.targetBriefing.row3.instructedBySignature)} alt="Подпись" className="h-12 object-contain mt-1"/>
                             )
                           ) : (isWorkActive) ? (
-                            data.responsible?.name ? (
-                              isResponsibleUser ? (
-                                <button onClick={() => handleTargetBriefingEcpp('row3', 'instructedBy')}
-                                  className="mt-1 px-3 py-1 bg-blue-600 text-white text-[10px] font-medium rounded hover:bg-blue-700">
-                                  Подписать (ЭЦП)
+                              data.responsible?.name ? (
+                               (isResponsibleUser || isProducerUser) ? (
+                                 <button onClick={() => {
+                                   pendingTBRowRef.current = 'row3';
+                                   pendingTBSideRef.current = 'instructedBy';
+                                   setTargetBriefingPadOpen(true);
+                                 }}
+                                   className="mt-1 px-3 py-1 bg-emerald-600 text-white text-[10px] font-medium rounded hover:bg-emerald-700">
+                                   Подписать (графически)
                                 </button>
                               ) : <div className="w-32 border-b border-gray-400 mt-2"></div>
                             ) : (
@@ -2115,7 +2127,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                 </div>
                                 {data.targetBriefing?.[`received_${idx}`] ? (
                                   <img src={getSignatureUrl(data.targetBriefing[`received_${idx}`])} alt="Подпись" className="h-8 object-contain"/>
-                                ) : (((member.userId && String(member.userId) === currentUserId) || isProducerUser) && (isWorkActive)) ? (
+                                ) : (((member.userId && String(member.userId) === currentUserId) || isProducerUser || isIssuerUser || isAdmittingUser) && (isWorkActive)) ? (
                                   <button onClick={() => {
                                     pendingTBRowRef.current = 'row3';
                                     pendingTBSideRef.current = `received_${idx}`;

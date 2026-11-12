@@ -1054,7 +1054,11 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         is_producer = permit.approval_steps.filter(
             role='WORK_PRODUCER', approver=request.user,
         ).exists()
-        if not (request.user.is_admin or is_producer or (member_user_id and member_user_id == request.user.id)):
+        is_issuer_or_admitting = permit.approval_steps.filter(
+            role__in=['ISSUER', 'ADMITTING'], approver=request.user, status='APPROVED',
+        ).exists()
+        external_producer = isinstance((permit.data or {}).get('producer'), dict) and (permit.data or {}).get('producer', {}).get('external')
+        if not (request.user.is_admin or is_producer or is_issuer_or_admitting and external_producer or (member_user_id and member_user_id == request.user.id)):
             return Response({'error': 'Подписать может член бригады или Производитель работ.'}, status=status.HTTP_403_FORBIDDEN)
 
         image_file = request.FILES.get('signature')
@@ -3753,6 +3757,13 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
 
         if permit.status not in ('PENDING_APPROVAL', 'APPROVED', 'RENEWED'):
             return Response({'error': 'Подпись доступна только на этапе согласования или после.'}, status=400)
+
+        if (permit.data or {}).get('category') == 'ELECTRICAL_NEW':
+            is_issuer = permit.approval_steps.filter(
+                role='ISSUER', approver=user, status='APPROVED',
+            ).exists()
+            if not (row == 'row1' and side == 'instructedBy' and (is_issuer or user.is_admin)):
+                return Response({'error': 'В электро-наряде ЭЦП в целевом инструктаже доступна только Выдающему наряд.'}, status=403)
 
         try:
             cert_info = parse_xml_signature_info(signed_xml)
