@@ -761,7 +761,12 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                            label={t('electrical.roles.issuer')}
                           value={roles.issuer.name}
                           requiredRole="ISSUER"
-                          onChange={(user) => setRoles(prev => ({ ...prev, issuer: user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' } }))}
+                           onChange={(user) => {
+                             const value = user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' };
+                             setRoles(prev => ({ ...prev, issuer: value }));
+                             updateForm('issuerId', user ? value.name : '');
+                             updateForm('issuerLastName', user ? value.name : '');
+                           }}
                           placeholder={t('create.roles.searchPlaceholder')}
                         />
                         <UserSearchSelect
