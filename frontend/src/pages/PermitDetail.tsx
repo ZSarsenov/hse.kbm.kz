@@ -366,6 +366,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const isIssuerUser = issuerStep && String(issuerStep.approver_id) === currentUserId;
   const responsibleStep = steps.find((s: any) => s.role === 'RESPONSIBLE');
   const isResponsibleUser = responsibleStep && responsibleStep.approver_id && String(responsibleStep.approver_id) === currentUserId;
+  const canManageBrigadeChanges = !!(isIssuerUser || isResponsibleUser || isProducerUser || isAdmin);
 
   // Внешний производитель (без ЭЦП): нет approver_id + флаг external в data
   const externalProducer = producerStep && !producerStep.approver_id &&
@@ -1767,8 +1768,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                   <Users size={20} className="text-blue-600"/>
                   <h3 className="text-lg font-bold text-slate-800">Изменения в составе бригады</h3>
                   <span className="text-sm text-gray-400 ml-auto">Таблица 4</span>
-                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded border border-amber-200 font-medium">Заполняет: Выдающий наряд</span>
-                  {isIssuerUser && (data.brigadeChanges || []).length < 10 && (isWorkActive) && (
+                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded border border-amber-200 font-medium">Заполняет: Руководитель работ и Производитель работ</span>
+                  {canManageBrigadeChanges && (data.brigadeChanges || []).length < 10 && (isWorkActive) && (
                     <button onClick={async () => {
                       const token = localStorage.getItem('auth_token');
                       await fetch(`/api/v1/permits/${permit.id}/add_brigade_change/`, {
@@ -1805,7 +1806,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                       {(data.brigadeChanges || []).map((row: any, idx: number) => (
                         <tr key={idx} className="hover:bg-gray-50/50">
                           <td className="px-3 py-3 border border-gray-300 min-h-[48px]">
-                            {isIssuerUser && !row.signature ? (
+                            {canManageBrigadeChanges && !row.signature ? (
                               <UserSearchInput
                                 value={row.addedUser ? { userId: row.addedUser.userId, name: row.addedUser.name, position: row.addedUser.position } : null}
                                 onChange={async (sel) => {
@@ -1828,7 +1829,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                             )}
                           </td>
                           <td className="px-3 py-3 border border-gray-300 min-h-[48px]">
-                            {isIssuerUser && !row.signature ? (
+                            {canManageBrigadeChanges && !row.signature ? (
                               <UserSearchInput
                                 value={row.removedUser ? { userId: row.removedUser.userId, name: row.removedUser.name, position: row.removedUser.position } : null}
                                 onChange={async (sel) => {
@@ -1861,7 +1862,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                                 <span className="text-[10px] text-blue-600 font-medium block">✓ Подписано (ЭЦП)</span>
                                 <span className="text-[10px] text-gray-500 block">{row.signedBy || data.issuer?.name || '—'}</span>
                               </div>
-                            ) : isIssuerUser && (isWorkActive) ? (
+                            ) : canManageBrigadeChanges && (isWorkActive) ? (
                               <button onClick={() => handleBrigadeChangeSign(idx)}
                                 className="px-2 py-1 bg-blue-600 text-white text-[10px] font-medium rounded hover:bg-blue-700">
                                 Подписать (ЭЦП)
@@ -1871,7 +1872,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                             )}
                           </td>
                           <td className="px-3 py-2 border border-gray-300 text-center">
-                            {isIssuerUser && !row.signature && (
+                            {canManageBrigadeChanges && !row.signature && (
                               <button onClick={async () => {
                                 if (!confirm('Удалить строку?')) return;
                                 const token = localStorage.getItem('auth_token');

@@ -3461,8 +3461,11 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         permit = self.get_object()
         user = request.user
 
-        if not (user.is_admin or permit.approval_steps.filter(role='ISSUER', approver=user).exists()):
-            return Response({'error': 'Только Выдающий наряд может добавлять изменения.'}, status=403)
+        can_manage = user.is_admin or permit.approval_steps.filter(
+            role__in=['ISSUER', 'RESPONSIBLE', 'WORK_PRODUCER'], approver=user,
+        ).exists()
+        if not can_manage:
+            return Response({'error': 'Изменения может добавлять Выдающий, Руководитель работ или Производитель работ.'}, status=403)
 
         data = dict(permit.data) if permit.data else {}
         changes = data.get('brigadeChanges') or []
@@ -3480,8 +3483,11 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         permit = self.get_object()
         user = request.user
 
-        if not (user.is_admin or permit.approval_steps.filter(role='ISSUER', approver=user).exists()):
-            return Response({'error': 'Только Выдающий наряд может редактировать.'}, status=403)
+        can_manage = user.is_admin or permit.approval_steps.filter(
+            role__in=['ISSUER', 'RESPONSIBLE', 'WORK_PRODUCER'], approver=user,
+        ).exists()
+        if not can_manage:
+            return Response({'error': 'Изменения может редактировать Выдающий, Руководитель работ или Производитель работ.'}, status=403)
 
         index = int(request.data.get('index', 0))
         added = request.data.get('added')
@@ -3510,8 +3516,11 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         permit = self.get_object()
         user = request.user
 
-        if not (user.is_admin or permit.approval_steps.filter(role='ISSUER', approver=user).exists()):
-            return Response({'error': 'Только Выдающий наряд может удалять.'}, status=403)
+        can_manage = user.is_admin or permit.approval_steps.filter(
+            role__in=['ISSUER', 'RESPONSIBLE', 'WORK_PRODUCER'], approver=user,
+        ).exists()
+        if not can_manage:
+            return Response({'error': 'Изменения может удалять Выдающий, Руководитель работ или Производитель работ.'}, status=403)
 
         index = int(request.data.get('index', 0))
         data = dict(permit.data) if permit.data else {}
@@ -3535,8 +3544,11 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         if not signed_xml:
             return Response({'error': 'Нет данных подписи.'}, status=400)
 
-        if not (user.is_admin or permit.approval_steps.filter(role='ISSUER', approver=user).exists()):
-            return Response({'error': 'Только Выдающий наряд может подписывать.'}, status=403)
+        can_manage = user.is_admin or permit.approval_steps.filter(
+            role__in=['ISSUER', 'RESPONSIBLE', 'WORK_PRODUCER'], approver=user,
+        ).exists()
+        if not can_manage:
+            return Response({'error': 'Изменения может подписывать Выдающий, Руководитель работ или Производитель работ.'}, status=403)
 
         try:
             cert_info = parse_xml_signature_info(signed_xml)
