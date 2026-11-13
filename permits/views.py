@@ -1048,19 +1048,6 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         if member_index < 0 or member_index >= len(team):
             return Response({'error': 'Недопустимый номер члена бригады.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Подписать может сам член бригады со своей учётной записи,
-        # Производитель работ (для ручного состава) или администратор.
-        member_user_id = team[member_index].get('userId')
-        is_producer = permit.approval_steps.filter(
-            role='WORK_PRODUCER', approver=request.user,
-        ).exists()
-        is_issuer_or_admitting = permit.approval_steps.filter(
-            role__in=['ISSUER', 'ADMITTING'], approver=request.user, status='APPROVED',
-        ).exists()
-        external_producer = isinstance((permit.data or {}).get('producer'), dict) and (permit.data or {}).get('producer', {}).get('external')
-        if not (request.user.is_admin or is_producer or is_issuer_or_admitting and external_producer or (member_user_id and member_user_id == request.user.id)):
-            return Response({'error': 'Подписать может член бригады или Производитель работ.'}, status=status.HTTP_403_FORBIDDEN)
-
         image_file = request.FILES.get('signature')
         if not image_file:
             return Response({'error': 'Приложите файл подписи (signature).'}, status=status.HTTP_400_BAD_REQUEST)
@@ -3794,7 +3781,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             is_producer = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).exists()
             team = (permit.data or {}).get('teamMembers') or []
             is_brigade = any(m.get('userId') == user.id for m in team)
-            if not is_admitting and not is_responsible and not is_producer and not is_brigade and not user.is_admin:
+            if not side.startswith('received_') and not is_admitting and not is_responsible and not is_producer and not is_brigade and not user.is_admin:
                 return Response({'error': 'Только Допускающий, Ответственный руководитель, Производитель работ или члены бригады могут подписать.'}, status=403)
         elif row == 'row3':
             is_responsible = permit.approval_steps.filter(role='RESPONSIBLE', approver=user).exists()
@@ -3867,7 +3854,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             is_brigade = any(m.get('userId') == user.id for m in team)
             is_responsible = permit.approval_steps.filter(role='RESPONSIBLE', approver=user).exists()
             is_producer = permit.approval_steps.filter(role='WORK_PRODUCER', approver=user).exists()
-            if not is_observer and not is_brigade and not is_responsible and not is_producer and not user.is_admin:
+            if not side.startswith('received_') and not is_observer and not is_brigade and not is_responsible and not is_producer and not user.is_admin:
                 return Response({'error': 'Только Ответственный руководитель, Производитель работ, члены бригады или наблюдающий могут подписать.'}, status=403)
 
         image_file = request.FILES.get('signature')
