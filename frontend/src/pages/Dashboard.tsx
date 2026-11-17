@@ -136,7 +136,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
               {isArchiveView ? t('dashboard.subtitleArchive') : t('dashboard.subtitleMain')}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col items-start md:flex-row md:items-center gap-4 md:gap-3">
           {isArchiveView && (
             <button
               onClick={async () => {
@@ -178,28 +178,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                 <span>{t('dashboard.createPermit')}</span>
               </button>
           )}
-        </div>
-
-        {/* SKAI — ИИ ассистент Самрук-Казына: QR со ссылкой (справа, кнопку «Создать наряд» не перекрывает) */}
-        {!isArchiveView && (
-          <a
-            href="https://ai.sk-ai.kz/statistic/tb-expert"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm hover:shadow-md hover:border-blue-300 transition-all"
-            title="Открыть SKAI — ИИ ассистент"
-          >
-            <img src="/skai_qr.png" alt="QR: SKAI ИИ ассистент" className="h-16 w-16 rounded-md shrink-0"/>
-            <div className="flex flex-col items-start leading-tight">
-              {/* Официальный логотип Самрук-Казына */}
-              <div className="flex items-center">
-                <img src="/logo-samruk.png" alt="Samruk Kazyna" className="h-9 w-auto"/>
+          {/* SKAI — ИИ ассистент Самрук-Казына: QR рядом с кнопкой создания */}
+          {!isArchiveView && (
+            <a
+              href="https://ai.sk-ai.kz/statistic/tb-expert"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm hover:shadow-md hover:border-blue-300 transition-all"
+              title="Открыть SKAI — ИИ ассистент"
+            >
+              <img src="/skai_qr.png" alt="QR: SKAI ИИ ассистент" className="h-16 w-16 rounded-md shrink-0"/>
+              <div className="flex flex-col items-start leading-tight">
+                {/* Официальный логотип Самрук-Казына */}
+                <div className="flex items-center">
+                  <img src="/logo-samruk.png" alt="Samruk Kazyna" className="h-9 w-auto"/>
+                </div>
+                <span className="text-sm font-bold text-blue-700 mt-0.5">SKAI ИИ ассистент</span>
+                <span className="text-[10px] text-gray-500">Наведите камеру на QR</span>
               </div>
-              <span className="text-sm font-bold text-blue-700 mt-0.5">SKAI ИИ ассистент</span>
-              <span className="text-[10px] text-gray-500">Наведите камеру на QR</span>
-            </div>
-          </a>
-        )}
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Вкладки по типу наряда: Все / Повышенной опасности / Электроустановки */}
