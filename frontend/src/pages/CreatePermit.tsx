@@ -1288,7 +1288,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                  <div>
                    <div className="flex items-center justify-between mb-3">
                      <label className="text-sm font-semibold text-gray-700">Наименование электроустановок, в которых нужно провести отключения и установить заземления / Что должно быть отключено и где заземлено</label>
-                     {(formData.electricalDisconnects || []).length < 10 && (
+                      {(formData.electricalDisconnects || []).length < 20 && (
                        <button
                          type="button"
                          onClick={() => updateForm('electricalDisconnects', [...(formData.electricalDisconnects || []), { id: Date.now().toString(), installationName: '', actionRequired: '' }])}
@@ -1350,7 +1350,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                        </tbody>
                      </table>
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">Максимум 10 строк. {(formData.electricalDisconnects || []).length}/10</p>
+                     <p className="text-xs text-gray-400 mt-2">Максимум 20 строк. {(formData.electricalDisconnects || []).length}/20</p>
                   </div>
                   <div className="space-y-5 border-t border-gray-100 pt-5">
                     <div>
