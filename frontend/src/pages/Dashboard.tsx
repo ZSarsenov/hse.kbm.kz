@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Calendar, MapPin, Search, Download, Plus, ChevronRight, Building2, SlidersHorizontal, User, ChevronLeft, Filter } from 'lucide-react';
 import { WorkPermit, PermitStatus } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
+import { getPageItems } from '../utils/pagination';
+import { scrollToAppTop } from '../utils/scroll';
 
 interface DashboardProps {
   permits: WorkPermit[];
@@ -14,10 +16,23 @@ interface DashboardProps {
 
 const ITEMS_PER_PAGE = 10;
 
+// Компактная дата для журнальных колонок: «08.10.26, 14:59» (15 симв.)
+// влезает в колонку 150px одной строкой — полный формат с 4-значным годом
+// переносился на ~6 строк и раздувал высоту строк таблицы до 132px,
+// из-за чего при листании страниц низ таблицы «прыгал».
+const formatDtCompact = (s: string | undefined, locale: string) => {
+  if (!s) return '—';
+  try {
+    const d = new Date(s);
+    return d.toLocaleString(locale, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+  } catch { return '—'; }
+};
+
 export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, onCreateNew, isArchiveView = false, isBackgroundLoading = false }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language?.startsWith('kk') ? 'kk-KZ' : 'ru-RU';
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -41,13 +56,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
       }
 
       const matchesStatus = filterStatus === 'ALL' || p.status === filterStatus;
+      // Фильтр по типу наряда: Все / Повышенной опасности / Электроустановки
+      let matchesCategory = true;
+      if (categoryFilter === 'DANGEROUS') {
+        matchesCategory = p.category !== 'ELECTRICAL_NEW' && p.category !== 'ELECTRICAL';
+      } else if (categoryFilter === 'ELECTRICAL') {
+        matchesCategory = p.category === 'ELECTRICAL_NEW' || p.category === 'ELECTRICAL';
+      }
       const query = searchQuery.toLowerCase();
       const matchesSearch =
         (p.permitId?.toLowerCase() || '').includes(query) ||
         (p.initiator?.name?.toLowerCase() || '').includes(query) ||
         (p.location?.name?.toLowerCase() || '').includes(query) ||
         (p.data?.workName?.toLowerCase() || '').includes(query);
-      return matchesStatus && matchesSearch;
+      return matchesStatus && matchesCategory && matchesSearch;
     });
 
     // В Журнале: дополнительный фильтр по периоду (С / По)
@@ -62,20 +84,41 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
       });
     }
     return result;
-  }, [permits, isArchiveView, filterStatus, searchQuery, dateFrom, dateTo]);
+  }, [permits, isArchiveView, filterStatus, categoryFilter, searchQuery, dateFrom, dateTo]);
 
   // Pagination Logic
-  const totalPages = Math.ceil(filteredPermits.length / ITEMS_PER_PAGE);
+  // Пока идёт фоновая догрузка остальных страниц, счётчик «Показано … из N»
+  // и кнопки страниц не пересчитываем на каждом пришедшем куске данных —
+  // иначе футер пагинации дёргается. Снимок фиксируется на время загрузки
+  // и обновляется один раз по её завершении (или при смене фильтров).
+  const [stableTotal, setStableTotal] = useState<number | null>(null);
+  useEffect(() => {
+    if (isBackgroundLoading) {
+      setStableTotal(filteredPermits.length);
+    } else {
+      setStableTotal(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBackgroundLoading, filterStatus, categoryFilter, searchQuery, dateFrom, dateTo, isArchiveView]);
+
+  const displayTotal = stableTotal ?? filteredPermits.length;
+  const totalPages = Math.ceil(displayTotal / ITEMS_PER_PAGE);
   const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
   const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
   const currentItems = filteredPermits.slice(indexOfFirstItem, indexOfLastItem);
 
-  useEffect(() => { setCurrentPage(1); }, [filterStatus, searchQuery, dateFrom, dateTo, isArchiveView]);
+  useEffect(() => { setCurrentPage(1); }, [filterStatus, categoryFilter, searchQuery, dateFrom, dateTo, isArchiveView]);
+
+  // Список может уменьшиться (фильтр по дате, удаление, фоновый рефетч) —
+  // зажимаем страницу, иначе пользователь остаётся на пустой странице.
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) setCurrentPage(totalPages);
+  }, [totalPages, currentPage]);
 
   const goToPage = (pageNumber: number) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {
       setCurrentPage(pageNumber);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      scrollToAppTop();
     }
   };
 
@@ -93,8 +136,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
               {isArchiveView ? t('dashboard.subtitleArchive') : t('dashboard.subtitleMain')}
           </p>
         </div>
-        <div className="flex gap-3">
-          {/* Кнопка "Экспорт отчета" только во вкладке Журнал */}
+        <div className="flex flex-col items-start md:flex-row md:items-center gap-4 md:gap-3">
           {isArchiveView && (
             <button
               onClick={async () => {
@@ -136,7 +178,48 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                 <span>{t('dashboard.createPermit')}</span>
               </button>
           )}
+          {/* SKAI — ИИ ассистент Самрук-Казына: QR рядом с кнопкой создания */}
+          {!isArchiveView && (
+            <a
+              href="https://ai.sk-ai.kz/statistic/tb-expert"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm hover:shadow-md hover:border-blue-300 transition-all"
+              title="Открыть SKAI — ИИ ассистент"
+            >
+              <img src="/skai_qr.png" alt="QR: SKAI ИИ ассистент" className="h-16 w-16 rounded-md shrink-0"/>
+              <div className="flex flex-col items-start leading-tight">
+                {/* Официальный логотип Самрук-Казына */}
+                <div className="flex items-center">
+                  <img src="/logo-samruk.png" alt="Samruk Kazyna" className="h-9 w-auto"/>
+                </div>
+                <span className="text-sm font-bold text-blue-700 mt-0.5">SKAI ИИ ассистент</span>
+                <span className="text-[10px] text-gray-500">Наведите камеру на QR</span>
+              </div>
+            </a>
+          )}
         </div>
+      </div>
+
+      {/* Вкладки по типу наряда: Все / Повышенной опасности / Электроустановки */}
+      <div className="flex gap-1 overflow-x-auto border-b border-gray-200">
+        {[
+          { id: 'ALL', label: t('dashboard.catAll') },
+          { id: 'DANGEROUS', label: t('dashboard.catDangerous') },
+          { id: 'ELECTRICAL', label: t('dashboard.catElectrical') },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setCategoryFilter(tab.id)}
+            className={`pb-3 pt-1 px-4 text-sm font-bold uppercase tracking-wide border-b-2 transition-colors whitespace-nowrap ${
+              categoryFilter === tab.id
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Filters Section */}
@@ -170,6 +253,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                         <option value={PermitStatus.DRAFT}>{t('dashboard.draft')}</option>
                         <option value={PermitStatus.PENDING_APPROVAL}>{t('dashboard.pending')}</option>
                         <option value={PermitStatus.APPROVED}>{t('dashboard.approved')}</option>
+                        <option value={PermitStatus.RENEWED}>{t('status.RENEWED')}</option>
                     </>
                 )}
               </select>
@@ -261,9 +345,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                 {isArchiveView ? (
                   <>
                     <th className="px-4 py-3 w-12">{t('dashboard.colNo')}</th>
-                    <th className="px-4 py-3 w-[140px]">{t('dashboard.colPrimary')}</th>
-                    <th className="px-4 py-3 w-[140px]">{t('dashboard.colSecondary')}</th>
-                    <th className="px-4 py-3 w-36">{t('dashboard.colPermitNo')}</th>
+                    <th className="px-4 py-3 w-[150px]">{t('dashboard.colPrimary')}</th>
+                    <th className="px-4 py-3 w-[150px]">{t('dashboard.colSecondary')}</th>
+                    <th className="px-4 py-3 w-44">{t('dashboard.colPermitNo')}</th>
                     <th className="px-4 py-3 w-[320px]">{t('dashboard.colWorkshop')}</th>
                     <th className="px-4 py-3 w-[240px]">{t('dashboard.colIssuer')}</th>
                     <th className="px-4 py-3 w-[420px]">{t('dashboard.colWorkNature')}</th>
@@ -272,7 +356,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                   </>
                 ) : (
                   <>
-                    <th className="px-6 py-3 w-36">{t('dashboard.colNumber')}</th>
+                    <th className="px-6 py-3 w-44">{t('dashboard.colNumber')}</th>
                     <th className="px-6 py-3">{t('dashboard.colWorkType')}</th>
                     <th className="px-6 py-3">{t('dashboard.colLocation')}</th>
                     <th className="px-6 py-3">{t('dashboard.colResponsible')}</th>
@@ -303,15 +387,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                       className="group cursor-pointer transition-colors even:bg-slate-50/50 hover:bg-blue-50/60"
                     >
                       <td className="px-4 py-3 font-medium text-gray-700">{indexOfFirstItem + index + 1}</td>
-                      <td className="px-4 py-3 text-gray-600 text-sm">
-                        <div className="leading-tight">{t('dashboard.startShort')} {formatDt(permit.validFrom || permit.createdAt)}</div>
-                        <div className="leading-tight mt-0.5">{t('dashboard.endShort')} {formatDt(permit.validTo)}</div>
+                      <td className="px-4 py-3">
+                        <div className="text-xs text-gray-400 leading-tight">{t('dashboard.startLabel')}</div>
+                        <div className="text-sm text-gray-700 whitespace-nowrap tabular-nums leading-tight">{formatDtCompact(permit.validFrom || permit.createdAt, dateLocale)}</div>
+                        <div className="text-xs text-gray-400 leading-tight mt-1.5">{t('dashboard.endLabel')}</div>
+                        <div className="text-sm text-gray-700 whitespace-nowrap tabular-nums leading-tight">{formatDtCompact(permit.validTo, dateLocale)}</div>
                       </td>
-                      <td className="px-4 py-3 text-gray-400 text-sm">
-                        <div className="leading-tight">{t('dashboard.startShort')} —</div>
-                        <div className="leading-tight mt-0.5">{t('dashboard.endShort')} —</div>
+                      <td className="px-4 py-3">
+                        <div className="text-xs text-gray-400 leading-tight">{t('dashboard.startLabel')}</div>
+                        <div className="text-sm text-gray-400 whitespace-nowrap leading-tight">—</div>
+                        <div className="text-xs text-gray-400 leading-tight mt-1.5">{t('dashboard.endLabel')}</div>
+                        <div className="text-sm text-gray-400 whitespace-nowrap leading-tight">—</div>
                       </td>
-                      <td className="px-4 py-3 font-mono font-medium text-blue-600 group-hover:text-blue-800">{permit.permitId}</td>
+                      <td className="px-4 py-3 font-mono font-medium text-blue-600 group-hover:text-blue-800 whitespace-nowrap">{permit.permitId}</td>
                       <td
                         className="px-4 py-3 text-gray-700 truncate max-w-[320px]"
                         title={permit.data?.department || ''}
@@ -340,12 +428,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                     onClick={() => onSelectPermit(permit.id)}
                     className="group cursor-pointer transition-colors even:bg-slate-50/50 hover:bg-blue-50/60"
                   >
-                    <td className="px-6 py-3 font-mono font-medium text-blue-600 group-hover:text-blue-800">{permit.permitId}</td>
-                    <td className="px-6 py-3 font-semibold text-gray-800 truncate max-w-[220px]" title={permit.data?.workName || ''}>{permit.data?.workName || permit.templateType || '—'}</td>
+                    <td className="px-6 py-3 font-mono font-medium text-blue-600 group-hover:text-blue-800 whitespace-nowrap">{permit.permitId}</td>
+                    <td className="px-6 py-3 font-semibold text-gray-800 truncate max-w-[200px]" title={permit.data?.workName || ''}>{permit.data?.workName || permit.templateType || '—'}</td>
                     <td className="px-6 py-3 text-gray-600">
                       <div className="flex items-center gap-2">
                         <MapPin size={16} className="text-gray-400 shrink-0" />
-                        <span className="truncate max-w-[200px]">{permit.location?.name || t('dashboard.notSpecified')}</span>
+                        <span className="truncate max-w-[170px]">{permit.location?.name || t('dashboard.notSpecified')}</span>
                       </div>
                     </td>
                     <td className="px-6 py-3 text-gray-700">
@@ -392,10 +480,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
 
         {/* Pagination Footer */}
         {filteredPermits.length > 0 && (
-          <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 border-t border-gray-200 bg-white">
             <div className="text-base text-gray-500 flex items-center gap-3">
               <span>
-                {t('dashboard.shown')} <span className="font-medium text-gray-900">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredPermits.length)}</span> {t('dashboard.of')} <span className="font-medium text-gray-900">{filteredPermits.length}</span>
+                {t('dashboard.shown')} <span className="font-medium text-gray-900">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, displayTotal)}</span> {t('dashboard.of')} <span className="font-medium text-gray-900">{displayTotal}</span>
               </span>
               {isBackgroundLoading && (
                 <span className="flex items-center gap-1.5 text-blue-600 text-sm">
@@ -414,26 +502,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
                 <ChevronLeft size={22} />
               </button>
 
-              <div className="flex items-center gap-1 mx-2">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
-                  <button
-                    key={number}
-                    onClick={() => goToPage(number)}
-                    className={`
-                      w-11 h-11 flex items-center justify-center rounded-lg text-base font-semibold transition-colors
-                      ${currentPage === number
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-                        : 'text-gray-600 hover:bg-gray-100'}
-                    `}
-                  >
-                    {number}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center justify-center gap-1 mx-2">
+                {/* Не рисуем все страницы подряд: при сотнях нарядов в Журнале
+                    ряд кнопок шире карточки и обрезался overflow-hidden */}
+                {getPageItems(currentPage, totalPages).map((item) =>
+                  typeof item === 'number' ? (
+                    <button
+                      key={item}
+                      onClick={() => goToPage(item)}
+                      className={`
+                        w-11 h-11 flex items-center justify-center rounded-lg text-base font-semibold transition-colors
+                        ${currentPage === item
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                          : 'text-gray-600 hover:bg-gray-100'}
+                      `}
+                    >
+                      {item}
+                    </button>
+                  ) : (
+                    <span key={item} className="w-8 h-11 flex items-center justify-center text-gray-400 select-none" aria-hidden>
+                      …
+                    </span>
+                  )
+                )}
               </div>
 
               <button
                 onClick={() => goToPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
+                disabled={currentPage >= totalPages}
                 className="p-2.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight size={22} />
@@ -541,7 +637,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ permits, onSelectPermit, o
             </span>
              <button
                 onClick={() => goToPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
+                disabled={currentPage >= totalPages}
                 className="flex-1 py-4 px-4 bg-white border border-gray-200 rounded-lg text-gray-700 font-medium disabled:opacity-50 shadow-sm text-lg"
               >
                 {t('dashboard.next')}
