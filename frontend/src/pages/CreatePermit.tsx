@@ -174,6 +174,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
   const [checklistData, setChecklistData] = useState<ChecklistData>({});
   const [departmentsList, setDepartmentsList] = useState<any[]>([]);
   const [workTypesList, setWorkTypesList] = useState<any[]>([]);
+  const [assignmentTemplates, setAssignmentTemplates] = useState<any[]>([]);
   const canAutoSaveDraft = !isApprovalEdit && (!isEditing || initialData?.status === 'DRAFT');
   const [draftPermitId, setDraftPermitId] = useState<number | null>(
     isEditing && initialData?.status === 'DRAFT' ? Number(initialData.id) : null
@@ -370,6 +371,12 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
             if (workRes.ok) {
                 const data = await workRes.json();
                 setWorkTypesList(data.results || data);
+            }
+
+            const assignmentRes = await fetch('/api/v1/electrical-work-types/', { headers });
+            if (assignmentRes.ok) {
+                const data = await assignmentRes.json();
+                setAssignmentTemplates((data.results || data).filter((item: any) => item.name?.includes('жоспарлы жөндеу')));
             }
         } catch (e) {
             console.error("Ошибка загрузки справочников:", e);
@@ -932,11 +939,26 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                        </select>
                      </div>
                    )}
-                   <div className="md:col-span-2">
-                     <label className="block text-sm font-semibold text-gray-700 mb-2">{isElectricalNew ? t('electrical.labels.assignment') : t('create.general.workContent')}</label>
-                     <textarea
-                       rows={3}
-                       value={formData.content}
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">{isElectricalNew ? t('electrical.labels.assignment') : t('create.general.workContent')}</label>
+                      {isElectricalNew && (
+                        <select
+                          value=""
+                          onChange={e => {
+                            const selected = assignmentTemplates.find(item => String(item.id) === e.target.value);
+                            if (selected) updateForm('content', selected.name);
+                          }}
+                          className={`${commonInputClasses} mb-2`}
+                        >
+                          <option value="">Выберите шаблон задания...</option>
+                          {assignmentTemplates.map(template => (
+                            <option key={template.id} value={template.id}>{template.name}</option>
+                          ))}
+                        </select>
+                      )}
+                      <textarea
+                        rows={3}
+                        value={formData.content}
                        onChange={(e) => updateForm('content', e.target.value)}
                        placeholder={isElectricalNew ? t('electrical.ph.assignment') : t('create.general.workContentPlaceholder')}
                        className={commonInputClasses}
