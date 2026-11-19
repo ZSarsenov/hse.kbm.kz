@@ -12,6 +12,27 @@ import ChecklistSection, { ChecklistData, validateRequiredChecklists } from '../
 const WellMap = React.lazy(() => import('../components/WellMap').then(m => ({ default: m.WellMap })));
 
 const STEP_ICONS = [FileText, Users, AlertTriangle, Lock];
+const SAFETY_CATEGORIES = ['II', 'III', 'IV', 'V'] as const;
+
+const normalizeSafetyCategory = (value?: string | number) => {
+  if (typeof value === 'number') return ['II', 'III', 'IV', 'V'][value - 2] || '';
+  return value || '';
+};
+
+const RoleSafetyCategory: React.FC<{
+  value?: string | number;
+  onChange: (value: string) => void;
+}> = ({ value, onChange }) => (
+  <select
+    value={normalizeSafetyCategory(value)}
+    onChange={event => onChange(event.target.value)}
+    aria-label="Группа по электробезопасности"
+    className="w-16 h-8 rounded-md border border-gray-300 bg-[#f7f7f7] px-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+  >
+    <option value="">—</option>
+    {SAFETY_CATEGORIES.map(category => <option key={category} value={category}>{category}</option>)}
+  </select>
+);
 
 export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, onSubmit, initialData }) => {
 
@@ -123,6 +144,13 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
      supervisor: { id: null, name: '' },
      observer: { id: null, name: '' }
   });
+
+  const updateRoleCategory = (role: 'issuer' | 'responsible' | 'admitting' | 'producer' | 'observer', category: string) => {
+    setRoles(prev => ({
+      ...prev,
+      [role]: { ...prev[role], safetyCategory: category },
+    }));
+  };
 
   const [additionalCoordinators, setAdditionalCoordinators] = useState<RoleUser[]>([]);
 
@@ -757,58 +785,71 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                         {t('create.roles.sectionTitle')}
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <UserSearchSelect
-                           label={t('electrical.roles.issuer')}
-                          value={roles.issuer.name}
-                          requiredRole="ISSUER"
-                           onChange={(user) => {
-                             const value = user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' };
-                             setRoles(prev => ({ ...prev, issuer: value }));
-                             updateForm('issuerId', user ? value.name : '');
-                             updateForm('issuerLastName', user ? value.name : '');
-                             updateForm('extensionLastName', user ? value.name : '');
-                           }}
-                          placeholder={t('create.roles.searchPlaceholder')}
-                        />
-                        <UserSearchSelect
-                           label={t('electrical.roles.responsible')}
-                          value={roles.responsible.name}
-                          required={isElectricalNew}
-                          requiredRole="RESPONSIBLE"
-                          onChange={(user) => setRoles(prev => ({ ...prev, responsible: user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' } }))}
-                          placeholder={t('create.roles.searchPlaceholder')}
-                        />
-                         <UserSearchSelect
-                           label={t('electrical.roles.admitting')}
-                           value={roles.admitting.name}
-                          requiredRole="ADMITTING"
-                          onChange={(user) => {
-                            const value = user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' };
-                            setRoles(prev => ({ ...prev, admitting: value }));
-                            if (user) updateForm('completionTakeOverName', value.name);
-                           }}
-                           placeholder={t('create.roles.searchPlaceholder')}
-                         />
-                         <UserSearchSelect
-                           label={t('electrical.roles.producer')}
-                           value={roles.producer.name}
-                           requiredRole="WORK_PRODUCER"
-                           onChange={(user) => {
-                             const value = user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' };
-                             setRoles(prev => ({ ...prev, producer: value }));
-                             if (user) updateForm('completionHandOverName', value.name);
-                           }}
-                           placeholder={t('create.roles.searchPlaceholder')}
-                         />
-                         <div className="md:col-start-2">
+                         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
                            <UserSearchSelect
-                             label={t('electrical.roles.observer')}
-                             value={roles.observer.name}
-                             required={false}
-                             onChange={(user) => setRoles(prev => ({ ...prev, observer: user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' } }))}
+                              label={t('electrical.roles.issuer')}
+                             value={roles.issuer.name}
+                             requiredRole="ISSUER"
+                              onChange={(user) => {
+                                const value = user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' };
+                                setRoles(prev => ({ ...prev, issuer: value }));
+                                updateForm('issuerId', user ? value.name : '');
+                                updateForm('issuerLastName', user ? value.name : '');
+                                updateForm('extensionLastName', user ? value.name : '');
+                              }}
                              placeholder={t('create.roles.searchPlaceholder')}
                            />
+                           <RoleSafetyCategory value={(roles.issuer as any).safetyCategory} onChange={category => updateRoleCategory('issuer', category)} />
                          </div>
+                         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+                           <UserSearchSelect
+                              label={t('electrical.roles.responsible')}
+                             value={roles.responsible.name}
+                             required={isElectricalNew}
+                             requiredRole="RESPONSIBLE"
+                             onChange={(user) => setRoles(prev => ({ ...prev, responsible: user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' } }))}
+                             placeholder={t('create.roles.searchPlaceholder')}
+                           />
+                           <RoleSafetyCategory value={(roles.responsible as any).safetyCategory} onChange={category => updateRoleCategory('responsible', category)} />
+                         </div>
+                         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+                           <UserSearchSelect
+                              label={t('electrical.roles.admitting')}
+                              value={roles.admitting.name}
+                             requiredRole="ADMITTING"
+                             onChange={(user) => {
+                               const value = user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' };
+                               setRoles(prev => ({ ...prev, admitting: value }));
+                               if (user) updateForm('completionTakeOverName', value.name);
+                              }}
+                              placeholder={t('create.roles.searchPlaceholder')}
+                            />
+                            <RoleSafetyCategory value={(roles.admitting as any).safetyCategory} onChange={category => updateRoleCategory('admitting', category)} />
+                          </div>
+                          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+                            <UserSearchSelect
+                              label={t('electrical.roles.producer')}
+                              value={roles.producer.name}
+                              requiredRole="WORK_PRODUCER"
+                              onChange={(user) => {
+                                const value = user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' };
+                                setRoles(prev => ({ ...prev, producer: value }));
+                                if (user) updateForm('completionHandOverName', value.name);
+                              }}
+                              placeholder={t('create.roles.searchPlaceholder')}
+                            />
+                            <RoleSafetyCategory value={(roles.producer as any).safetyCategory} onChange={category => updateRoleCategory('producer', category)} />
+                          </div>
+                          <div className="md:col-start-2 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+                            <UserSearchSelect
+                              label={t('electrical.roles.observer')}
+                              value={roles.observer.name}
+                              required={false}
+                              onChange={(user) => setRoles(prev => ({ ...prev, observer: user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' } }))}
+                              placeholder={t('create.roles.searchPlaceholder')}
+                            />
+                            <RoleSafetyCategory value={(roles.observer as any).safetyCategory} onChange={category => updateRoleCategory('observer', category)} />
+                          </div>
                       </div>
                       <div className="mt-5 pt-5 border-t border-gray-100">
                         <div className="flex items-center justify-between mb-3">

@@ -22,6 +22,11 @@ interface UserSearchSelection {
   position: string;
 }
 
+const formatSafetyCategory = (value: unknown): string => {
+  if (typeof value === 'number') return ['II', 'III', 'IV', 'V'][value - 2] || '';
+  return typeof value === 'string' ? value : '';
+};
+
 const UserSearchInput: React.FC<{ value: UserSearchSelection | null; onChange: (val: UserSearchSelection | null) => void; disabled?: boolean }> = ({ value, onChange, disabled }) => {
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<any[]>([]);
@@ -332,6 +337,13 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // Выдающий наряд для блока «Ответственные лица» — из Хода согласования (шаг 1 ISSUER), не инициатор
   const issuerStep = steps.find((s: any) => s.role === 'ISSUER');
   const myPendingSteps = mySteps.filter((s: any) => s.status === 'PENDING');
+  const electricalRoleData: Record<string, any> = {
+    ISSUER: data.issuer,
+    RESPONSIBLE: data.responsible,
+    ADMITTING: data.admitting,
+    WORK_PRODUCER: data.producer,
+    OBSERVER: data.observer,
+  };
   const electricalApprovalSteps = steps.map((step: any) => ({
     ...step,
     role_label: {
@@ -341,6 +353,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
       WORK_PRODUCER: 'Производитель работ',
       OBSERVER: 'Наблюдающий',
     }[step.role] || step.role_label,
+    safety_category: formatSafetyCategory(electricalRoleData[step.role]?.safetyCategory),
   }));
   
   // Для обратной совместимости оставляем myStep (первый найденный)
@@ -1125,12 +1138,16 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                       const m = full.match(/^(.*?)\s*\((.+)\)\s*$/);
                       const fio = m ? m[1] : (full || '—');
                       const pos = r.roleObj?.position || (m ? m[2] : '');
+                      const safetyCategory = formatSafetyCategory(r.roleObj?.safetyCategory);
                       // Допускающий и Производитель подписывают графически — подпись хранится в signer_details шага
                       const graphic = !r.ecpp && r.step?.signer_details?.graphic_signature;
                       return (
                         <div key={i} className={`p-4 border border-gray-200 rounded-lg ${i === 4 ? 'md:col-start-2' : ''}`}>
                           <span className="text-xs text-gray-400 uppercase font-bold">{r.label}</span>
-                          <p className="font-medium text-gray-900">{fio}</p>
+                           <p className="font-medium text-gray-900">
+                             {fio}
+                             {safetyCategory && <span className="ml-2 text-sm font-semibold text-gray-500">({safetyCategory})</span>}
+                           </p>
                           {pos && <p className="text-sm text-gray-500">{pos}</p>}
                           {r.ecpp ? (
                             r.step?.status === 'APPROVED' && (

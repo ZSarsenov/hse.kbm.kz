@@ -9,6 +9,7 @@ interface Step {
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'WAITING' | 'SIGNED';
   signed_at?: string;
   rejection_reason?: string; // 👈 Добавили поле в интерфейс
+  safety_category?: string;
 }
 
 export const ApprovalTracker: React.FC<{ steps: Step[] }> = ({ steps }) => {
@@ -68,9 +69,12 @@ export const ApprovalTracker: React.FC<{ steps: Step[] }> = ({ steps }) => {
                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">
                                Шаг {step.step_order}: {step.role_label}
                            </p>
-                           <p className={`text-lg font-medium ${step.status === 'PENDING' ? 'text-blue-600' : 'text-gray-900'}`}>
-                               {step.approver_name}
-                           </p>
+                            <p className={`text-lg font-medium ${step.status === 'PENDING' ? 'text-blue-600' : 'text-gray-900'}`}>
+                                {step.approver_name}
+                                {step.safety_category && (
+                                  <span className="ml-2 text-sm font-semibold text-gray-500">({step.safety_category})</span>
+                                )}
+                            </p>
                            <p className="text-xs text-gray-400 mt-0.5">{statusText}</p>
                        </div>
 
