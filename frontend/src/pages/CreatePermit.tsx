@@ -8,28 +8,31 @@ import { ElectricalPermitFormNew } from '../components/ElectricalPermitFormNew';
 import { UserSearchSelect } from '../components/UserSearchSelect';
 import { SearchableSelect } from  "../components/SearchableSelect"
 import ChecklistSection, { ChecklistData, validateRequiredChecklists } from '../components/ChecklistSection';
-// Карта тяжёлая (maplibre-gl) — грузим лениво, отдельным чанком, только при показе
+
 const WellMap = React.lazy(() => import('../components/WellMap').then(m => ({ default: m.WellMap })));
 
-
-// Интерфейс для объекта пользователя в роли
-interface RoleUser {
-    id: number | null;
-    name: string;
-    role?: string;
-    position?: string;
-    external?: boolean;
-}
-
-interface CreatePermitProps {
-  category: PermitCategory;
-  onCancel: () => void;
-  onSubmit: () => void;
-  initialData?: WorkPermit | null; // 👈 Для редактирования
-}
-
-// Step icons (labels are translated inside component)
 const STEP_ICONS = [FileText, Users, AlertTriangle, Lock];
+const SAFETY_CATEGORIES = ['II', 'III', 'IV', 'V'] as const;
+
+const normalizeSafetyCategory = (value?: string | number) => {
+  if (typeof value === 'number') return ['II', 'III', 'IV', 'V'][value - 2] || '';
+  return value || '';
+};
+
+const RoleSafetyCategory: React.FC<{
+  value?: string | number;
+  onChange: (value: string) => void;
+}> = ({ value, onChange }) => (
+  <select
+    value={normalizeSafetyCategory(value)}
+    onChange={event => onChange(event.target.value)}
+    aria-label="Группа по электробезопасности"
+    className="w-16 h-8 rounded-md border border-gray-300 bg-[#f7f7f7] px-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+  >
+    <option value="">—</option>
+    {SAFETY_CATEGORIES.map(category => <option key={category} value={category}>{category}</option>)}
+  </select>
+);
 
 export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, onSubmit, initialData }) => {
 
@@ -69,8 +72,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                         <Zap size={12}/> {t('electrical.header.badge')}
                      </span>
                      <span className="text-slate-400 text-sm font-mono">{t('electrical.header.ref')}</span>
-                   </div>
-               </div>
+                       </div>
+                     </div>
             </div>
           }
         />
@@ -116,34 +119,47 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
        checkResidualEnergy: false, checkLockDevice: false, checkPadlock: false, checkTag: false
     },
     // Dates
-    dateStart: '', dateEnd: '',
+    dateStart: '', dateEnd: '', emergencyReadinessTime: '',
+    separateInstructions: '', issuerDate: '', issuerTime: '', issuerSignature: '', issuerLastName: '',
+    extensionDate: '', extensionTime: '', extensionSignature: '', extensionLastName: '',
     // Item 12: Extensions
     extensions: [],
     // Item 13: Completion
     completionDateTime: '', completionHandOverName: '', completionTakeOverName: ''
   });
 
+  const updateRoleCategory = (role: 'issuer' | 'responsible' | 'admitting' | 'producer' | 'observer', category: string) => {
+    setRoles(prev => ({
+      ...prev,
+      [role]: { ...prev[role], safetyCategory: category },
+    }));
+  };
+
   // 👇 Стейт ролей теперь хранит объекты (для валидации и ID), а не просто строки
   const [roles, setRoles] = useState<{
-      producer: RoleUser;
-      admitting: RoleUser;
-      responsible: RoleUser;
-      issuer: RoleUser;
-      supervisor: RoleUser;
+       producer: RoleUser;
+       admitting: RoleUser;
+       responsible: RoleUser;
+       issuer: RoleUser;
+       supervisor: RoleUser;
+       observer: RoleUser;
   }>({
     producer: { id: null, name: '' },
     admitting: { id: null, name: '' },
     responsible: { id: null, name: '' },
     issuer: { id: null, name: '' },
-    supervisor: { id: null, name: '' }
+     supervisor: { id: null, name: '' },
+     observer: { id: null, name: '' }
   });
 
   const [additionalCoordinators, setAdditionalCoordinators] = useState<RoleUser[]>([]);
 
-  /** Исполнитель без ЭЦП: одна строка (ФИО, должность); графическая подпись на согласовании */
-  const [producerIsExternal, setProducerIsExternal] = useState(false);
+  // Производитель работ выбирается только из БД (сотрудники с учётной записью)
   /** Основной согласующий без ЭЦП — аналогично, графическая подпись на согласовании */
   const [supervisorIsExternal, setSupervisorIsExternal] = useState(false);
+  // Исполнитель без ЭЦП (только наряд повышенной опасности): ФИО и должность вручную,
+  // подписывает графически — вносит Выдающий или Допускающий со своей учётной записи
+  const [producerIsExternal, setProducerIsExternal] = useState(false);
 
   // Редактирование во время согласования: блок подписантов полностью заблокирован
   const isApprovalEdit = isEditing && initialData?.status === 'PENDING_APPROVAL';
@@ -177,6 +193,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       !!(roles.producer.name && roles.producer.name.trim()) ||
       roles.admitting.id ||
       roles.responsible.id ||
+      roles.observer.id ||
       roles.supervisor.id ||
       !!(supervisorIsExternal && roles.supervisor.name?.trim()) ||
       additionalCoordinators.some(c => !!c.id) ||
@@ -213,11 +230,12 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
     const fullDataPayload = {
       ...formData,
       ...roles,
+      observer: { ...roles.observer },
       producer: producerPayload,
-      supervisor: supervisorPayload,
       ...(producerIsExternal && roles.producer.name.trim()
         ? { completionHandOverName: roles.producer.name.trim() }
         : {}),
+      supervisor: supervisorPayload,
       additionalCoordinators: additionalCoordinators.filter(c => c.id || c.external),
       // Очищаем instructedAt при сохранении — поле заполняется автоматически в момент подписи члена бригады
       teamMembers: teamMembers.map((m: any) => ({ ...m, instructedAt: '' })),
@@ -392,14 +410,12 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
           const restoredRoles = {
               producer: restoreRole(savedData.producer),
               admitting: restoreRole(savedData.admitting),
-              responsible: restoreRole(savedData.responsible),
-              issuer: issuerRole,
-              supervisor: restoreRole(savedData.supervisor),
-          };
+               responsible: restoreRole(savedData.responsible),
+               issuer: issuerRole,
+               supervisor: restoreRole(savedData.supervisor),
+               observer: restoreRole(savedData.observer),
+           };
           setRoles(restoredRoles);
-          setProducerIsExternal(
-            !!(savedData.producer && typeof savedData.producer === 'object' && (savedData.producer as RoleUser).external)
-          );
           setSupervisorIsExternal(
             !!(savedData.supervisor && typeof savedData.supervisor === 'object' && (savedData.supervisor as RoleUser).external)
           );
@@ -419,6 +435,12 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
           if (savedData.checklist) setChecklistData(savedData.checklist);
           if (savedData.notifyFireService) setNotifyFireService(true);
           if (savedData.callFirePost) setCallFirePost(true);
+          // Восстанавливаем точку на карте — иначе следующий autosave затрёт wellCoords
+          setWellCoords(savedData.wellCoords || null);
+          // Восстанавливаем режим «исполнитель без ЭЦП», если в сохранённом наряде он был
+          setProducerIsExternal(
+            !!(savedData.producer && typeof savedData.producer === 'object' && (savedData.producer as RoleUser).external)
+          );
 
       } else if (!isEditing) {
           // --- РЕЖИМ СОЗДАНИЯ: поле "Наряд выдал" оставляем пустым — выбирает сам создатель
@@ -537,10 +559,13 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
             alert("Введите ФИО и должность производителя работ — исполнителя без ЭЦП (одной строкой)."); setIsSubmitting(false); return;
           }
       } else if (!roles.producer.id) {
-          alert("Не заполнен Производитель работ!"); setIsSubmitting(false); return;
+          alert("Не заполнен Производитель работ! Выберите его из списка сотрудников."); setIsSubmitting(false); return;
       }
        if (!roles.admitting.id && !roles.admitting.name) {
            alert("Не заполнен Допускающий к работе!"); setIsSubmitting(false); return;
+       }
+       if (isElectricalNew && !roles.responsible.id) {
+           alert("Не заполнен Ответственный руководитель работ!"); setIsSubmitting(false); return;
        }
        if (isElectricalNew && !formData.workCategory) {
            alert("Укажите категорию работ."); setIsSubmitting(false); return;
@@ -628,7 +653,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
         }
 
         if (result?.id) setDraftPermitId(Number(result.id));
-        alert(isEditing ? '✅ Наряд успешно обновлен!' : '✅ Черновик наряда сохранён. Номер будет присвоен при отправке на согласование.');
+        alert(isEditing ? '✅ Наряд успешно обновлен!' : '✅ Проект наряда сохранён. Номер будет присвоен при отправке на согласование.');
         onSubmit();
       } else {
         // Пробуем прочитать JSON-ошибку, если не получится — читаем текст
@@ -676,12 +701,21 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                 <h1 className="text-3xl font-bold text-slate-900 leading-tight">
                     {isEditing ? t('create.editTitle', { id: initialData?.permitId }) : t('create.title')}
                 </h1>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-orange-100 text-orange-700 border-orange-200">
-                  <AlertTriangle size={12}/>
-                  {t('create.dangerBadge')}
-                </span>
-             </div>
-             <p className="text-base text-slate-500 font-mono mt-0.5">{t('create.formRef')}</p>
+                 {isElectricalNew ? (
+                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-blue-100 text-blue-700 border-blue-200">
+                     <Zap size={12}/>
+                     {t('electrical.header.badge')}
+                   </span>
+                 ) : (
+                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-orange-100 text-orange-700 border-orange-200">
+                     <AlertTriangle size={12}/>
+                     {t('create.dangerBadge')}
+                   </span>
+                 )}
+              </div>
+              {!isElectricalNew && (
+                <p className="text-base text-slate-500 font-mono mt-0.5">{t('create.formRef')}</p>
+              )}
          </div>
       </div>
 
@@ -741,50 +775,151 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                          autoFocus
                        />
                      </div>
-                   )}
-                 </div>
+                    )}
+                  </div>
 
-                 <div className="md:col-span-2">
-                     <SearchableSelect
-                         label={t('create.general.workName')}
-                         value={formData.workName}
-                         apiEndpoint={isElectricalNew ? "/api/v1/electrical-work-types/" : "/api/v1/work-types/"}
-                         placeholder={t('create.general.workNamePlaceholder')}
-                         onChange={(val) => updateForm('workName', val)}
-                     />
-                 </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('create.general.workPlace')}</label>
-                    <input
-                      type="text"
-                      value={formData.workPlace}
-                      onChange={(e) => updateForm('workPlace', e.target.value)}
-                      placeholder={t('create.general.workPlacePlaceholder')}
-                      className={commonInputClasses}
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <React.Suspense fallback={<div className="h-[400px] rounded-xl border border-slate-200 bg-slate-100 animate-pulse" />}>
-                      <WellMap
-                        onSelectWell={handleSelectWell}
-                        selectedWell={formData.workPlace || undefined}
-                      />
-                    </React.Suspense>
-                  </div>
-                   <div className="md:col-span-2">
-                     <label className="block text-sm font-semibold text-gray-700 mb-2">{t('create.general.workContent')}</label>
-                    <textarea
-                      rows={3}
-                      value={formData.content}
-                      onChange={(e) => updateForm('content', e.target.value)}
-                      placeholder={t('create.general.workContentPlaceholder')}
-                      className={commonInputClasses}
-                    />
-                  </div>
-                  {/* Категория работ — только для ELECTRICAL_NEW */}
                   {isElectricalNew && (
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Категория работ<span className="text-red-500 ml-1">*</span></label>
+                    <div className="md:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                      <h3 className="font-bold text-gray-900 mb-4 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
+                        <Users size={20} className="text-blue-600" />
+                        {t('create.roles.sectionTitle')}
+                      </h3>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+                         <UserSearchSelect
+                           label={t('electrical.roles.issuer')}
+                          value={roles.issuer.name}
+                          requiredRole="ISSUER"
+                           onChange={(user) => {
+                             const value = user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' };
+                             setRoles(prev => ({ ...prev, issuer: value }));
+                             updateForm('issuerId', user ? value.name : '');
+                             updateForm('issuerLastName', user ? value.name : '');
+                             updateForm('extensionLastName', user ? value.name : '');
+                           }}
+                           placeholder={t('create.roles.searchPlaceholder')}
+                         />
+                          <RoleSafetyCategory value={(roles.issuer as any).safetyCategory} onChange={category => updateRoleCategory('issuer', category)} />
+                         </div>
+                          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+                          <UserSearchSelect
+                           label={t('electrical.roles.responsible')}
+                          value={roles.responsible.name}
+                          required={isElectricalNew}
+                          requiredRole="RESPONSIBLE"
+                          onChange={(user) => setRoles(prev => ({ ...prev, responsible: user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' } }))}
+                            placeholder={t('create.roles.searchPlaceholder')}
+                          />
+                           <RoleSafetyCategory value={(roles.responsible as any).safetyCategory} onChange={category => updateRoleCategory('responsible', category)} />
+                          </div>
+                          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+                          <UserSearchSelect
+                           label={t('electrical.roles.admitting')}
+                           value={roles.admitting.name}
+                          requiredRole="ADMITTING"
+                          onChange={(user) => {
+                            const value = user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' };
+                            setRoles(prev => ({ ...prev, admitting: value }));
+                            if (user) updateForm('completionTakeOverName', value.name);
+                           }}
+                           placeholder={t('create.roles.searchPlaceholder')}
+                         />
+                          <RoleSafetyCategory value={(roles.admitting as any).safetyCategory} onChange={category => updateRoleCategory('admitting', category)} />
+                         </div>
+                         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+                         <UserSearchSelect
+                           label={t('electrical.roles.producer')}
+                           value={roles.producer.name}
+                           requiredRole="WORK_PRODUCER"
+                           onChange={(user) => {
+                             const value = user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' };
+                             setRoles(prev => ({ ...prev, producer: value }));
+                             if (user) updateForm('completionHandOverName', value.name);
+                           }}
+                            placeholder={t('create.roles.searchPlaceholder')}
+                          />
+                          <RoleSafetyCategory value={(roles.producer as any).safetyCategory} onChange={category => updateRoleCategory('producer', category)} />
+                          </div>
+                          <div className="md:col-start-2 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+                           <UserSearchSelect
+                             label={t('electrical.roles.observer')}
+                             value={roles.observer.name}
+                             required={false}
+                              onChange={(user) => setRoles(prev => ({ ...prev, observer: user ? { id: user.id, name: `${user.name} (${user.position || t('create.roles.positionNotSet')})`, role: user.role } : { id: null, name: '' } }))}
+                              placeholder={t('create.roles.searchPlaceholder')}
+                            />
+                            <RoleSafetyCategory value={(roles.observer as any).safetyCategory} onChange={category => updateRoleCategory('observer', category)} />
+                          </div>
+                      </div>
+                      <div className="mt-5 pt-5 border-t border-gray-100">
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="block text-sm font-semibold text-gray-700">{t('electrical.roles.brigadeMembers')}</label>
+                          <button type="button" onClick={addTeamMember} disabled={teamMembers.length >= 10}
+                            className={`flex items-center gap-1 px-3 py-1 rounded font-semibold ${teamMembers.length >= 10 ? 'text-gray-300 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50'}`}>
+                            <Plus size={16} /> {t('electrical.roles.addBrigadeMember')}
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {teamMembers.map((member) => (
+                            <div key={member.id} className="flex gap-2 items-start">
+                              <input
+                                value={member.name || ''}
+                                onChange={e => updateTeamMember(member.id, 'name', e.target.value)}
+                                className="flex-1 bg-[#f7f7f7] border border-gray-300 rounded px-3 py-2 text-sm text-gray-900"
+                                placeholder={t('create.brigade.namePlaceholder')}
+                              />
+                              <input
+                                value={member.role || ''}
+                                onChange={e => updateTeamMember(member.id, 'role', e.target.value)}
+                                className="w-48 bg-[#f7f7f7] border border-gray-300 rounded px-3 py-2 text-sm text-gray-900"
+                                placeholder={t('create.brigade.positionPlaceholder')}
+                              />
+                              <button type="button" onClick={() => removeTeamMember(member.id)}
+                                className="text-gray-400 hover:text-red-500 transition-colors p-1" title="Удалить члена бригады">
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
+                          ))}
+                          {teamMembers.length === 0 && <p className="text-gray-400 text-sm italic">{t('electrical.misc.brigadeHint')}</p>}
+                   </div>
+               </div>
+                    </div>
+                  )}
+
+                   {!isElectricalNew && (
+                    <>
+                      <div className="md:col-span-2">
+                        <SearchableSelect
+                          label={t('create.general.workName')}
+                          value={formData.workName}
+                          apiEndpoint="/api/v1/work-types/"
+                          placeholder={t('create.general.workNamePlaceholder')}
+                          onChange={(val) => updateForm('workName', val)}
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">{t('create.general.workPlace')}</label>
+                        <input
+                          type="text"
+                          value={formData.workPlace}
+                          onChange={(e) => updateForm('workPlace', e.target.value)}
+                          placeholder={t('create.general.workPlacePlaceholder')}
+                          className={commonInputClasses}
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <React.Suspense fallback={<div className="h-[400px] rounded-xl border border-slate-200 bg-slate-100 animate-pulse" />}>
+                          <WellMap
+                            onSelectWell={handleSelectWell}
+                            selectedWell={formData.workPlace || undefined}
+                          />
+                        </React.Suspense>
+                      </div>
+                    </>
+                  )}
+                   {isElectricalNew && (
+                     <div className="md:col-span-2">
+                       <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.category')}<span className="text-red-500 ml-1">*</span></label>
                       <select
                         value={formData.workCategory || ''}
                         onChange={e => updateForm('workCategory', e.target.value)}
@@ -794,9 +929,51 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                         <option value="Со снятием напряжения">Со снятием напряжения</option>
                         <option value="Без снятия напряжения с применением электрозащитных средств">Без снятия напряжения с применением электрозащитных средств</option>
                         <option value="Без снятия напряжения на потенциале токоведущей части">Без снятия напряжения на потенциале токоведущей части</option>
-                      </select>
-                    </div>
-                  )}
+                       </select>
+                     </div>
+                   )}
+                   <div className="md:col-span-2">
+                     <label className="block text-sm font-semibold text-gray-700 mb-2">{isElectricalNew ? t('electrical.labels.assignment') : t('create.general.workContent')}</label>
+                     <textarea
+                       rows={3}
+                       value={formData.content}
+                       onChange={(e) => updateForm('content', e.target.value)}
+                       placeholder={isElectricalNew ? t('electrical.ph.assignment') : t('create.general.workContentPlaceholder')}
+                       className={commonInputClasses}
+                     />
+                   </div>
+                   {isElectricalNew && (
+                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                       <div>
+                         <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.startDate')}</label>
+                         <input
+                           type="datetime-local"
+                           value={formData.dateStart || ''}
+                           onChange={e => updateForm('dateStart', e.target.value)}
+                           className={commonInputClasses}
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.endDate')}</label>
+                         <input
+                           type="datetime-local"
+                           value={formData.dateEnd || ''}
+                           onChange={e => updateForm('dateEnd', e.target.value)}
+                           className={commonInputClasses}
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.labels.emergency')}</label>
+                         <input
+                           type="text"
+                           value={formData.emergencyReadinessTime || ''}
+                           onChange={e => updateForm('emergencyReadinessTime', e.target.value)}
+                           placeholder={t('electrical.labels.time')}
+                           className={commonInputClasses}
+                         />
+                       </div>
+                     </div>
+                   )}
                   {!isElectricalNew && (
                   <div className="md:col-span-2">
                     <label className="flex items-center gap-3 cursor-pointer select-none">
@@ -840,8 +1017,9 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
               </div>
            </div>
 
-           {/* Section 2: Responsible Persons */}
-           <div className={`bg-white p-6 rounded-xl border shadow-sm ${isApprovalEdit ? 'border-orange-200 bg-orange-50/30' : 'border-gray-200'}`}>
+            {/* Section 2: Responsible Persons */}
+            {!isElectricalNew && (
+            <div className={`bg-white p-6 rounded-xl border shadow-sm ${isApprovalEdit ? 'border-orange-200 bg-orange-50/30' : 'border-gray-200'}`}>
               <h3 className="font-bold text-gray-900 mb-4 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                 {t('create.roles.sectionTitle')}
                 {isApprovalEdit && <span className="text-sm normal-case text-orange-600 font-medium ml-2">🔒 {t('create.roles.readOnlyHint')}</span>}
@@ -928,64 +1106,66 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                    />
                  </div>
 
-                 {/* 4. Производитель работ (исполнитель работ) */}
-                 <div className="flex flex-col min-w-0">
-                   {producerIsExternal ? (
-                     <>
-                       <label className="block text-sm font-bold text-gray-700 mb-1">
-                         {t('create.roles.producer')}
-                         <span className="text-red-500 ml-1">*</span>
-                       </label>
-                       <textarea
-                         rows={2}
-                         value={roles.producer.name}
-                         onChange={(e) => {
-                           setRoles((prev) => ({
-                             ...prev,
-                             producer: { id: null, name: e.target.value, external: true },
-                           }));
-                           updateForm('completionHandOverName', e.target.value);
-                         }}
-                         placeholder={t('create.roles.externalPlaceholder')}
-                         className={commonInputClasses}
-                       />
-                     </>
-                   ) : (
-                     <UserSearchSelect
-                       label={t('create.roles.producer')}
-                       value={roles.producer.name}
-                       requiredRole="WORK_PRODUCER"
-                       onChange={(user) => {
-                         const displayName = user ? `${user.name} (${user.position || t('create.roles.positionNotSet')})` : '';
-                         const userData = user
-                           ? { id: user.id, name: displayName, role: user.role }
-                           : { id: null, name: '' };
-                         setProducerIsExternal(false);
-                         setRoles((prev) => ({ ...prev, producer: userData }));
-                         if (user) updateForm('completionHandOverName', displayName);
-                       }}
-                       placeholder={t('create.roles.searchPlaceholder')}
-                     />
-                   )}
-                   <div className="flex justify-end mt-1.5">
-                     <button
-                       type="button"
-                       onClick={() => {
-                         if (producerIsExternal) {
-                           setProducerIsExternal(false);
-                           setRoles((prev) => ({ ...prev, producer: { id: null, name: '' } }));
-                         } else {
-                           setProducerIsExternal(true);
-                           setRoles((prev) => ({ ...prev, producer: { id: null, name: '', external: true } }));
-                         }
-                       }}
-                       className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
-                     >
-                       <Plus size={14} className="shrink-0" />
-                       {producerIsExternal ? t('create.roles.selectFromDb') : t('create.roles.externalProducer')}
-                     </button>
-                   </div>
-                 </div>
+                  {/* 4. Производитель работ (исполнитель работ) */}
+                  <div className="flex flex-col min-w-0">
+                    {producerIsExternal ? (
+                      <>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">
+                          {t('create.roles.producer')}
+                          <span className="text-red-500 ml-1">*</span>
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={roles.producer.name}
+                          onChange={(e) => {
+                            setRoles((prev) => ({
+                              ...prev,
+                              producer: { id: null, name: e.target.value, external: true },
+                            }));
+                            updateForm('completionHandOverName', e.target.value);
+                          }}
+                          placeholder={t('create.roles.externalPlaceholder')}
+                          className={commonInputClasses}
+                        />
+                      </>
+                    ) : (
+                      <UserSearchSelect
+                        label={t('create.roles.producer')}
+                        value={roles.producer.name}
+                        requiredRole="WORK_PRODUCER"
+                        onChange={(user) => {
+                          const displayName = user ? `${user.name} (${user.position || t('create.roles.positionNotSet')})` : '';
+                          const userData = user
+                            ? { id: user.id, name: displayName, role: user.role }
+                            : { id: null, name: '' };
+                          setRoles((prev) => ({ ...prev, producer: userData }));
+                          if (user) updateForm('completionHandOverName', displayName);
+                        }}
+                        placeholder={t('create.roles.searchPlaceholder')}
+                      />
+                    )}
+                    {/* Переключатель «без ЭЦП» — только для наряда повышенной опасности */}
+                    {!isElectricalNew && (
+                      <div className="flex justify-end mt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (producerIsExternal) {
+                              setProducerIsExternal(false);
+                              setRoles((prev) => ({ ...prev, producer: { id: null, name: '' } }));
+                            } else {
+                              setProducerIsExternal(true);
+                              setRoles((prev) => ({ ...prev, producer: { id: null, name: '', external: true } }));
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          <Plus size={14} className="shrink-0" />
+                          {producerIsExternal ? t('create.roles.selectFromDb') : t('create.roles.externalProducer')}
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
                   {/* 5. Согласующий (необязательный — без звёздочки) */}
                   {!isElectricalNew && (
@@ -1083,8 +1263,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                                   return updated;
                                 });
                               }}
-                              placeholder={t('create.roles.searchPlaceholder')}
-                            />
+                               placeholder={t('create.roles.searchPlaceholder')}
+                             />
                           )}
                           <div className="flex justify-end mt-1.5">
                             <button
@@ -1133,13 +1313,14 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
 
                </div>
                )}
-            </div>
+             </div>
+             )}
 
-            {/* Section 3: Safety Measures */}
+             {/* Section 3: Safety Measures */}
            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
              <h3 className="font-bold text-gray-900 mb-6 uppercase text-sm tracking-wider border-b-2 border-slate-900 pb-2 flex items-center gap-2">
                <ShieldAlert size={24} className="text-blue-600"/>
-               {isElectricalNew ? 'Меры по подготовке рабочих мест' : t('create.safety.sectionTitle')}
+                {isElectricalNew ? t('electrical.sec.safety') : t('create.safety.sectionTitle')}
              </h3>
              <div className="space-y-5">
                {isElectricalNew ? (
@@ -1148,7 +1329,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                  <div>
                    <div className="flex items-center justify-between mb-3">
                      <label className="text-sm font-semibold text-gray-700">Наименование электроустановок, в которых нужно провести отключения и установить заземления / Что должно быть отключено и где заземлено</label>
-                     {(formData.electricalDisconnects || []).length < 20 && (
+                      {(formData.electricalDisconnects || []).length < 20 && (
                        <button
                          type="button"
                          onClick={() => updateForm('electricalDisconnects', [...(formData.electricalDisconnects || []), { id: Date.now().toString(), installationName: '', actionRequired: '' }])}
@@ -1209,10 +1390,40 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                          ))}
                        </tbody>
                      </table>
-                   </div>
-                   <p className="text-xs text-gray-400 mt-2">Максимум 20 строк. {(formData.electricalDisconnects || []).length}/20</p>
-                 </div>
-                 </>
+                    </div>
+                     <p className="text-xs text-gray-400 mt-2">Максимум 20 строк. {(formData.electricalDisconnects || []).length}/20</p>
+                  </div>
+                  <div className="space-y-5 border-t border-gray-100 pt-5">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">{t('electrical.sec.instructions')}</label>
+                      <textarea
+                        rows={3}
+                        value={formData.separateInstructions || ''}
+                        onChange={e => updateForm('separateInstructions', e.target.value)}
+                        placeholder={t('electrical.ph.instructions')}
+                        className={`${commonInputClasses} resize-none`}
+                      />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-700 mb-3">{t('electrical.sec.issuer')}</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <input type="date" value={formData.issuerDate || ''} onChange={e => updateForm('issuerDate', e.target.value)} className={commonInputClasses} />
+                        <input type="time" value={formData.issuerTime || ''} onChange={e => updateForm('issuerTime', e.target.value)} className={commonInputClasses} />
+                        <input type="text" value={formData.issuerSignature || ''} onChange={e => updateForm('issuerSignature', e.target.value)} placeholder={t('electrical.labels.signature')} className={commonInputClasses} />
+                        <input type="text" value={formData.issuerLastName || ''} onChange={e => updateForm('issuerLastName', e.target.value)} placeholder={t('electrical.labels.lastName')} className={commonInputClasses} />
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-700 mb-3">{t('electrical.sec.extensions')}</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <input type="date" value={formData.extensionDate || ''} onChange={e => updateForm('extensionDate', e.target.value)} className={commonInputClasses} />
+                        <input type="time" value={formData.extensionTime || ''} onChange={e => updateForm('extensionTime', e.target.value)} className={commonInputClasses} />
+                        <input type="text" value={formData.extensionSignature || ''} onChange={e => updateForm('extensionSignature', e.target.value)} placeholder={t('electrical.labels.signature')} className={commonInputClasses} />
+                        <input type="text" value={formData.extensionLastName || ''} onChange={e => updateForm('extensionLastName', e.target.value)} placeholder={t('electrical.labels.lastName')} className={commonInputClasses} />
+                      </div>
+                    </div>
+                  </div>
+                  </>
                 ) : (
                 [
                   { key: 'm5_1_stop', label: t('create.safety.m5_1'), placeholder: t('create.safety.m5_1_ph') },
@@ -1344,6 +1555,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                           <tr key={member.id} className="group hover:bg-gray-50/50">
                              <td className="px-3 py-1.5 text-center text-gray-400">{idx + 1}</td>
                              <td className="px-3 py-1.5">
+                               {/* Опасные работы: бригада заполняется вручную.
+                                   Поиск из БД — только в электро-нарядах (карточка, «+ Добавить члена бригады»). */}
                                <input
                                  type="text"
                                  value={member.name}
@@ -1506,7 +1719,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
        )}
 
        {/* STEP 3: RISK ASSESSMENT */}
-        {(activeStep === 3 || (activeStep === 2 && isElectricalNew)) && (
+        {((activeStep === 3 && !isElectricalNew) || (activeStep === 2 && isElectricalNew)) && (
          <div className="space-y-6 ">
 
             {/* General Info (Static) */}
