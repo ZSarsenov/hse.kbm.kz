@@ -560,13 +560,13 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
               {[
                 { id: 'main' as const, label: 'Основное' },
                 { id: 'team' as const, label: 'Бригада' },
+                { id: 'target_briefing' as const, label: 'Целевой инструктаж' },
                 { id: 'checklist' as const, label: 'Чек лист' },
                 { id: 'measures' as const, label: 'Меры подготовки' },
                 { id: 'loto' as const, label: 'LOTO' },
                 { id: 'admission' as const, label: 'Разрешение на допуск' },
                 { id: 'daily' as const, label: 'Ежедневный допуск' },
                 { id: 'brigade_change' as const, label: 'Изменение бригады' },
-                { id: 'target_briefing' as const, label: 'Целевой инструктаж' },
                 { id: 'work_completion' as const, label: 'Окончание работы' },
               ].map(tab => (
                 <button
