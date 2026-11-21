@@ -1266,7 +1266,10 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                           return (
                           <tr key={idx} className="hover:bg-gray-50">
                             <td className="px-4 py-3 text-gray-400">{idx + 1}</td>
-                            <td className="px-4 py-3 font-medium text-gray-900">{member.name}</td>
+                            <td className="px-4 py-3 font-medium text-gray-900">
+                              {member.name}
+                              {formatSafetyCategory(member.safetyCategory) && <span className="ml-2 text-sm font-semibold text-gray-500">({formatSafetyCategory(member.safetyCategory)})</span>}
+                            </td>
                             <td className="px-4 py-3 text-gray-600">{member.role}</td>
                             <td className="px-4 py-3 text-gray-600">{member.instructedBy || '—'}</td>
                             <td className="px-4 py-3 text-gray-500">{member.instructedAt ? new Date(member.instructedAt).toLocaleString() : '—'}</td>
