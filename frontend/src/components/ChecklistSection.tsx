@@ -47,9 +47,9 @@ export { CHECKLIST_TABLES } from '../data/checklistData';
  * Проверяет, заполнены ли все 3 обязательных чек-листа (все вопросы имеют ответ).
  * Возвращает { valid: true } или { valid: false, missing: ['название таблицы', ...] }
  */
-export function validateRequiredChecklists(checklist: ChecklistData): { valid: boolean; missing: string[] } {
+export function validateRequiredChecklists(checklist: ChecklistData, tables: ChecklistTable[] = CHECKLIST_TABLES): { valid: boolean; missing: string[] } {
   const missing: string[] = [];
-  for (const table of CHECKLIST_TABLES) {
+  for (const table of tables) {
     if (!table.required) continue;
     const answers = checklist[table.id] || {};
     const answeredCount = Object.values(answers).filter((a: any) => a.answer !== '').length;
@@ -64,9 +64,10 @@ interface ChecklistSectionProps {
   checklist: ChecklistData;
   onChange: (data: ChecklistData) => void;
   readOnly?: boolean;
+  tables?: ChecklistTable[];
 }
 
-const ChecklistSection: React.FC<ChecklistSectionProps> = ({ checklist, onChange, readOnly = false }) => {
+const ChecklistSection: React.FC<ChecklistSectionProps> = ({ checklist, onChange, readOnly = false, tables = CHECKLIST_TABLES }) => {
   const { t, i18n } = useTranslation();
   const isKk = i18n.language === 'kk';
   const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set());
@@ -100,7 +101,7 @@ const ChecklistSection: React.FC<ChecklistSectionProps> = ({ checklist, onChange
   };
 
   const getTableProgress = (tableId: string): { answered: number; total: number } => {
-    const table = CHECKLIST_TABLES.find(t => t.id === tableId);
+    const table = tables.find(t => t.id === tableId);
     if (!table) return { answered: 0, total: 0 };
     const answers = checklist[tableId] || {};
     const answered = Object.values(answers).filter((a: any) => a.answer !== '').length;
@@ -127,7 +128,7 @@ const ChecklistSection: React.FC<ChecklistSectionProps> = ({ checklist, onChange
 
   return (
     <div className="space-y-3">
-      {CHECKLIST_TABLES.map((table) => {
+      {tables.map((table) => {
         const isExpanded = expandedTables.has(table.id);
         const progress = getTableProgress(table.id);
         const isComplete = progress.answered === progress.total && progress.total > 0;
