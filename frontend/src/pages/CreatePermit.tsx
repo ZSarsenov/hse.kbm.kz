@@ -8,6 +8,8 @@ import { ElectricalPermitFormNew } from '../components/ElectricalPermitFormNew';
 import { UserSearchSelect } from '../components/UserSearchSelect';
 import { SearchableSelect } from  "../components/SearchableSelect"
 import ChecklistSection, { ChecklistData, validateRequiredChecklists } from '../components/ChecklistSection';
+import { CHECKLIST_TABLES } from '../components/ChecklistSection';
+import { ELECTRICAL_CHECKLIST_TABLES } from '../data/electricalChecklistData';
 
 const WellMap = React.lazy(() => import('../components/WellMap').then(m => ({ default: m.WellMap })));
 
@@ -584,7 +586,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
       }
 
       // Валидация обязательных чек-листов
-      const checklistValidation = validateRequiredChecklists(checklistData);
+       const checklistValidation = validateRequiredChecklists(
+         checklistData,
+         isElectricalNew ? ELECTRICAL_CHECKLIST_TABLES : CHECKLIST_TABLES,
+       );
       if (!checklistValidation.valid) {
           alert(`❌ Не заполнены обязательные чек-листы:\n\n${checklistValidation.missing.map(m => `• ${m}`).join('\n')}\n\nОтветьте на все вопросы в обязательных чек-листах (шаг "Оценка риска").`);
           setIsSubmitting(false);
@@ -1912,11 +1917,12 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                 <p className="text-sm text-gray-500 mb-4">
                     {t('create.risk.checklistHint')} <span className="font-bold text-orange-600">"{t('create.risk.mandatory')}"</span> {t('create.risk.checklistHintEnd')}
                 </p>
-                <ChecklistSection
-                    checklist={checklistData}
-                    onChange={setChecklistData}
-                    readOnly={false}
-                />
+                 <ChecklistSection
+                     checklist={checklistData}
+                     onChange={setChecklistData}
+                     readOnly={false}
+                     tables={isElectricalNew ? ELECTRICAL_CHECKLIST_TABLES : CHECKLIST_TABLES}
+                 />
             </div>
          </div>
        )}
