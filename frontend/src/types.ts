@@ -5,6 +5,7 @@ export enum PermitStatus {
   DRAFT = 'DRAFT',
   PENDING_APPROVAL = 'PENDING_APPROVAL',
   APPROVED = 'APPROVED',
+  RENEWED = 'RENEWED',
   ACTIVE = 'ACTIVE', // Work in progress
   REJECTED = 'REJECTED',
   CLOSED = 'CLOSED',
@@ -179,6 +180,8 @@ export interface TeamMember {
   id: string;
   name: string;
   role: string;
+  safetyCategory?: string;
+  userId?: number | null;
   instructedAt: string;
   instructedBy: string;
 }
@@ -260,6 +263,16 @@ export interface RegulationFormData {
   isolationMatrix: IsolationMatrix;
   dateStart: string;
   dateEnd: string;
+  emergencyReadinessTime?: string;
+  separateInstructions?: string;
+  issuerDate?: string;
+  issuerTime?: string;
+  issuerSignature?: string;
+  issuerLastName?: string;
+  extensionDate?: string;
+  extensionTime?: string;
+  extensionSignature?: string;
+  extensionLastName?: string;
   extensions: PermitExtension[];
   completionDateTime: string;
   completionHandOverName: string;

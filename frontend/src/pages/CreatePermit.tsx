@@ -36,6 +36,23 @@ const RoleSafetyCategory: React.FC<{
   </select>
 );
 
+const BrigadeSafetyCategory: React.FC<{
+  value?: string | number;
+  onChange: (value: string) => void;
+}> = ({ value, onChange }) => (
+  <select
+    value={normalizeSafetyCategory(value) === 'V' ? '' : normalizeSafetyCategory(value)}
+    onChange={event => onChange(event.target.value)}
+    aria-label="Группа по электробезопасности члена бригады"
+    className="w-16 h-8 rounded-md border border-gray-300 bg-[#f7f7f7] px-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+  >
+    <option value="">—</option>
+    <option value="II">II</option>
+    <option value="III">III</option>
+    <option value="IV">IV</option>
+  </select>
+);
+
 export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, onSubmit, initialData }) => {
 
   const isEditing = !!initialData;
@@ -484,7 +501,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
   const addTeamMember = () => {
     const newId = (teamMembers.length + 1).toString();
     const admittingName = roles.admitting?.name || '';
-    setTeamMembers([...teamMembers, { id: newId, name: '', role: '', instructedAt: '', instructedBy: admittingName }]);
+    setTeamMembers([...teamMembers, { id: newId, name: '', role: '', safetyCategory: '', instructedAt: '', instructedBy: admittingName }]);
   };
 
   const removeTeamMember = (id: string) => {
@@ -885,6 +902,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                                 onChange={e => updateTeamMember(member.id, 'role', e.target.value)}
                                 className="w-48 bg-[#f7f7f7] border border-gray-300 rounded px-3 py-2 text-sm text-gray-900"
                                 placeholder={t('create.brigade.positionPlaceholder')}
+                              />
+                              <BrigadeSafetyCategory
+                                value={(member as any).safetyCategory}
+                                onChange={value => updateTeamMember(member.id, 'safetyCategory' as keyof TeamMember, value)}
                               />
                               <button type="button" onClick={() => removeTeamMember(member.id)}
                                 className="text-gray-400 hover:text-red-500 transition-colors p-1" title="Удалить члена бригады">
