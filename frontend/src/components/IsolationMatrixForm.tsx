@@ -1,5 +1,6 @@
 
 import React, { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Calendar,
   Settings,
@@ -32,6 +33,7 @@ interface IsolationMatrixFormProps {
 export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
   data, onChange, readOnly = false, permitId, lotoPhotoUrl, onPhotoUploaded, onFileSelected, onPhotoDeleted
 }) => {
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -73,7 +75,7 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
         if (attempt.status !== 404) break;
       }
       if (!res) {
-        setUploadError('Ошибка загрузки: не удалось выполнить запрос.');
+        setUploadError(t('electrical.loto.uploadError'));
         return;
       }
       if (res.ok) {
@@ -83,10 +85,10 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
         onPhotoUploaded?.(result.loto_photo_url);
       } else {
         const err = await res.json().catch(() => ({}));
-        setUploadError(err.error || `Ошибка загрузки: ${res.status}`);
+        setUploadError(err.error || t('electrical.loto.uploadErrorStatus', { status: res.status }));
       }
     } catch {
-      setUploadError('Ошибка соединения с сервером.');
+      setUploadError(t('electrical.loto.connectionError'));
     } finally {
       setUploading(false);
     }
@@ -98,11 +100,11 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
     if (!file) return;
     const ext = file.name.split('.').pop()?.toLowerCase();
     if (!['pdf', 'jpg', 'jpeg', 'png'].includes(ext || '')) {
-      setUploadError('Разрешены только PDF, JPG, PNG.');
+      setUploadError(t('electrical.loto.fileTypesError'));
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      setUploadError('Файл слишком большой. Максимум 10 МБ.');
+      setUploadError(t('electrical.loto.fileSizeError'));
       return;
     }
     uploadFile(file);
@@ -157,7 +159,7 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
         if (attempt.status !== 404) break;
       }
       if (!res) {
-        setUploadError('Ошибка удаления: не удалось выполнить запрос.');
+        setUploadError(t('electrical.loto.deleteError'));
         return;
       }
       if (res.ok) {
@@ -165,10 +167,10 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
         onPhotoDeleted?.();
       } else {
         const err = await res.json().catch(() => ({}));
-        setUploadError(err.error || 'Ошибка удаления');
+        setUploadError(err.error || t('electrical.loto.deleteShortError'));
       }
     } catch {
-      setUploadError('Ошибка соединения.');
+      setUploadError(t('electrical.loto.connectionError'));
     } finally {
       setUploading(false);
     }
@@ -184,29 +186,29 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
       {/* 1. Header / Context - 2 Column Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-gray-50 rounded-lg border border-gray-200">
         <div>
-           <label className={labelClass}>1. Структурное подразделение</label>
+           <label className={labelClass}>{t('electrical.loto.department')}</label>
            <input 
              type="text" 
-             value={data.department}
+              value={data.department === 'Не указано' ? t('electrical.loto.notSpecified') : data.department}
              onChange={(e) => handleChange('department', e.target.value)}
              className={inputClass}
-             placeholder="Напр. Цех добычи нефти"
+              placeholder={t('electrical.loto.departmentPlaceholder')}
              disabled={readOnly}
            />
         </div>
         <div>
-           <label className={labelClass}>Участок / Цех</label>
+            <label className={labelClass}>{t('electrical.loto.site')}</label>
            <input 
              type="text" 
              value={data.site}
              onChange={(e) => handleChange('site', e.target.value)}
              className={inputClass}
-             placeholder="Напр. Участок №2"
+              placeholder={t('electrical.loto.sitePlaceholder')}
              disabled={readOnly}
            />
         </div>
         <div>
-           <label className={labelClass}>2. Дата разработки</label>
+            <label className={labelClass}>{t('electrical.loto.dateDeveloped')}</label>
            <div className="relative">
               <input 
                 type="date" 
@@ -219,7 +221,7 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
            </div>
         </div>
         <div>
-           <label className={labelClass}>3. Дата пересмотра</label>
+            <label className={labelClass}>{t('electrical.loto.dateRevised')}</label>
            <div className="relative">
               <input 
                 type="date" 
@@ -235,24 +237,24 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
 
       {/* 2. Equipment Information */}
       <div className="p-5 bg-white rounded-lg border border-gray-200 shadow-sm">
-         <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide border-b pb-2 mb-4">Информация об оборудовании</h4>
+          <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide border-b pb-2 mb-4">{t('electrical.loto.equipmentInfo')}</h4>
          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-1">
-               <label className={labelClass}>4. Наименование оборудования</label>
+                <label className={labelClass}>{t('electrical.loto.equipmentName')}</label>
                <div className="relative">
                   <input 
                     type="text"
                     value={data.equipmentName}
                     onChange={(e) => handleChange('equipmentName', e.target.value)}
                     className={inputClass}
-                    placeholder="Насос, Компрессор..."
+                     placeholder={t('electrical.loto.equipmentPlaceholder')}
                     disabled={readOnly}
                   />
                   {!readOnly && <Settings className="absolute right-3 top-2.5 text-gray-400 w-4 h-4"/>}
                </div>
             </div>
             <div className="md:col-span-1">
-               <label className={labelClass}>5. Технологический номер (Tag)</label>
+                <label className={labelClass}>{t('electrical.loto.tag')}</label>
                <div className="relative">
                   <input 
                     type="text"
@@ -266,7 +268,7 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                </div>
             </div>
             <div className="md:col-span-1">
-               <label className={labelClass}>6. Кол-во источников энергии</label>
+                <label className={labelClass}>{t('electrical.loto.energyCount')}</label>
                <input 
                  type="number"
                  value={data.energySourceCount}
@@ -282,11 +284,11 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
       {/* 3. Isolation Details (Section B) */}
       <div className="p-5 bg-blue-50 rounded-lg border border-blue-100">
          <h4 className="text-sm font-bold text-blue-900 uppercase tracking-wide border-b border-blue-200 pb-2 mb-4">
-             7. Способ установки блокирующего устройства
+              {t('electrical.loto.lockMethod')}
          </h4>
          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
              <div>
-                <label className="block text-sm font-semibold text-blue-800 mb-1">Вид опасной энергии</label>
+                <label className="block text-sm font-semibold text-blue-800 mb-1">{t('electrical.loto.energyType')}</label>
                 <div className="relative">
                    <select 
                       value={data.energyType}
@@ -294,40 +296,40 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                       className={`w-full border border-blue-200 rounded px-3 py-2 text-base ${readOnly ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white focus:ring-1 focus:ring-blue-500'}`}
                       disabled={readOnly}
                    >
-                      <option value="">Выберите...</option>
-                      <option value="electric">Электрическая</option>
-                      <option value="mechanical">Механическая</option>
-                      <option value="hydraulic">Гидравлическая</option>
-                      <option value="pneumatic">Пневматическая</option>
-                      <option value="chemical">Химическая</option>
-                      <option value="thermal">Термическая</option>
+                       <option value="">{t('electrical.loto.choose')}</option>
+                       <option value="electric">{t('electrical.loto.electric')}</option>
+                       <option value="mechanical">{t('electrical.loto.mechanical')}</option>
+                       <option value="hydraulic">{t('electrical.loto.hydraulic')}</option>
+                       <option value="pneumatic">{t('electrical.loto.pneumatic')}</option>
+                       <option value="chemical">{t('electrical.loto.chemical')}</option>
+                       <option value="thermal">{t('electrical.loto.thermal')}</option>
                    </select>
                    {!readOnly && <Zap className="absolute right-3 top-2.5 text-blue-400 w-4 h-4 pointer-events-none"/>}
                 </div>
              </div>
              <div>
-                <label className="block text-sm font-semibold text-blue-800 mb-1">Тип блокирующего устройства</label>
+                 <label className="block text-sm font-semibold text-blue-800 mb-1">{t('electrical.loto.lockType')}</label>
                 <div className="relative">
                    <input 
                      type="text" 
                      value={data.lockType}
                      onChange={(e) => handleChange('lockType', e.target.value)}
                      className={`w-full border border-blue-200 rounded px-3 py-2 text-base ${readOnly ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white'}`}
-                     placeholder="Напр. Блокиратор вентиля"
+                      placeholder={t('electrical.loto.lockTypePlaceholder')}
                      disabled={readOnly}
                    />
                    {!readOnly && <Lock className="absolute right-3 top-2.5 text-blue-400 w-4 h-4 pointer-events-none"/>}
                 </div>
              </div>
              <div>
-                <label className="block text-sm font-semibold text-blue-800 mb-1">Место установки</label>
+                <label className="block text-sm font-semibold text-blue-800 mb-1">{t('electrical.loto.installLocation')}</label>
                 <div className="relative">
                    <input 
                      type="text" 
                      value={data.installLocation}
                      onChange={(e) => handleChange('installLocation', e.target.value)}
                      className={`w-full border border-blue-200 rounded px-3 py-2 text-base ${readOnly ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white'}`}
-                     placeholder="Напр. Щитовая №3"
+                      placeholder={t('electrical.loto.installLocationPlaceholder')}
                      disabled={readOnly}
                    />
                    {!readOnly && <MapPin className="absolute right-3 top-2.5 text-blue-400 w-4 h-4 pointer-events-none"/>}
@@ -342,7 +344,7 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
          {/* Left: Field 8 - Photo Upload */}
          <div className="p-5 bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col h-full">
             <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-3 flex items-center gap-2">
-               <ImageIcon size={16}/> 8. Фотография / Схема установки
+                <ImageIcon size={16}/> {t('electrical.loto.photoTitle')}
             </h4>
 
             {readOnly ? (
@@ -351,7 +353,7 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                       <div className="p-4">
                           {isImage ? (
                               <a href={lotoPhotoUrl} target="_blank" rel="noopener noreferrer">
-                                <img src={lotoPhotoUrl} alt="LOTO фото" className="max-w-full max-h-80 rounded-lg border border-gray-200 mx-auto" />
+                                 <img src={lotoPhotoUrl} alt={t('electrical.loto.photoTitle')} className="max-w-full max-h-80 rounded-lg border border-gray-200 mx-auto" />
                               </a>
                           ) : (
                               <a
@@ -361,7 +363,7 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                                 className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium p-4"
                               >
                                 <FileText size={24} />
-                                Открыть документ (PDF)
+                                 {t('electrical.loto.openPdf')}
                                 <ExternalLink size={14} />
                               </a>
                           )}
@@ -370,15 +372,15 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                       <div className="flex items-center justify-center p-6">
                           <div className="text-center">
                               <FileText size={48} className="text-amber-500 mx-auto mb-2"/>
-                              <p className="text-sm font-medium text-gray-700">{typeof data.photo === 'string' ? data.photo : 'Файл указан'}</p>
-                              <p className="text-xs text-amber-600 mt-1">Файл загружен до обновления системы</p>
+                               <p className="text-sm font-medium text-gray-700">{typeof data.photo === 'string' ? data.photo : t('electrical.loto.fileSpecified')}</p>
+                               <p className="text-xs text-amber-600 mt-1">{t('electrical.loto.legacyFile')}</p>
                           </div>
                       </div>
                   ) : (
                       <div className="flex items-center justify-center p-6 text-gray-400">
                           <div className="text-center">
                               <ImageIcon size={48} className="text-gray-300 mx-auto mb-2"/>
-                              <p className="text-sm font-medium text-gray-500">Изображение отсутствует</p>
+                               <p className="text-sm font-medium text-gray-500">{t('electrical.loto.imageMissing')}</p>
                           </div>
                       </div>
                   )}
@@ -388,20 +390,20 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                     {uploading ? (
                         <div className="flex-1 border-2 border-dashed border-blue-300 bg-blue-50 rounded-lg flex flex-col items-center justify-center p-6">
                             <Loader2 size={32} className="text-blue-500 animate-spin mb-2" />
-                            <p className="text-sm font-medium text-blue-700">Загрузка...</p>
+                             <p className="text-sm font-medium text-blue-700">{t('electrical.loto.loading')}</p>
                         </div>
                     ) : hasPhoto && !selectedFile ? (
                         <div className="flex-1 border border-gray-200 rounded-lg p-4">
                             {lotoPhotoUrl && isImage ? (
-                                <img src={lotoPhotoUrl} alt="LOTO фото" className="max-w-full max-h-64 rounded-lg border border-gray-200 mx-auto mb-3" />
+                                 <img src={lotoPhotoUrl} alt={t('electrical.loto.photoTitle')} className="max-w-full max-h-64 rounded-lg border border-gray-200 mx-auto mb-3" />
                             ) : lotoPhotoUrl ? (
                                 <a href={lotoPhotoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium mb-3">
-                                    <FileText size={18} /> Открыть документ <ExternalLink size={14} />
+                                     <FileText size={18} /> {t('electrical.loto.openDocument')} <ExternalLink size={14} />
                                 </a>
                             ) : (
                                 <div className="flex items-center gap-2 mb-3">
                                     <CheckSquare size={20} className="text-green-500"/>
-                                    <span className="text-sm text-gray-700">{typeof data.photo === 'string' ? data.photo : 'Файл загружен'}</span>
+                                     <span className="text-sm text-gray-700">{typeof data.photo === 'string' ? data.photo : t('electrical.loto.fileUploaded')}</span>
                                 </div>
                             )}
                             <div className="flex items-center gap-3">
@@ -409,13 +411,13 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                                     onClick={() => fileInputRef.current?.click()}
                                     className="text-xs text-blue-600 hover:text-blue-800 font-medium"
                                 >
-                                    Заменить файл
+                                     {t('electrical.loto.replace')}
                                 </button>
                                 <button
                                     onClick={deletePhoto}
                                     className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1"
                                 >
-                                    <X size={12}/> Удалить
+                                     <X size={12}/> {t('electrical.loto.delete')}
                                 </button>
                             </div>
                         </div>
@@ -430,8 +432,8 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                            onClick={() => fileInputRef.current?.click()}
                         >
                            <Upload size={32} className="text-gray-400 mx-auto mb-3"/>
-                           <p className="text-sm font-medium text-gray-700">Нажмите или перетащите фото/схему</p>
-                           <p className="text-xs text-gray-400 mt-1">JPG, PNG, PDF до 10 МБ</p>
+                            <p className="text-sm font-medium text-gray-700">{t('electrical.loto.dropFile')}</p>
+                            <p className="text-xs text-gray-400 mt-1">{t('electrical.loto.fileFormats')}</p>
                         </div>
                     )}
                     <input
@@ -447,7 +449,7 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                         </p>
                     )}
                     {!permitId && selectedFile && (
-                        <p className="text-xs text-amber-600 mt-2">Файл будет загружен после сохранения наряда.</p>
+                        <p className="text-xs text-amber-600 mt-2">{t('electrical.loto.afterSave')}</p>
                     )}
                 </div>
             )}
@@ -456,20 +458,20 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
          {/* Right: Field 9 - Procedure Checkbox Group */}
          <div className="p-5 bg-white rounded-lg border border-red-200 shadow-sm ring-1 ring-red-50">
              <h4 className="text-sm font-bold text-red-700 uppercase tracking-wide mb-3 flex items-center gap-2">
-               <AlertCircle size={16}/> 9. Порядок выполнения работ (Чек-лист)
+                <AlertCircle size={16}/> {t('electrical.loto.procedureTitle')}
             </h4>
             {!readOnly && (
                 <p className="text-xs text-gray-500 mb-4">
-                   Отметьте каждый пункт после фактического выполнения действия. Это ваша личная ответственность за безопасность.
+                    {t('electrical.loto.procedureHint')}
                 </p>
             )}
             
             <div className="space-y-3">
                {[
-                  { key: 'checkResidualEnergy', label: '9.1. Определить остаточную энергию', sub: 'Убедиться в отсутствии напряжения и давления.' },
-                  { key: 'checkLockDevice', label: '9.2. Установить блокирующее устройство', sub: 'Зафиксировать устройство в положении «Отключено».' },
-                  { key: 'checkPadlock', label: '9.3. Установить навесной замок', sub: 'Каждый работник устанавливает личный замок.' },
-                  { key: 'checkTag', label: '9.4. Установить бирку безопасности', sub: 'Указать ФИО, дату и причину блокировки.' }
+                   { key: 'checkResidualEnergy', label: t('electrical.loto.residualEnergy'), sub: t('electrical.loto.residualEnergyHint') },
+                   { key: 'checkLockDevice', label: t('electrical.loto.lockDevice'), sub: t('electrical.loto.lockDeviceHint') },
+                   { key: 'checkPadlock', label: t('electrical.loto.padlock'), sub: t('electrical.loto.padlockHint') },
+                   { key: 'checkTag', label: t('electrical.loto.safetyTag'), sub: t('electrical.loto.tagHint') }
                ].map((item) => (
                    <label key={item.key} className={`flex items-start gap-3 p-3 rounded transition-all border border-transparent ${readOnly ? 'cursor-default' : 'hover:bg-gray-50 cursor-pointer hover:border-gray-200'}`}>
                       <input 
