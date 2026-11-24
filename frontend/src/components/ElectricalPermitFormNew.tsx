@@ -1739,7 +1739,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                      <div className="flex justify-between items-center mb-4">
                         <h3 className="font-bold text-gray-900 uppercase text-sm tracking-wider flex items-center gap-2">
                            <Lock size={24} className={formData.lotoEnabled ? 'text-red-600' : 'text-gray-400'} />
-                           Процедуры блокировки и маркировки (LOTO)
+                            {t('electrical.loto.title')}
                         </h3>
                         <label className="flex items-center gap-3 cursor-pointer">
                            <div className="relative">
