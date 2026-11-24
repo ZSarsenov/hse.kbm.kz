@@ -300,8 +300,10 @@ export const ElectricalPermitForm: React.FC<Props> = ({
                         value={formData.workCategory}
                         onChange={e => updateField('workCategory', e.target.value)}
                     >
-                        <option value="">Выберите категорию...</option>
-                        {ELECTRICAL_WORK_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        <option value="">{t('electrical.ph.category')}</option>
+                        <option value="Со снятием напряжения">{t('electrical.labels.categoryVoltageRemoved')}</option>
+                        <option value="Без снятия напряжения с применением электрозащитных средств">{t('electrical.labels.categoryWithoutVoltageProtection')}</option>
+                        <option value="Без снятия напряжения на потенциале токоведущей части">{t('electrical.labels.categoryWithoutVoltageLivePart')}</option>
                     </select>
                     <ChevronDown className="absolute right-2 top-2 text-gray-400 pointer-events-none" size={16} />
                 </div>
@@ -311,7 +313,7 @@ export const ElectricalPermitForm: React.FC<Props> = ({
               <label className={labelClasses}>Тапсырма беріледі / Поручается:</label>
               <textarea 
                 className={`${inputClasses} h-24 resize-none`}
-                placeholder="Описание объема и содержания работ..."
+                 placeholder={t('electrical.ph.assignment')}
                 value={formData.assignment}
                 onChange={e => updateField('assignment', e.target.value)}
                 disabled={isReadonly}

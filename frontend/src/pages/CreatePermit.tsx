@@ -958,10 +958,10 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                         onChange={e => updateForm('workCategory', e.target.value)}
                         className={commonInputClasses}
                       >
-                        <option value="">Выберите категорию...</option>
-                        <option value="Со снятием напряжения">Со снятием напряжения</option>
-                        <option value="Без снятия напряжения с применением электрозащитных средств">Без снятия напряжения с применением электрозащитных средств</option>
-                        <option value="Без снятия напряжения на потенциале токоведущей части">Без снятия напряжения на потенциале токоведущей части</option>
+                         <option value="">{t('electrical.ph.category')}</option>
+                         <option value="Со снятием напряжения">{t('electrical.labels.categoryVoltageRemoved')}</option>
+                         <option value="Без снятия напряжения с применением электрозащитных средств">{t('electrical.labels.categoryWithoutVoltageProtection')}</option>
+                         <option value="Без снятия напряжения на потенциале токоведущей части">{t('electrical.labels.categoryWithoutVoltageLivePart')}</option>
                        </select>
                      </div>
                    )}
@@ -976,7 +976,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                           }}
                           className={`${commonInputClasses} mb-2`}
                         >
-                          <option value="">Выберите шаблон задания...</option>
+                          <option value="">{t('electrical.ph.assignmentTemplate')}</option>
                           {assignmentTemplates.map(template => (
                             <option key={template.id} value={template.id}>{template.name}</option>
                           ))}
@@ -1376,7 +1376,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                  {/* Таблица отключений/заземлений */}
                  <div>
                    <div className="flex items-center justify-between mb-3">
-                     <label className="text-sm font-semibold text-gray-700">Наименование электроустановок, в которых нужно провести отключения и установить заземления / Что должно быть отключено и где заземлено</label>
+                      <label className="text-sm font-semibold text-gray-700">{t('electrical.th.installationShort')} / {t('electrical.th.actionShort')}</label>
                       {(formData.electricalDisconnects || []).length < 20 && (
                        <button
                          type="button"
@@ -1391,8 +1391,8 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                      <table className="w-full">
                        <thead className="bg-gray-50">
                          <tr>
-                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 border-b border-gray-200 w-1/2">Наименование электроустановки</th>
-                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 border-b border-gray-200 w-1/2">Что должно быть отключено и где заземлено</th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 border-b border-gray-200 w-1/2">{t('electrical.th.installationShort')}</th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 border-b border-gray-200 w-1/2">{t('electrical.th.actionShort')}</th>
                            <th className="px-4 py-3 w-12 border-b border-gray-200"></th>
                          </tr>
                        </thead>
@@ -1408,7 +1408,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                                    const updated = (formData.electricalDisconnects || []).map((r: any) => r.id === row.id ? { ...r, installationName: e.target.value } : r);
                                    updateForm('electricalDisconnects', updated);
                                  }}
-                                 placeholder="Наименование..."
+                                  placeholder={t('electrical.ph.installation')}
                                />
                              </td>
                              <td className="p-3">
@@ -1420,7 +1420,7 @@ export const CreatePermit: React.FC<CreatePermitProps> = ({ category, onCancel, 
                                    const updated = (formData.electricalDisconnects || []).map((r: any) => r.id === row.id ? { ...r, actionRequired: e.target.value } : r);
                                    updateForm('electricalDisconnects', updated);
                                  }}
-                                 placeholder="Отключить, заземлить..."
+                                  placeholder={t('electrical.ph.action')}
                                />
                              </td>
                              <td className="p-3 text-center">
