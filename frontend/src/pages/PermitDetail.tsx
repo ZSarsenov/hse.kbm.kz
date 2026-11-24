@@ -588,7 +588,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
               <div className="flex items-start gap-3">
                 <div className="p-2 bg-white rounded-lg shadow-sm text-amber-500 shrink-0"><Clock size={20} /></div>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Период работ</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">{t('electrical.cardContent.workPeriod')}</p>
                   <p className="font-semibold text-slate-700 leading-snug">
                     {data.startDate ? data.startDate : '—'}{data.endDate ? ` — ${data.endDate}` : ''}
                   </p>
@@ -608,8 +608,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
           <div className="border-b border-gray-200 px-6 md:px-8">
             <div className="flex gap-6 overflow-x-auto">
               {[
-                { id: 'main' as const, label: 'Основное' },
-                { id: 'brigade' as const, label: 'Бригада' },
+                 { id: 'main' as const, label: t('electrical.cardTabs.main') },
+                 { id: 'brigade' as const, label: t('electrical.cardTabs.team') },
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -628,11 +628,11 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
               <div className="space-y-8">
                 {/* Описание и условия работ */}
                 <div>
-                  <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2"><FileText size={20} className="text-slate-400"/> Описание и условия работ</h3>
+                  <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2"><FileText size={20} className="text-slate-400"/> {t('electrical.cardContent.description')}</h3>
                   <div className="bg-slate-50 p-5 rounded-xl border border-slate-100 space-y-4">
-                    <div><span className="text-xs font-bold text-gray-400 uppercase">Категория работ</span><p className="text-gray-900 font-medium text-lg">{data.workCategory || '—'}</p></div>
-                    <div><span className="text-xs font-bold text-gray-400 uppercase">Поручается</span><p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{data.assignment || 'Описание отсутствует'}</p></div>
-                    <div><span className="text-xs font-bold text-gray-400 uppercase">Место проведения</span><p className="text-gray-800">{data.department || '—'}</p></div>
+                    <div><span className="text-xs font-bold text-gray-400 uppercase">{t('electrical.cardContent.workCategory')}</span><p className="text-gray-900 font-medium text-lg">{data.workCategory || '—'}</p></div>
+                    <div><span className="text-xs font-bold text-gray-400 uppercase">{t('electrical.cardContent.assignment')}</span><p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{data.assignment || t('create.risk.notFilled')}</p></div>
+                    <div><span className="text-xs font-bold text-gray-400 uppercase">{t('electrical.cardContent.workplace')}</span><p className="text-gray-800">{data.department || '—'}</p></div>
                   </div>
                 </div>
 
@@ -644,7 +644,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
                 {/* Ответственные лица */}
                 <div>
-                  <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><User size={20} className="text-slate-400"/> Ответственные лица</h3>
+                  <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><User size={20} className="text-slate-400"/> {t('electrical.cardContent.responsiblePeople')}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="p-4 border border-gray-200 rounded-lg"><span className="text-xs text-gray-400 uppercase font-bold">Выдающий наряд</span><p className="font-medium text-gray-900">{data.issuerId || '—'}</p></div>
                     <div className="p-4 border border-gray-200 rounded-lg">
@@ -1063,8 +1063,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
               <div className="flex items-start gap-3">
                 <div className="p-2 bg-white rounded-lg shadow-sm text-blue-600"><Zap size={20} /></div>
                 <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Тип наряда</p>
-                  <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200 font-medium">Работа на электроустановках</span>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">{t('electrical.cardContent.permitType')}</p>
+                  <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200 font-medium">{t('electrical.cardContent.electricalPermit')}</span>
                 </div>
               </div>
             </div>
@@ -1074,17 +1074,17 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
           <div className="border-b border-gray-200 px-6 md:px-8">
             <div className="flex gap-6 overflow-x-auto">
               {[
-                { id: 'main' as const, label: 'Основное' },
-                { id: 'team' as const, label: 'Бригада' },
-                { id: 'target_briefing' as const, label: 'Целевой инструктаж' },
-                { id: 'checklist' as const, label: 'Чек лист' },
-                { id: 'measures' as const, label: 'Меры подготовки' },
+                 { id: 'main' as const, label: t('electrical.cardTabs.main') },
+                 { id: 'team' as const, label: t('electrical.cardTabs.team') },
+                 { id: 'target_briefing' as const, label: t('electrical.cardTabs.targetBriefing') },
+                 { id: 'checklist' as const, label: t('electrical.cardTabs.checklist') },
+                 { id: 'measures' as const, label: t('electrical.cardTabs.measures') },
                 // LOTO — только если включён при создании (правила п.2: «LOTO, если требуется»)
-                ...(data.lotoEnabled ? [{ id: 'loto' as const, label: 'LOTO' }] : []),
-                { id: 'admission' as const, label: 'Разрешение на допуск' },
-                { id: 'daily' as const, label: 'Ежедневный допуск' },
-                { id: 'brigade_change' as const, label: 'Изменение бригады' },
-                { id: 'work_completion' as const, label: 'Окончание работы' },
+                 ...(data.lotoEnabled ? [{ id: 'loto' as const, label: t('electrical.cardTabs.loto') }] : []),
+                 { id: 'admission' as const, label: t('electrical.cardTabs.admission') },
+                 { id: 'daily' as const, label: t('electrical.cardTabs.daily') },
+                 { id: 'brigade_change' as const, label: t('electrical.cardTabs.brigadeChange') },
+                 { id: 'work_completion' as const, label: t('electrical.cardTabs.workCompletion') },
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -1388,18 +1388,18 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                   </div>
                 ) : (
                   <div className="text-center py-6 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200 mb-8">
-                    Таблица анализа рисков не заполнена
+                     {t('electrical.cardContent.riskTableEmpty')}
                   </div>
                 )}
 
                 <div className="flex items-center gap-2 mb-4">
                   <ClipboardList size={20} className="text-orange-500"/>
-                  <h3 className="text-lg font-bold text-slate-800">Чек-лист оценки риска</h3>
+                   <h3 className="text-lg font-bold text-slate-800">{t('electrical.cardContent.riskChecklist')}</h3>
                 </div>
                 {data.checklist && Object.keys(data.checklist).length > 0 ? (
                   <ChecklistSection checklist={data.checklist as ChecklistData} onChange={() => {}} readOnly={true} />
                 ) : (
-                  <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">Чек-лист не заполнен</div>
+                   <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">{t('electrical.cardContent.checklistEmpty')}</div>
                 )}
               </div>
             )}
@@ -1418,8 +1418,8 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
             {electricalNewTab === 'loto' && !data.lotoEnabled && (
               <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
                 <Lock size={48} className="text-gray-300 mx-auto" />
-                <h3 className="text-base font-medium text-gray-900 mt-3">LOTO не применяется</h3>
-                <p className="text-gray-500 mt-1">Для этого наряда изоляционная матрица не заполнялась.</p>
+                 <h3 className="text-base font-medium text-gray-900 mt-3">{t('electrical.cardContent.lotoOff')}</h3>
+                 <p className="text-gray-500 mt-1">{t('electrical.cardContent.lotoOffHint')}</p>
               </div>
             )}
 
@@ -1427,9 +1427,9 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
               <div className="animate-in fade-in duration-300">
                 <div className="flex items-center gap-2 mb-4">
                   <FileText size={20} className="text-violet-600"/>
-                  <h3 className="text-lg font-bold text-slate-800">Разрешение на допуск</h3>
-                  <span className="text-sm text-gray-400 ml-auto">Таблица 2</span>
-                  <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded border border-violet-200 font-medium">Заполняет: Допускающий</span>
+                  <h3 className="text-lg font-bold text-slate-800">{t('electrical.cardContent.admissionTitle')}</h3>
+                  <span className="text-sm text-gray-400 ml-auto">{t('electrical.cardContent.table2')}</span>
+                  <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded border border-violet-200 font-medium">{t('electrical.cardContent.fillsAdmitting')}</span>
                   {isAdmittingUser && (isWorkActive) && (data.admissionRows || [{}]).length < 10 && (
                     <button onClick={async () => {
                       const token = localStorage.getItem('auth_token');
@@ -1440,7 +1440,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                       });
                       onRefresh?.();
                     }} className="px-3 py-1.5 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 flex items-center gap-1">
-                      <Plus size={14}/> Добавить согласование
+                      <Plus size={14}/> {t('electrical.cardContent.addAgreement')}
                     </button>
                   )}
                 </div>
@@ -1449,19 +1449,19 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                     <thead>
                       <tr>
                         <th rowSpan={2} className="px-2 py-2 text-left font-medium text-gray-700 border border-gray-300 bg-violet-50 w-1/5 text-xs">
-                          Разрешение на подготовку рабочих мест и на допуск к работе получил
+                          {t('electrical.cardContent.permitReceived')}
                         </th>
                         <th rowSpan={2} className="px-2 py-2 text-left font-medium text-gray-700 border border-gray-300 bg-gray-50 w-24 text-xs">
                           Дата, время
                         </th>
                         <th rowSpan={2} className="px-2 py-2 text-left font-medium text-gray-700 border border-gray-300 bg-gray-50 w-1/6 text-xs">
-                          От кого (должность, фамилия)
+                          {t('electrical.cardContent.fromWhom')}
                         </th>
                         <th rowSpan={2} className="px-2 py-2 text-left font-medium text-gray-700 border border-gray-300 bg-violet-50 w-40 min-w-[160px] text-xs">
-                          Допускающий (подпись)
+                          {t('electrical.cardContent.admittingSignature')}
                         </th>
                         <th colSpan={2} className="px-2 py-2 text-center font-medium text-gray-700 border border-gray-300 bg-blue-50 text-xs">
-                          Согласования на выполнения работ в зоне действия другого наряда
+                          {t('electrical.cardContent.agreementZone')}
                         </th>
                       </tr>
                       <tr>
@@ -1469,7 +1469,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                           Дата, время
                         </th>
                         <th className="px-2 py-2 text-left font-medium text-gray-700 border border-gray-300 bg-gray-50 text-xs">
-                          Согласовано
+                          {t('electrical.cardContent.agreed')}
                         </th>
                       </tr>
                     </thead>
@@ -1658,9 +1658,9 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
               <div className="animate-in fade-in duration-300">
                 <div className="flex items-center gap-2 mb-4">
                   <ClipboardList size={20} className="text-blue-600"/>
-                  <h3 className="text-lg font-bold text-slate-800">Ежедневный допуск к работе и время ее окончания</h3>
-                  <span className="text-sm text-gray-400 ml-auto">Таблица 3</span>
-                  <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200 font-medium leading-tight">Заполняет: Допускающий /<br/>Производитель работ</span>
+                  <h3 className="text-lg font-bold text-slate-800">{t('electrical.cardContent.dailyTitle')}</h3>
+                  <span className="text-sm text-gray-400 ml-auto">{t('electrical.cardContent.table3')}</span>
+                  <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200 font-medium leading-tight">{t('electrical.cardContent.fillsDaily')}</span>
                   {(isAdmittingUser || isProducerUser) && (isWorkActive) && (
                     (data.dailyAdmissions || []).length < 10 && (
                       <button onClick={async () => {
@@ -1672,7 +1672,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                         });
                         onRefresh?.();
                       }} className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 flex items-center gap-1">
-                        <Plus size={14} /> Добавить строку
+                        <Plus size={14} /> {t('electrical.cardContent.addRow')}
                       </button>
                     )
                   )}
@@ -1681,20 +1681,20 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                   <table className="w-full text-sm border-collapse">
                     <thead>
                       <tr>
-                        <th colSpan={4} className="px-2 py-2 text-center font-medium text-gray-700 border border-gray-300 bg-blue-50 text-xs">
-                          Бригада получила целевой инструктаж и допущена на подготовленное рабочее место
+                          <th colSpan={4} className="px-2 py-2 text-center font-medium text-gray-700 border border-gray-300 bg-blue-50 text-xs">
+                          {t('electrical.th.brigadeAdmitted')}
                         </th>
                         <th colSpan={2} className="px-2 py-2 text-center font-medium text-gray-700 border border-gray-300 bg-emerald-50 text-xs">
-                          Работа закончена, бригада удалена
+                          {t('electrical.cardContent.workFinished')}
                         </th>
                       </tr>
                       <tr>
-                        <th className="px-2 py-2 text-left font-medium text-gray-700 border border-gray-300 bg-gray-50 w-1/5 text-xs">Наименование рабочего места</th>
+                        <th className="px-2 py-2 text-left font-medium text-gray-700 border border-gray-300 bg-gray-50 w-1/5 text-xs">{t('electrical.cardContent.workplaceName')}</th>
                         <th className="px-2 py-2 text-left font-medium text-gray-700 border border-gray-300 bg-gray-50 w-28 text-xs">Дата, время</th>
                         <th className="px-2 py-2 text-left font-medium text-gray-700 border border-gray-300 bg-gray-50 text-xs">Подпись допускающего</th>
-                        <th className="px-2 py-2 text-left font-medium text-gray-700 border border-gray-300 bg-gray-50 text-xs">Подпись производителя (наблюдающего)</th>
+                        <th className="px-2 py-2 text-left font-medium text-gray-700 border border-gray-300 bg-gray-50 text-xs">{t('electrical.cardContent.producerSignature')}</th>
                         <th className="px-2 py-2 text-left font-medium text-gray-700 border border-gray-300 bg-gray-50 w-28 text-xs">Дата, время</th>
-                        <th className="px-2 py-2 text-left font-medium text-gray-700 border border-gray-300 bg-gray-50 text-xs">Подпись производителя (наблюдающего)</th>
+                        <th className="px-2 py-2 text-left font-medium text-gray-700 border border-gray-300 bg-gray-50 text-xs">{t('electrical.cardContent.producerSignature')}</th>
                         {(isAdmittingUser || isProducerUser) && <th className="px-2 py-2 w-8 border border-gray-300 bg-gray-50"></th>}
                       </tr>
                     </thead>
@@ -1911,7 +1911,7 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
                       {(!data.brigadeChanges || data.brigadeChanges.length === 0) && (
                         <tr>
                           <td colSpan={5} className="px-3 py-6 text-center text-gray-400 text-xs border border-gray-300">
-                            Изменений в составе бригады не было
+                             {t('electrical.cardContent.brigadeChangesEmpty')}
                           </td>
                         </tr>
                       )}
@@ -1925,18 +1925,18 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
               <div className="animate-in fade-in duration-300">
                 <div className="flex items-center gap-2 mb-4">
                   <ClipboardList size={20} className="text-blue-600"/>
-                  <h3 className="text-lg font-bold text-slate-800">Регистрация целевого инструктажа при первичном допуске</h3>
-                  <span className="text-sm text-gray-400 ml-auto">Таблица 5</span>
+                   <h3 className="text-lg font-bold text-slate-800">{t('electrical.cardContent.targetBriefingTitle')}</h3>
+                   <span className="text-sm text-gray-400 ml-auto">{t('electrical.cardContent.table5')}</span>
                 </div>
                 <div className="overflow-x-auto border border-gray-200 rounded-lg">
                   <table className="w-full text-sm border-collapse table-fixed">
                     <thead>
                       <tr>
                         <th className="w-1/2 px-3 py-2 text-center font-medium text-gray-700 border border-gray-300 bg-blue-50 text-xs">
-                          Инструктаж провел
+                           {t('electrical.cardContent.briefingConducted')}
                         </th>
                         <th className="w-1/2 px-3 py-2 text-center font-medium text-gray-700 border border-gray-300 bg-emerald-50 text-xs">
-                          Инструктаж получил
+                           {t('electrical.cardContent.briefingReceived')}
                         </th>
                       </tr>
                     </thead>
@@ -3069,12 +3069,12 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
 
 
   const tabs = [
-    { id: 'info', label: 'Основное' },
-    { id: 'safety', label: 'Меры безопасности' },
-    { id: 'team', label: 'Бригада' },
-    { id: 'lab', label: 'Лаборант' },
-    { id: 'checklist', label: 'Чек лист' },
-    ...(data.lotoEnabled ? [{ id: 'loto', label: 'LOTO' }] : []),
+    { id: 'info', label: t('electrical.cardTabs.main') },
+    { id: 'safety', label: t('electrical.cardTabs.safety') },
+    { id: 'team', label: t('electrical.cardTabs.team') },
+    { id: 'lab', label: t('electrical.cardTabs.lab') },
+    { id: 'checklist', label: t('electrical.cardTabs.checklist') },
+    ...(data.lotoEnabled ? [{ id: 'loto', label: t('electrical.cardTabs.loto') }] : []),
   ];
 
   const renderUserName = (userObj: any, fallback: string = '—') => {
