@@ -39,6 +39,7 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
 
   const handleChange = (field: keyof IsolationMatrix, value: any) => {
     if (readOnly) return;
@@ -217,9 +218,9 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                 className={inputClass}
                 disabled={readOnly}
               />
-              <Calendar className="absolute right-3 top-2.5 text-gray-400 w-4 h-4 pointer-events-none"/>
-           </div>
-        </div>
+               <Calendar className="absolute right-3 top-2.5 text-gray-400 w-4 h-4 pointer-events-none"/>
+            </div>
+          </div>
         <div>
             <label className={labelClass}>{t('electrical.loto.dateRevised')}</label>
            <div className="relative">
@@ -234,8 +235,7 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
            </div>
         </div>
       </div>
-
-      {/* 2. Equipment Information */}
+       {/* 2. Equipment Information */}
       <div className="p-5 bg-white rounded-lg border border-gray-200 shadow-sm">
           <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide border-b pb-2 mb-4">{t('electrical.loto.equipmentInfo')}</h4>
          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -351,10 +351,10 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
                   {lotoPhotoUrl ? (
                       <div className="p-4">
-                          {isImage ? (
-                              <a href={lotoPhotoUrl} target="_blank" rel="noopener noreferrer">
-                                 <img src={lotoPhotoUrl} alt={t('electrical.loto.photoTitle')} className="max-w-full max-h-80 rounded-lg border border-gray-200 mx-auto" />
-                              </a>
+                           {isImage ? (
+                               <button type="button" onClick={() => setPhotoPreviewOpen(true)} className="block mx-auto cursor-pointer">
+                                  <img src={lotoPhotoUrl} alt={t('electrical.loto.photoTitle')} className="max-w-full max-h-80 rounded-lg border border-gray-200 hover:opacity-90" />
+                               </button>
                           ) : (
                               <a
                                 href={lotoPhotoUrl}
@@ -395,7 +395,9 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                     ) : hasPhoto && !selectedFile ? (
                         <div className="flex-1 border border-gray-200 rounded-lg p-4">
                             {lotoPhotoUrl && isImage ? (
-                                 <img src={lotoPhotoUrl} alt={t('electrical.loto.photoTitle')} className="max-w-full max-h-64 rounded-lg border border-gray-200 mx-auto mb-3" />
+                                 <button type="button" onClick={() => setPhotoPreviewOpen(true)} className="block mx-auto cursor-pointer">
+                                   <img src={lotoPhotoUrl} alt={t('electrical.loto.photoTitle')} className="max-w-full max-h-64 rounded-lg border border-gray-200 mx-auto mb-3 hover:opacity-90" />
+                                 </button>
                             ) : lotoPhotoUrl ? (
                                 <a href={lotoPhotoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium mb-3">
                                      <FileText size={18} /> {t('electrical.loto.openDocument')} <ExternalLink size={14} />
@@ -413,14 +415,14 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                                 >
                                      {t('electrical.loto.replace')}
                                 </button>
-                                <button
-                                    onClick={deletePhoto}
+                                 <button
+                                     onClick={deletePhoto}
                                     className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1"
                                 >
-                                     <X size={12}/> {t('electrical.loto.delete')}
-                                </button>
-                            </div>
-                        </div>
+                                      <X size={12}/> {t('electrical.loto.delete')}
+                                 </button>
+                             </div>
+                         </div>
                     ) : (
                         <div
                            className={`flex-1 border-2 border-dashed rounded-lg flex flex-col items-center justify-center p-6 transition-colors cursor-pointer
@@ -434,7 +436,7 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                            <Upload size={32} className="text-gray-400 mx-auto mb-3"/>
                             <p className="text-sm font-medium text-gray-700">{t('electrical.loto.dropFile')}</p>
                             <p className="text-xs text-gray-400 mt-1">{t('electrical.loto.fileFormats')}</p>
-                        </div>
+        </div>
                     )}
                     <input
                        ref={fileInputRef}
@@ -448,12 +450,12 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                             <AlertCircle size={12}/> {uploadError}
                         </p>
                     )}
-                    {!permitId && selectedFile && (
-                        <p className="text-xs text-amber-600 mt-2">{t('electrical.loto.afterSave')}</p>
-                    )}
-                </div>
-            )}
-         </div>
+                     {!permitId && selectedFile && (
+                         <p className="text-xs text-amber-600 mt-2">{t('electrical.loto.afterSave')}</p>
+                      )}
+                  </div>
+             )}
+          </div>
 
          {/* Right: Field 9 - Procedure Checkbox Group */}
          <div className="p-5 bg-white rounded-lg border border-red-200 shadow-sm ring-1 ring-red-50">
@@ -486,10 +488,33 @@ export const IsolationMatrixForm: React.FC<IsolationMatrixFormProps> = ({
                          <span className="text-xs text-gray-500">{item.sub}</span>
                       </div>
                    </label>
-               ))}
-            </div>
+                ))}
+             </div>
+          </div>
+       </div>
+       {photoPreviewOpen && lotoPhotoUrl && (
+         <div
+           className="fixed inset-0 z-[130] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4"
+           onClick={() => setPhotoPreviewOpen(false)}
+         >
+           <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+             <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+               <span className="font-bold text-slate-800 text-sm">{t('electrical.loto.photoTitle')}</span>
+               <button type="button" onClick={() => setPhotoPreviewOpen(false)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                 <X size={22} />
+               </button>
+             </div>
+             <div className="p-4 overflow-auto flex justify-center bg-slate-50">
+               <img src={lotoPhotoUrl} alt={t('electrical.loto.photoTitle')} className="max-w-full max-h-[70vh] object-contain rounded" />
+             </div>
+             <div className="px-5 py-3 border-t border-gray-100 flex justify-end">
+               <button type="button" onClick={() => setPhotoPreviewOpen(false)} className="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300">
+                 {t('electrical.loto.close')}
+               </button>
+             </div>
+           </div>
          </div>
-      </div>
-    </div>
+       )}
+     </div>
   );
 };
