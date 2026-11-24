@@ -1717,7 +1717,7 @@ export const ElectricalPermitFormNew: React.FC<Props> = ({
                      updateField('riskTable', updated);
                   }}
                   // General info
-                  workPlace={formData.assignment || 'Не указано'}
+                   workPlace={formData.assignment || t('create.risk.notSpecified')}
                   organization={formData.organization || 'АО "Каражанбасмунай"'}
                   content={formData.assignment || 'Не заполнено'}
                   // Participants
