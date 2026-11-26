@@ -1888,7 +1888,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
         from datetime import datetime as _dt
 
         kz_tz = ZoneInfo('Asia/Almaty')
-        template_path = os.path.join(settings.BASE_DIR, 'templates', 'docx', 'electrical_permit_rus_kk.docx')
+        template_path = os.path.join(settings.BASE_DIR, 'templates', 'docx', 'electrical_permit.docx')
         if not os.path.exists(template_path):
             return None
         doc = DocxTemplate(template_path)
@@ -1985,11 +1985,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
                 if group:
                     parts.append(f'гр. {group}')
                 brigade_lines.append(' '.join(parts))
-        if len(brigade_lines) > 3 and len(raw_team) > 4:
-            rest = len(brigade_lines) - 3
-            brigade_lines = brigade_lines[:3] + [f'и ещё {rest} чел. (полный список в системе)']
-        while len(brigade_lines) < 4:
-            brigade_lines.append('')
+        # Полный список выводится циклом в DOCX-шаблоне, без ограничения четырьмя строками.
 
         assignment = (data.get('content') or data.get('assignment') or '').strip()
         assignment_lines = split_lines(assignment, 3)
@@ -2149,10 +2145,7 @@ class WorkPermitViewSet(viewsets.ModelViewSet):
             'admitting_name': display_role(admitting_p, 'admitting'),
             'producer_name': display_role(producer_p, 'producer'),
             'observer_name': observer_name,
-            'brigade_line1': brigade_lines[0],
-            'brigade_line2': brigade_lines[1],
-            'brigade_line3': brigade_lines[2],
-            'brigade_line4': brigade_lines[3],
+            'brigade_member_lines': brigade_lines,
             'work_category': (data.get('workCategory') or '').strip(),
             'assignment_line1': assignment_lines[0],
             'assignment_line2': assignment_lines[1],

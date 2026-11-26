@@ -496,6 +496,32 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   // Показывать кнопку скачивания: согласован/закрыт, или администратор видит всё
   const showDownload = permit.status === 'APPROVED' || permit.status === 'CLOSED' || permit.status === 'ARCHIVED';
 
+  // Электронный наряд скачивается как PDF, с fallback на DOCX при отсутствии LibreOffice.
+  const handleDownloadPdf = async () => {
+    try {
+      const response = await fetch(`/api/v1/permits/${permit.id}/download_docx/`, {
+        headers: { 'Authorization': `Token ${localStorage.getItem('auth_token')}` },
+      });
+      if (!response.ok) {
+        alert('Ошибка при скачивании документа.');
+        return;
+      }
+      const blob = await response.blob();
+      const ext = (response.headers.get('Content-Type') || '').includes('application/pdf') ? 'pdf' : 'docx';
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Наряд_${permit.permitId}.${ext}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Ошибка сети при скачивании.');
+    }
+  };
+
 
   const [signingMemberIndex, setSigningMemberIndex] = useState<number | null>(null);
   const [producerPadOpen, setProducerPadOpen] = useState(false);
@@ -566,7 +592,13 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
               <span className="text-sm font-mono text-slate-400">#{permit.permitId}</span>
             </div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-slate-900 leading-tight">Наряд на электроустановках</h1>
+               <h1 className="text-3xl font-bold text-slate-900 leading-tight">Наряд на электроустановках</h1>
+               {permit.status === 'CLOSED' && (
+                 <button onClick={handleDownloadPdf} className="ml-auto p-2.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-2 font-medium" title="Скачать наряд">
+                   <Download size={20} />
+                   <span className="hidden sm:inline">Скачать наряд</span>
+                 </button>
+               )}
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-blue-100 text-blue-700 border-blue-200">
                 <Zap size={12}/> Электроустановки
               </span>
@@ -1029,7 +1061,13 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
               <span className="text-sm font-mono text-slate-400">#{permit.permitId}</span>
             </div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-slate-900 leading-tight">Работа на электроустановках</h1>
+               <h1 className="text-3xl font-bold text-slate-900 leading-tight">Работа на электроустановках</h1>
+               {permit.status === 'CLOSED' && (
+                 <button onClick={handleDownloadPdf} className="ml-auto p-2.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-2 font-medium" title="Скачать наряд">
+                   <Download size={20} />
+                   <span className="hidden sm:inline">Скачать наряд</span>
+                 </button>
+               )}
             </div>
             <div className="flex items-center gap-2 text-slate-600 mt-2">
               <MapPin size={18} className="text-indigo-500" />
@@ -2727,38 +2765,6 @@ export const PermitDetail: React.FC<PermitDetailProps> = ({ permit, onBack, onEd
   const [producerClosePadOpen, setProducerClosePadOpen] = useState(false);
 
   // --- HANDLERS ---
-
-// Скачивание наряда (сервер отдаёт PDF, при недоступности LibreOffice — DOCX)
-  const handleDownloadPdf = async () => {
-      try {
-          const response = await fetch(`/api/v1/permits/${permit.id}/download_docx/`, {
-              method: 'GET',
-              headers: {
-                  'Authorization': `Token ${localStorage.getItem('auth_token')}`,
-              },
-          });
-
-          if (response.ok) {
-              const blob = await response.blob();
-              const contentType = response.headers.get('Content-Type') || '';
-              const isPdf = contentType.includes('application/pdf');
-              const ext = isPdf ? 'pdf' : 'docx';
-              const url = window.URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `Наряд_${permit.permitId}.${ext}`;
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-              window.URL.revokeObjectURL(url);
-          } else {
-              alert("Ошибка при скачивании документа.");
-          }
-      } catch (error) {
-          console.error("Download error:", error);
-          alert("Ошибка сети при скачивании.");
-      }
-  };
 
   const handleSubmitForApproval = async () => {
     try {
